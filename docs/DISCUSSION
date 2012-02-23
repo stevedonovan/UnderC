@@ -1,0 +1,152 @@
+UnderC developer's Documentation
+
+Steve Donovan
+December, 2001
+
+1. Rationale
+
+UC is a translator which converts a reasonably useful subset of C++ into pcode, which runs on a virtual stack machine.  It is not a true compiler only because the code generated is not persistent;  performance is quite adequate for most purposes.
+
+Unlike most translators of C++, it works in an interactive or 'conversational' mode, in the BASIC or LISP tradition.  This has certain interesting design consequences which I will deal with as they come up;  the basic difference is that in a traditional batch compiler, one aims to keep the compiler going as long as possible, but in an interactive system the aim is to keep the runtime going.  If UC encounters an error, it immediately stops attempting to compile that file.  In our experience the long lists of increasingly irrelevant error messages produced by a simple typo are distinctly alienating to the user, particularly when typical recompilation is taking less than 300 ms (below which threshold a compilation may be considered instantaneous, at least for humans).  On the other hand, the system has to handle any possible corruptions of the run-time system in a graceful way.
+
+The advantages of the conversational mode are many, particularly when the user is first exploring a system.  This enhances producitivity in both beginners and experienced programmers (the classic example is how productive people are using odd languages like LISP or even APL!).  There is no appreciable gap between command and response, and so a genuine human-machine dialogue can develop.  Debugging is much improved because one has constantly got the full capabilities of the language available (traditional debugging facilities like breakpoints are also available and are complementary to interactive mode - I'm thinking here about Visual Basic with its immediate window). For example, modern C++ often uses the STL iterator idiom, in which we access the current list item by an expression which _looks_ rather like a pointer expression - *pi, etc.  In the conventional C++ tools I use it is not possible to evaluate this expression while debugging, since the debugging only has access to a very restricted subset of the language.  Which has the consequence that people are penalized for using the latest and more expressive features of the language. 
+
+2. Basic Execution Model
+
+The source code is pulled in through the combined preprocessor/tokenizer subsystem, and analyzed with a YACC-style grammar. An expression like 'a + 2*b' is converted to an internal LISP-like form (+ a (* 2 b)), which is encoded as stack machine instructions, like so:
+	PUSH a
+	PUSH 2
+	PUSH b
+	MUL
+	ADD
+which should be familar to those souls used to HP reverse polish.
+
+Each instruction is 32 bits, which makes life easier and arguably more efficient on 32-bit architectures.  The first byte of the instruction is the actual opcode (PUSH), the next two bits are the address mode, and the 22bits left are (optional) data.  The address modes are NONE, DIRECT, SREL and OREL.
+
+* SREL is 'stack relative' and is exactly how automatic stack variables are done in 80x86 code; the routine sets up a stack frame and then the data field address is the offset (in doublewords) from the base pointer.
+
+* DIRECT means 'direct addressing' which is a misnomer, because data is now an _22-bit offset_ into a fixed data segment.  Constants are encoded just like const variables. The 'data segment' is currently a statically allocated block, which is obviously going to run out at some point;  however, since we only deal with _offsets_ it would be easy to reallocate and relocate the data segment.  It is entirely possible to work with true 32-bit addresses via dynamically allocated pointers;  there are no Java-style restrictions.  
+
+* The OREL mode has no equivalence in 80x86 coding - it is 'object relative'.  There is an object-pointer stack, and OREL data is an offset into the current object pointer.  So if we had a structure p with two integers x & y, then accessing y would look like this:
+   LOS p            ; load object pointer stack
+   PUSHI OREL 4     ; load int at 4 bytes into the object
+   DOS              ; drop object stack.
+This might seem a potentially inefficient way of accessing member fields, but its true power comes within the body of methods; calling a method m of p (p->m()) would also be;
+   LOS p
+   CALL m
+   DOS
+So any references to fields within methods can be simply encoded, since the object is guaranteed to be top of the object stack.
+
+Functions are referenced indirectly;  CALL carries a DIRECT reference to an FBlock structure, which carries useful information about how many local variables, etc this function has, and an actual pointer to the code itself. This extra indirection has no discernable effect on execution speed and has a most useful consequence:  there is no link phase, when code is patched up with the actual addresses of called routines.  It is possible to redefine a function, without the caller having to be recompiled or relinked.
+
+SREL gives us basic support for structures; there are instructions which conveniently set up and use class VMTs (virtual method tables). This magic is accomplished by each object with virtual methods having a 'hidden pointer' to a VMT; each virtual method is just an _index_ (usually called a _slot_) into the VMT.  All objects of the same class share the same VMT.  There is no real consensus on where the hidden pointer should be;  I have hidden it _before_ the actual fields.  Every declaration of an object with virtual methods will have an extra four bytes allocated, and it will be shifted along by four bytes in that block. This actually turns out to be a good representation, because of the need to preserve _imported_ classes, which tend to put their VMTs elsewhere. I will discuss this in the next section.
+
+The first entry in the VMT is not a method but the _class object pointer_, which is the internal representation of the class; a pointer
+to a Class object.
+
+Currently UC only supports single inheritance and there are no
+immediate plans to extend this.
+
+Contexts
+
+There are basically three kinds of contexts in which symbols can be looked up:  namespaces (particularly global), classes, and local contexts associated with functions. These correspond to the address modes DIRECT, OREL and SREL respectively, but obviously this default can be overriden by the _static_ attribute, which makes the reference DIRECT.  (Thus there is a distinction between the symbol context and the allocating context)  The basic implementation is straightforward; all contexts except the global one have enclosing contexts;  if a symbol cannot be resolved in the current context, we look up in the 'parent' context, and so on.  The using declaration makes a copy of an entry from another context and inserts it into the current context; the using directive _injects_ a whole namespace into the context.  So each context keeps a list (mostly empty) of injected namespaces.
+
+Cleaning Operations in Interactive Mode
+
+To support interactive mode, it is possible to redefine classes and functions in a way which would strictly be a C++ error.  This means that providing one doesn't actually change the existing interface one can recompile a class without having to recompile its clients. Some consequences of a 'permanent compile context' must be managed.  We keep a list of Module objects, which (among other things of interest to source browsers and debuggers) contain lists of macros and type names defined in that module.  Common practice is to use conditional compilation to prevent a header's contents included twice:
+    #ifndef __BONZO_H
+    #define __BONZO_H
+     ...
+So the _load command_ (#l) explicitly removes all macros defined in the module before loading it, as well as any typedefs.  (We need to do this because e.g. 'typedef unsigned int uint' is grammatically invalid if uint is already a typename; it would be possible to work around this with some difficulty). (This is the first difference between #l and #include).
+
+It is particularly important to control namespace pollution. The classic problem is this: someone loads a standard header and says 'using namespace std'.  From there on all items in the std namespace are available as if they were global (in UC at least, any _subsequent_ std items introduced as well).  Generally the UC philosophy is to do this by default in interactive mode (the dangers of namespace collision are somewhat overdramatized) but this should not happen with any module loaded.  We thus save the 'injection state' of all namespaces currently loaded before loading with #l, and restore this afterwards.  The tricky bit is ensuring that any entries injected with the using declaration are taken out and later put back in. (This is the second difference).
+
+Importing Functions
+
+There are two categories of imported functions: 'builtin' functions which are used to define intrinsic functions like 'printf', and functions imported from DLLs (Dynamic Link Library).  As the name suggests, the latter are more general and can be used to import any C routine at runtime.  Builtin functions are currently defined in directcall.cpp and are a quick & easy way to customize UC:
+
+ add(Sig(t_char_ptr) << t_char_ptr << t_char_ptr,
+     "strstr",(CALLFN)&strstr);
+
+Imported functions are implemented by a 'pcode stub', which does the actual call to native code.  The use of the pcode stub means that all functions are _similar beasts_;  I can pass the address of cos() to a UC routine and not worry about whether it is imported or not.
+
+It is possible to import whole _classes_ from DLLs, although currently I am only supporting MSVC++ 6.0.  Unlike plain 'extern "C"' exports, C++ names are _mangled_ according to a proprietary scheme.  This has been hacked to handle most commonly needed cases.  The case of importing classes with _virtual methods_ is most interesting; these objects will have a MS VMT (they tend to call it a 'vtable') pointer at zero offset into the object.  If we want to implement true virtual methods, so that the DLL can call our overrided methods, we need to populate the vtable appropriately with 'native stubs', which are small 80x86 routines which call the UC stack engine.  Such classes then have a dual interface, both for UC clients and for imported code.
+
+This is obviously still experimental, although I have managed to do it for a non-trivial class library (The Visualization Toolkit, vs 1.0). Essentially it is only intended to import class libraries that use pointer semantics rather than value semantics. The implementation-dependent business of passing and returning objects by value and not by reference is not handled yet.
+
+3. Object Semantics
+
+3.1 Disposing of Automatic objects
+
+C++ in effect guarantees that any object created on the function stack will _always_ be destroyed, _however_ we exit that function.  The solution I've adopted is the creation of a ODS (Object Destruction Stack). As objects are created, they are pushed onto the ODS; at the end of the routine or block they are popped from the ODS and their destructors executed.
+
+This gives us a straightforward solution to the specific problem, which can also handle the general problem of 'unwinding the stack' during exception handling.  Currently it means that any class with a destructor needs a VMT, so that we can pick up the destructor from the class object.  
+
+We have a situation like so:
+  void bonzo() {
+    A a1;
+    ...
+     { A a2;
+      ...
+      ...return;
+      ...
+     }
+  }
+No matter how one leaves this routine, a1 & a2 must be destroyed, even if we return from the middle of a block. The UC coding is like this:
+   LOS a1          ; load OS w/ address of a1
+   CCALL A::A__    ; call constructor & set hidden VMT ptr
+   TOSD 0          ; drop OS & put the obj ptr onto the ODS
+   ....
+   ....
+   UNWIND a1
+   RET
+Each construction of an object pushes an object pointer onto the ODS, which is cleared by UNWIND, up to & including the specified object. No matter how we get to this instruction, it will ensure that the local stack is properly unwound.       
+        
+ 
+3.2 Passing and returning object values
+
+Obviously passing a reference to an object involves just passing its address on the stack, but passing a (possibly) large object always involves copying.  The UC solution is to pass the object by reference, but use it to initialize a proper local object - so
+
+  void pass_obj(T obj)
+   =>
+  void pass_obj(T& $1) { 
+    T obj = $1; ...
+
+Returning objects requires a similar trick, except that the initialization takes place on return.  We pass a temporary object reference, (as yet unconstructed) as a hidden first argument.  When return is encountered, this object is constructed using the returned expression as argument.
+
+3.3 Temporary objects
+
+The last example shows one case where temporary objects are needed. Another common case is when we can match an object function argument by  using a constructor to do the conversion.  If I have void f(string) and try to call it using f("fred"), then we have to construct a temporary string and pass its reference to f().  After the function has returned, the temporary object must be destroyed, but not before it has been (optionally) used!  We have a temporary context (which is a kind of local context) which is used if an expression statement requires temporaries;  at the end of that expression statement we clean up. This allows something like 's = string("help")' to work;  the temporary returned by string() is not destroyed until after the assignment to s has taken place.
+
+Difficulties happen when temporaries occur in initializations, such as 'string s1 = string("yelp"), s2 = string("eh");'. This is a silly example, of course, because string does have a constructor expecting char *, but it  is perfectly valid and illustrates the problem which I encountered. 
+
+
+Some tricky synchronization is needed to keep the temporary context in line with the allocating context.  Unless I have missed something, it seems impossible to get away with one ODS;  there is in fact also the temporary ODS. Hence you will see TOSD 0 and TOSD 1, and UNWIND/TUNWIND.
+
+4 Exception Handling
+
+The basic challenge in exception handling is not to make the 'non-local' jump to some catch block, but to ensure that any constructed objects have been properly disposed of. The ODS again provides an elegant solution. In the try block, we create a hidden object of a particular constructed type.  There is then an entry on the ODS corresponding to this object, distinguished by its class type. Each subsequent catch block adds an entry to this object. When an exception is thrown, we look through the ODS for that distinctive VMT, pick up the list of catch blocks and match the thrown type with the catch block type. If there is no hit, we keep going until either we find a catch that matches or the ODS is empty, in which case the exception is uncaught.  Once a catch block is found, then we just have to drop & process the ODS upto that point to properly unwind the stack. The function context can then be restored and things can continue. The other advantage of this scheme is that one can immediately ascertain whether an exception is going to be caught, and deal with it appropriately. Generally people like to be shown where uncaught exceptions happened, but often like gracefully handled exceptions to be silent.
+
+Implementing throw:  if it is a basic type or object pointer, then fine. If not, we treat it as if it were a dynamic allocation.  That is, 'throw string("help")' is treated like 'throw new string("help")'.
+
+5. Module and Dependency Management (module.cpp)
+
+The UCW environment maintains a list of all loaded modules, defined
+as C++ source or header files. These are defined by their name,
+last modified time, and manage lists of function entries, 
+typenames, and dependencies.  	
+
+The issue for UCW is managing to keep a compilation session going as long as possible. When a file is reloaded, classes and functions will be redefined (but always keeping the old entries, so that any references remain valid). There are various cleaning-out tasks that need to be done. 
+
+6. The Grammar
+
+Yes, I know the grammar is stressed, but it was the first serious grammar
+I wrote! No doubt it can and will be improved. I was certainly not striving
+for the most elegant solution possible - it's a very permissive grammar which
+permits illegal C++ constructions. However, these are considered _semantic_
+errors (for instance, you cannot initialize a non-static constant in a class
+body) rather than _syntactical_ errors. Some of the lexical tie-ins are 
+pretty hairy.  The lexer (see lexer.cpp) has to distinguish between type names
+found in declarations (TYPENAME) and type names found in expressions
+(TYPENAME_FUNCTION). A certain amount of cheating is necessary at this point.
+

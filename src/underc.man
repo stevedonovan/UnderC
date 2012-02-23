@@ -1,0 +1,38 @@
+.TH UNDERC 1 "30 November 2002"
+.SH NAME
+UCC \- Invoke UnderC C++ interpreter
+.SH SYNOPSIS
+\fBucc\fP [-P -W -i] [-H \fIhome\fP -I \fIinclude_dir\fP -D \fImacro_defn\fP ] \fIsource\fP
+.SH DESCRIPTION
+UnderC is a compact and interactive C++ interpreter which handles a useful
+subset of the standard, including templates. 'Pocket' versions of standard 
+library classes like string, iostreams, vector, list, etc are available.
+.SS OPTIONS
+.TP
+\fB-P\fP
+Switch on pointer checking
+.TP
+\fB-W\fP
+Suppress linker warnings
+.TP
+\fB-i\fP
+Force interactive mode if there are also source files
+.TP
+\fB-H\fP
+Force a different home directory
+.TP
+\fB-I\fP
+Add a new include directory
+.TP
+\fB-D\fP
+Define a preprocessor macro
+.SH FILES
+whatever
+
+
+
+
+				   
+
+
+
