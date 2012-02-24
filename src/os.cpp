@@ -46,14 +46,14 @@ void *get_proc_address(Handle h, const char *name)
  // *add 1.2.5 imp file may contain _absolute_ addresses
     if (Builtin::using_ordinal_lookup()) {
         int ordn = Builtin::lookup_ordinal(name);
-        if (ordn!=0) {	  
+        if (ordn!=0) {
           if (Builtin::lookup_is_ordinal())
 	         name = (const char *)ordn;
   // and pass through
 	      else return (void *)ordn;
 	}
     }
-    return GetProcAddress((HINSTANCE)h,name);
+    return (void*)GetProcAddress((HINSTANCE)h,name);
 }
 
 Handle get_process_handle()
@@ -81,7 +81,7 @@ long get_file_time(const char *filename)
  return st.st_mtime;
 }
 
-// *ch 1.2.9 patch 
+// *ch 1.2.9 patch
 #ifdef __BEOS__
 #include <OS.h>
 #include <image.h>
@@ -170,10 +170,10 @@ void *get_proc_address(Handle h, const char *name)
   // absolute addresses.
  if (Builtin::using_ordinal_lookup()) {
    int ordn = Builtin::lookup_ordinal(name);
-   if (ordn!=0) {	  
-     return (void *)ordn;	  
+   if (ordn!=0) {
+     return (void *)ordn;
    }
-  } 
+  }
  return dlsym(h,name);
 }
 
@@ -181,4 +181,4 @@ void *get_proc_address(Handle h, const char *name)
 
 #endif /* _WIN32 */
 
- 
+

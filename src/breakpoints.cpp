@@ -12,6 +12,7 @@
 #include "tokens.h"
 #include "std_utils.h"
 #include "os.h"
+#include <cstring>
 // for remove_if()
 #include <ctype.h>
 #include <algorithm>
@@ -61,15 +62,15 @@ Module::function_from_file(const string& file, int lineno)
     return pm->function_at(lineno);
   }
 
- 
+
   Function *
   Module::function_at(int lineno)
-  {  
+  {
     ModuleEntryList::iterator meli;
     FORALL(meli,m_entry_list)
       if (meli->type()==FUNCTION && meli->contains(lineno))
 		  return meli->function();
-    return NULL;         
+    return NULL;
   }
 
   Module *
@@ -89,7 +90,7 @@ Module::function_from_file(const string& file, int lineno)
   bool is_equal(const string& s1, const string& s2)
   //*shouldn't be case sensitive for Win32....
   {
-    return _stricmp(s1.c_str(),s2.c_str()) == 0;
+    return stricmp(s1.c_str(),s2.c_str()) == 0;
   }
 #endif
 
@@ -101,10 +102,10 @@ Module::function_from_file(const string& file, int lineno)
 
   Module *
   Module::from_name(const string& file) {
-  
+
     ModuleList::iterator mli;
     FORALL(mli, mg_module_list)
-     if (is_equal((*mli)->name(),(string&)file)) return *mli; 
+     if (is_equal((*mli)->name(),(string&)file)) return *mli;
     return NULL;
   }
 
@@ -142,7 +143,7 @@ Module::function_from_file(const string& file, int lineno)
            file = pm->name();
            return meli->lstart();
         }
-    }  
+    }
     return 0;  // meaning, no can do.
   }
 
@@ -157,7 +158,7 @@ Module::function_from_file(const string& file, int lineno)
   {
 // *fix 1.2.3 Keep the namespace list entries unique...
       NamespaceEntryList::iterator neli;
-      FORALL(neli,mg_nspace_entry_list) 
+      FORALL(neli,mg_nspace_entry_list)
           if (neli->nspace == ns) return;
 
       NamespaceEntry ne;
@@ -176,19 +177,19 @@ Module::function_from_file(const string& file, int lineno)
      // *add 0.9.4 Global Namespace only cleaned out in strict mode
      // *gets rid of hard-to-explain 'using namespace std'!
      if (!Parser::debug.strict && nspace->name()=="$G$") continue;
-     // note: InjectState::clone() will return NULL if the 
+     // note: InjectState::clone() will return NULL if the
      // state was _trivial_.  We save a copy because clean()
      // will also clear out the injection state.
-     if (do_save) neli->istate = nspace->inject_state()->clone(); 
+     if (do_save) neli->istate = nspace->inject_state()->clone();
      nspace->clean();
-   }     
+   }
   }
 
   void
   Module::restore_namespaces()
   {
   // get everything back to the clean state (the loaded module
-  // may well have messed with the namespaces) But don't interfere 
+  // may well have messed with the namespaces) But don't interfere
   // with previously save state!
    clean_namespaces(false);
   // and restore ourselves to the (presumably) messed state
@@ -205,7 +206,7 @@ Module::function_from_file(const string& file, int lineno)
   }
 
 
-  void 
+  void
   Module::dump_entries(std::ostream& os, int flags)
   {
     ModuleList::iterator mli;
@@ -213,7 +214,7 @@ Module::function_from_file(const string& file, int lineno)
       Module *pm = *mli;
       pm->dump(os,0);
     }
-  } 
+  }
 
   void Module::dump(std::ostream& os, int flags)
   {
@@ -255,7 +256,7 @@ Module::function_from_file(const string& file, int lineno)
   {
     entry_iterator ei = find(me.object());
     if (ei != entry_end()) *ei = me;
-    else m_entry_list.push_back(me); 
+    else m_entry_list.push_back(me);
   }
 
  void
@@ -299,7 +300,7 @@ Module::function_from_file(const string& file, int lineno)
  }
 
   static bool was_typedef(PEntry pe)
-  { 
+  {
   // *fix 0.9.4 Both typedef and enum symbols must be cleaned out
   // (otherwise they cause syntax errors when recompiled)
     if (pe->is_typedef() || pe->type.is_enum()) {
@@ -336,7 +337,7 @@ Module::function_from_file(const string& file, int lineno)
    } else {
      if (trace) cmsg << "unchanged " << name() << std::endl;
      return false;
-   }   
+   }
   }
 
   bool
@@ -355,7 +356,7 @@ Module::function_from_file(const string& file, int lineno)
      check = (*mli)->needs_rebuilding();
      changed = changed || check;
    }
-   
+
    return changed;
   }
 
@@ -366,7 +367,7 @@ Module::function_from_file(const string& file, int lineno)
    m_visited = false;
    ModuleList::iterator mli;
    FORALL(mli,m_dependencies) {
-     (*mli)->m_modified = false;   
+     (*mli)->m_modified = false;
      (*mli)->m_visited = false;
    }
   }
@@ -385,8 +386,8 @@ Module::function_from_file(const string& file, int lineno)
   Instruction *ip_at_line(Function *pf, int lineno)
   {
      int ip = pf->line_nos()->lookup_ip(lineno);
-     Instruction *ip_ptr = ip + pf->fun_block()->pstart;  
-     // NB that our instruction does actually have a successor; 
+     Instruction *ip_ptr = ip + pf->fun_block()->pstart;
+     // NB that our instruction does actually have a successor;
      // this checks to see that we aren't the last instruction in the routine...
      // in general, we have to avoid _any_ instruction which can divert flow of control!
      if ((ip_ptr+1)->opcode == 0) ip_ptr--;
@@ -394,7 +395,7 @@ Module::function_from_file(const string& file, int lineno)
      return ip_ptr;
   }
 
-  
+
   Breakpoint::Breakpoint(int id, bool persist, Function *pf, int lineno)
  : m_id(id),m_line(lineno),m_pf(pf), m_persistent(persist), m_paused(false), m_set(false)
   {
@@ -407,11 +408,11 @@ Module::function_from_file(const string& file, int lineno)
     Function *pf = Module::function_from_file(filename,lineno);
     if (pf == NULL) return NULL;  // didn't succeed....
 
-    //...find an id 
+    //...find an id
     int i;
     for(i = 0; i < MAX_BREAKPOINTS; i++)
-      if (mg_bkpr_arr[i] == NULL) break; 
-     
+      if (mg_bkpr_arr[i] == NULL) break;
+
     Breakpoint *pb = new Breakpoint(i,persist,pf,lineno);
     mg_bkpr_arr[i] = pb;
     return pb;
@@ -434,11 +435,11 @@ Module::function_from_file(const string& file, int lineno)
   }
 
   void add_breakpoint_in_order(BreakpointList& bpl, Breakpoint *bp)
-  { 
+  {
       Breakpoint::iterator bpli;
       for(bpli = bpl.begin();  bpli != bpl.end();  bpli++)
           if (bp->line() < (*bpli)->line()) { bpl.insert(bpli,bp); return; }
-      bpl.push_back(bp);   
+      bpl.push_back(bp);
   }
 
   Breakpoint::iterator
@@ -447,7 +448,7 @@ Module::function_from_file(const string& file, int lineno)
      mg_temp_list.clear();
      Module *pm = Module::from_name(file);
      if (pm == NULL) return end_list();
-     int id = pm->id();   
+     int id = pm->id();
      for(int i = 0; i < MAX_BREAKPOINTS; i++)
          if (mg_bkpr_arr[i] != NULL) {
            Breakpoint *bp = mg_bkpr_arr[i];
@@ -507,7 +508,7 @@ Module::function_from_file(const string& file, int lineno)
 
 void
 Breakpoint:: restore_instruction()
-  {     *m_pi = m_saved_instruction;   } 
+  {     *m_pi = m_saved_instruction;   }
 
 static Breakpoint *mCurrentBreak = NULL;
 Breakpoint *current_break() { return mCurrentBreak; }
@@ -534,7 +535,7 @@ Breakpoint:: execute() {
       return true;  // and break!
     }
  }
-  
+
 void
 Breakpoint::toggle(char *file, int lineno, bool is_persistent, std::ostream& out)
 {
@@ -551,14 +552,14 @@ Breakpoint::toggle(char *file, int lineno, bool is_persistent, std::ostream& out
           delete pb;  // if it already exists, toggle it off
           out << line << " unset\n";
         } else {
-          pb = create(file,lineno,true);       
+          pb = create(file,lineno,true);
           if (pb != NULL) out << pb->line() << " set\n";
           else out << "0 unset\n"; // some mysterious error...
-        }  
+        }
   } else {
       if (pb == NULL) {
          pb = create(file,lineno,false);
-      } 
+      }
      out << pb->line() << " temp set\n";
   }
 }
@@ -570,10 +571,10 @@ Breakpoint::group(char *file, int *lines, int& sz, bool do_get)
     iterator bli = find_in_file(file);
     while (bli != end_list()){
        Breakpoint* bp = *bli;
-       if(do_get) lines[i] = bp->line();      // *fix 1.2.7 list _all_ breakpoints, but...   
+       if(do_get) lines[i] = bp->line();      // *fix 1.2.7 list _all_ breakpoints, but...
        else  if (! bp->m_paused) {            // *fix 0.9.8 don't fool with any paused breakpoint
-             bp->set_line(lines[i]);            
-          } 
+             bp->set_line(lines[i]);
+          }
         i++;
         bli++;
     }
@@ -586,7 +587,7 @@ Breakpoint::remove_all()
 {
    for(int i = 0; i < MAX_BREAKPOINTS; i++)
      if (mg_bkpr_arr[i] != NULL) delete mg_bkpr_arr[i];
-       
+
 }
 
 

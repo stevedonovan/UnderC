@@ -61,7 +61,7 @@ void UCTokenStream::init()
 # endif
 # ifdef __FreeBSD__
    macro_builtin("__FreeBSD__",BM_NOVALUE);
-# endif   
+# endif
   macro_builtin("__unix__",BM_NOVALUE);
 #else
 # ifdef __BEOS__
@@ -99,20 +99,20 @@ void UCTokenStream::handle_builtin_macro(char *tbuff, int id)
       quote_str(tbuff,file().c_str());
       break;
     case BM_DATE: // *fix 1.2.6 same format as CPP
-      time(&t);      
-      strftime(buff,sizeof(buff),DATE_FORMAT,localtime(&t));      
+      time(&t);
+      strftime(buff,sizeof(buff),DATE_FORMAT,localtime(&t));
       quote_str(tbuff,buff);
-      break; 
+      break;
     case BM_TIME:
-      time(&t);      
-      strftime(buff,sizeof(buff),TIME_FORMAT,localtime(&t));      
+      time(&t);
+      strftime(buff,sizeof(buff),TIME_FORMAT,localtime(&t));
       quote_str(tbuff,buff);
       break;
     case BM_EMPTY:
       strcpy(tbuff," ");
       break;
     case BM_UNDERC:
-      quote_str(tbuff,mUCVersion); 
+      quote_str(tbuff,mUCVersion);
       break;
     case BM_NOVALUE:
       strcpy(tbuff,"1");
@@ -141,26 +141,26 @@ void UCTokenStream::do_prompt()
 {
  Parser::state.context().add_line_no(file(),lineno());
  if(is_interactive()) {
- #ifdef _USE_READLINE   
+ #ifdef _USE_READLINE
     std::ostrstream out (get_prompt_buffer(),MAX_PROMPT_SIZE);
  #else
-    ostream& out = cout;
- #endif   
+    std::ostream& out = std::cout;
+ #endif
   int bdepth = Parser::block_depth();
-  out << ';'; 
+  out << ';';
   if (is_in_comment()) out << "*/";
 #ifdef _DEBUG
-  else if (Parser::is_in_declaration()) out << "DCL> "; 
+  else if (Parser::is_in_declaration()) out << "DCL> ";
 #endif
   else if (bdepth > 0) out << bdepth << '}';
-  else if (s_hanging_statement) out << ';'; 
+  else if (s_hanging_statement) out << ';';
   else { out << '>'; s_hanging_statement = true; }
   out << ' ';
 #ifdef _USE_READLINE
   out << std::ends;
-#else  
-  cout.flush(); // iostream.h requires this!
-#endif  
+#else
+  std::cout.flush(); // iostream.h requires this!
+#endif
  }
 }
 
@@ -190,14 +190,14 @@ int  UCTokenStream::eval_const_expr(const char* expr)
     if (ret != 0) {
         cerr << "Can't evaluate " << expr << " in #if" << std::endl;
         return 1;
-    } else 
+    } else
     return sResult;
 }
 
 static std::list<string> s_file_targets;
 static std::list<RESTOREFN> s_restore_fn;
 
-void UCTokenStream::set_restore_op(RESTOREFN fn) { 
+void UCTokenStream::set_restore_op(RESTOREFN fn) {
     s_file_targets.push_back(m_original_file);
 	s_restore_fn.push_back(m_restore);
     m_restore = fn;
@@ -215,7 +215,7 @@ void UCTokenStream::on_open()
  if (m_openfn) {
    (*m_openfn)();
    m_openfn = NULL;
- } 
+ }
 }
 
 void UCTokenStream::on_restore()
@@ -266,7 +266,7 @@ void UCTokenStream::on_clear(const string& filename, int line)
 
 void UCTokenStream::on_error(const char *msg, bool is_error)
 {
- if (is_error) { 
+ if (is_error) {
      error(msg);
      check_error();
      throw string(msg);

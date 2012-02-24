@@ -36,7 +36,7 @@ int exec(char *, int, bool);  // in twl.cpp
 void* _copy_body(char* buff); // debug
 
 // from lexer.cpp!
-void uc_hash_cmd(char *s); 
+void uc_hash_cmd(char *s);
 void uc_macro_subst(const char *str, char *buff, int sz);
 
 // *add 1.2.4 uc_exec(), uc_result() from main.cpp
@@ -59,7 +59,14 @@ typedef int (*CALLFN) (void);
 // flags for calling callfn()
 // note that these are _not_ declared const so the variable references aren't
 // optimized away
-int DC_CDECL = 1, DC_QWORD = 2, DC_NOWORD = 4, DC_RET_OBJ = 8, DC_RET_VAL = 16 + 8;       
+#if defined(_WIN32) && defined(__GNUC__)
+#define DCL(name) name asm(#name)
+#else
+#define DCL(name) name
+#endif
+
+int DCL(DC_CDECL_) = DC_CDECL, DCL(DC_QWORD_) = DC_QWORD, DCL(DC_RET_OBJ_) = DC_RET_OBJ, DCL(DC_RET_VAL_) = DC_RET_VAL;
+int DCL(EBX), DCL(ECX);
 
 #ifndef __GNUC__
 
@@ -107,7 +114,7 @@ a_again:
 a_dbl:
     fstp qword ptr[ebx]
 a_finish:
-  } 
+  }
 }
 
 
@@ -119,7 +126,7 @@ static ArgBlock *pArgs;  // only used for type info below!
 
 // *fix 1.2.6 don't use edi! ecx is always safe.
 PROC(copy_array)
-// edi contains ptr to ArgBlock, eax contains no of args  
+// edi contains ptr to ArgBlock, eax contains no of args
   pop [ecx]pArgs.ret_addr   // return addr!
   mov [ecx]pArgs.esi_ptr, esi
   mov [ecx]pArgs.no, eax
@@ -135,13 +142,13 @@ PROC(copy_array)
   ret
 ENDP
 
-#else 
+#else
 
 /*
 // @baltasarq: This fix does not work anymore
 //  *fix 0.9.9c  Two issues here: GCC does not emit locals,
 // and 'const int' vars are optimized away.
-// *fix 1.0.0L ELF does not use underscores in front of symbols 
+// *fix 1.0.0L ELF does not use underscores in front of symbols
 // used in inline asm.
 #ifndef _WIN32
 #define DC_CDECL_ _DC_CDECL_
@@ -151,11 +158,9 @@ ENDP
 #endif
 */
 
-//int DC_CDECL_ = DC_CDECL, DC_QWORD_ = DC_QWORD, DC_RET_OBJ_ = DC_RET_OBJ, DC_RET_VAL_ = DC_RET_VAL;
-int EBX, ECX;
 void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
 {
-    
+
   // *fix 1.2.0  The RET_OBJ correction was wrong; it shd be subl $4,esp!
   // *fix 1.2.4  Using static variables leads to disasters. Here's the offsets
   // of the parameters:
@@ -167,7 +172,7 @@ void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
   // buff 28
 asm(
       "movl %ebx, EBX\t\n"
-      "movl %ecx, ECX\t\n"    
+      "movl %ecx, ECX\t\n"
       "movl 12(%ebp),%ebx\t\n"
       "movl 16(%ebp),%eax\t\n"
       "imul $4,%eax\t\n"
@@ -183,12 +188,12 @@ asm(
       "movl 8(%ebp),%eax\t\n"
       "call *%eax\t\n"
       "movl 24(%ebp),%ecx\t\n"
-      "testl DC_CDECL,%ecx\t\n"
+      "testl DC_CDECL_,%ecx\t\n"
       "jz a_over\t\n"
       "addl 16(%ebp),%esp\t\n"
-      "a_over:  testl DC_RET_OBJ,%ecx\t\n"
+      "a_over:  testl DC_RET_OBJ_,%ecx\t\n"
       "jz a_again\t\n"
-      "cmpl DC_RET_VAL,%ecx\t\n"
+      "cmpl DC_RET_VAL_,%ecx\t\n"
       "jl a_skip\t\n"
 #ifndef _WIN32
       "movl gObjectReturnPtr,%ebx\t\n"
@@ -200,13 +205,13 @@ asm(
       "jmp a_finish\t\n"
       "a_skip: subl $4,%esp\t\n"
       "a_again:   movl 28(%ebp),%ebx\t\n"
-      "testl DC_QWORD,%ecx\t\n"
+      "testl DC_QWORD_,%ecx\t\n"
       "jnz a_dbl\t\n"
       "movl %eax,(%ebx)\t\n"
       "jmp a_finish\t\n"
       "a_dbl:    fstpl (%ebx)\t\n"
       "a_finish: movl EBX,%ebx\t\n"
-      "movl ECX,%ecx\t\n");      
+      "movl ECX,%ecx\t\n");
 }
 // *fix 1.2.9 sorted out a nasty in the above code! We were
 // testing against EDX  and trying to move stuff from [ECX]
@@ -292,12 +297,12 @@ bool gPtrCheckStart = false;
 
 void *_new(int sz)
 {
-#ifdef _WIN32  
+#ifdef _WIN32
   void *ptr = (void *)new char[sz];
 #else
   void *ptr = malloc(sz);
-#endif  
-  
+#endif
+
 if (Parser::debug.ptr_check) mPtrMap[ptr] = 1;
 // cerr << "new " << sz << ' ' << ptr << endl;
 return ptr;
@@ -307,33 +312,33 @@ return ptr;
 // directly)
 void *_new_vect(int n,int sz)
 {
-#ifdef _WIN32  
+#ifdef _WIN32
   void *p = (void *)new char[sz*n];
-#else  
+#else
  void *p = malloc(sz*n);
-#endif  
+#endif
  if (Parser::debug.ptr_check) mPtrMap[p] = n;
  return p;
 }
 
 void _delete(char *ptr,int sz)
-{  
+{
   if (Parser::debug.ptr_check && Builtin::alloc_size(ptr) == 0) {
       if (! Parser::debug.suppress_link_errors && gPtrCheckStart)
 	     cerr << (void *)ptr << " is not allocated by us!\n";
   } else
 // *ch 1.2.9 patch
-#ifdef _WIN32    
+#ifdef _WIN32
   delete ptr;
-#else  
+#else
  free(ptr);
-#endif 
+#endif
 }
 
 // *change 1.1.0 Overallocation to make room for the VMT now done by builtins...
 void* _new_ex(int sz)
 {
- int *p = (int *)_new(sz+sizeof(int)); 
+ int *p = (int *)_new(sz+sizeof(int));
  *p = 0;   // to flag the VMT as NOT being created...
  return p+1;
 }
@@ -359,7 +364,7 @@ void* operator new(size_t sz)
 
 void operator delete(void *p)
 {
- _delete_ex((char *)p,0);  
+ _delete_ex((char *)p,0);
 }
 
 void* operator new[](size_t sz)
@@ -436,7 +441,7 @@ int*  _map_find(const string& key,void *pm) {
    return msi != PMSI(pm)->end() ? &msi->second : 0;
 }
 
-int*  _map_insert(const string& key,int val,void *pm) {  
+int*  _map_insert(const string& key,int val,void *pm) {
   int& res = (*PMSI(pm))[key] = val;
   return &res;
 }
@@ -487,9 +492,9 @@ int _range_check(int sz, int i)
         char buff[80];
         if (i >= sz) sprintf(buff,"Range Error: %d >= %d",i,sz);
                else  sprintf(buff,"Range Error: %d < 0",i);
-#ifdef WIN32	
+#ifdef WIN32
         throw RangeError(buff);
-#else   
+#else
         throw_range_error(buff);
 #endif
     }
@@ -601,10 +606,10 @@ void init()
  add(Sig(t_int)      << t_void_ptr << t_void_ptr,         "_map_iter_equal",(CALLFN)&_map_iter_equal);
  add(Sig(t_void)     << t_void_ptr << t_void_ptr,         "_map_iter_fetch",(CALLFN)&_map_iter_fetch);
  add(Sig(t_void)     << t_void_ptr << t_int,              "_map_iter_next", (CALLFN)&_map_iter_next);
- 
+
  add(Sig(t_void) << t_int,"__break",(CALLFN)__break);
  add(Sig(t_void),"__mangle",(CALLFN)__mangle);
- 
+
  // UCW Graphics
  #ifdef _WCON
  //unsigned long ucw_rgb(int r, int g, int b);
@@ -614,15 +619,15 @@ void init()
          "ucw_create_window",(CALLFN)&ucw_create_window);
  add(Sig(t_int) << t_int << t_char_ptr,"ucw_title",(CALLFN)&ucw_title);
  add(Sig(t_int) << t_int << t_char_ptr,"ucw_cmd",(CALLFN)&ucw_cmd);
- add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_size_window",(CALLFN)&ucw_size_window);         
+ add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_size_window",(CALLFN)&ucw_size_window);
  add(Sig(t_int) << t_int << t_int << t_int,"ucw_move_to",(CALLFN)&ucw_move_to);
  add(Sig(t_int) << t_int << t_int << t_int,"ucw_line_to",(CALLFN)&ucw_line_to);
  add(Sig(t_int) << t_int << t_char_ptr,"ucw_text_out",(CALLFN)&ucw_text_out);
  add(Sig(t_int) << t_int << t_char_ptr << t_int,"ucw_font",(CALLFN)&ucw_font);
  add(Sig(t_int) << t_int << t_float << t_float << t_float,"ucw_fcolour",(CALLFN)&ucw_fcolour);
  add(Sig(t_int) << t_int << t_float << t_float << t_float,"ucw_bcolour",(CALLFN)&ucw_bcolour);
- add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_rectangle",(CALLFN)&ucw_rectangle);         
- add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_ellipse",(CALLFN)&ucw_ellipse);         
+ add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_rectangle",(CALLFN)&ucw_rectangle);
+ add(Sig(t_int) << t_int << t_int << t_int << t_int << t_int,"ucw_ellipse",(CALLFN)&ucw_ellipse);
  add(Sig(t_int) << t_char_ptr << t_int << t_bool,"exec",(CALLFN)&exec);
  add(Sig(t_long) << t_int << t_int << t_int,"ucw_rgb",(CALLFN)&ucw_rgb);
  add(Sig(t_void) << t_int << t_long << t_int,"ucw_set_colour",(CALLFN)&ucw_set_colour);
@@ -647,12 +652,12 @@ void insert_ptr_map(CALLFN fn, Function *pfn)
   try {
   _pfn = pfn;
   _pfb = pfn->fun_block();
-  mImportMap[fn] = _pfb; 
+  mImportMap[fn] = _pfb;
   } catch(...) {
      ++_kount;
   }
 }
-#pragma optimize( "", on ) 
+#pragma optimize( "", on )
 
 void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg, int ftype)
 // Builtin::add() assumes that the Signature has been collected in the proper way.
@@ -663,11 +668,11 @@ void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg, int ftype)
  FunctionContext *fe = pfn->context();
  int nargs = pfn->fun_block()->nargs;
  if (is_stdarg) pfn->stdarg(true);
- 
- Parser::code().emit_native_function_call(pfn,fn);
- 
 
-#ifdef __GNUC__ 
+ Parser::code().emit_native_function_call(pfn,fn);
+
+
+#ifdef __GNUC__
  mImportMap[fn] = pfn->fun_block();
 #else
  insert_ptr_map(fn,pfn);
@@ -696,10 +701,10 @@ FBlock *import_vmethod(CALLFN fn, PFBlock pfb)
 	mImportMap[fn] = fb;
     code.emit_native_function_call(pf,fn);
     code.emit_return(pf->return_type());
-    
+
 	fb->finalize(0);
-  } catch(...) { error("error when importing function"); }  
-  Parser::set_function_code(false); // go back to static code context 
+  } catch(...) { error("error when importing function"); }
+  Parser::set_function_code(false); // go back to static code context
   return fb;
 }
 
@@ -719,7 +724,7 @@ CALLFN lookup_self_link(PClass pc, const string& name);  // later in this module
 static void* mDirectAddr = NULL;
 
 void set_direct_import(void* p)
-{ 
+{
 // A Two-Part Hack.
 // It's NB to call this function with a NULL argument afterwards to reset the state.
   if (p) {
@@ -747,19 +752,19 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
   if (modifier == UseAddr) proc = (CALLFN) mDirectAddr;
 #ifdef CANNOT_SELF_LINK
   else if (get_dll_handle()==IMPLICIT_LINK) {
-    name = pfn->name(); // *fix 1.2.4 pass back name in case we can't find     
+    name = pfn->name(); // *fix 1.2.4 pass back name in case we can't find
     proc = lookup_self_link(pc,name);
   }
-#endif  
-  else if(! Parser::in_extern_C()) { // mangled C++ name 
-    proc = (CALLFN)Import::load_method_entry(pfn,name);      
+#endif
+  else if(! Parser::in_extern_C()) { // mangled C++ name
+    proc = (CALLFN)Import::load_method_entry(pfn,name);
 	if (name=="") name = "?" + pfn->name();
   } else { // extern "C"
     name = pfn->name();
-    if (modifier == Stdcall) name = "_" + name + "@" + itos(pfn->signature()->byte_size());     
+    if (modifier == Stdcall) name = "_" + name + "@" + itos(pfn->signature()->byte_size());
     proc = (CALLFN)get_proc_address(s_lib,name.c_str());
   }
-  if (!proc) return false; 
+  if (!proc) return false;
 
   if (pc != NULL) pc->set_imported();
 
@@ -777,11 +782,11 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
 // and so-called '__thiscall' calls (MS)
 // *add 1.2.3 Note that direct imports into the DLL are NOT stdcall under Linux!
   int calling_convention = Function::CDECL;
-  if (modifier == Stdcall || modifier == Api 
+  if (modifier == Stdcall || modifier == Api
 #ifdef _WIN32
       || modifier == UseAddr
 #endif
-   ) 
+   )
       calling_convention = Function::_STDCALL;
 
   if(pfn->is_method()) {
@@ -805,15 +810,15 @@ typedef ulong *& pulong;
 
 // Disable some silly warnings:
 // truncation of const value and 'int' to 'short'.
-#pragma warning(disable:4309) 
+#pragma warning(disable:4309)
 #pragma warning(disable:4305)
 
 void emit1(pchar& pc, char ch)      {  *pc++ = ch; }
 void emit2(pchar& pc, short s)      {  *pshort(pc)++ = s; }
 void emit4(pchar& pc, ulong l)      {  *pulong(pc)++ = l;}
 void pushc(pchar& pc, ulong val)    { emit1(pc,0x68); emit4(pc,val); }
-void pushv(pchar& pc, void *ptr)    { emit2(pc,0x35FF); emit4(pc,(ulong)ptr); }     
-void popv(pchar& pc, void *ptr)     { emit2(pc,0x058F); emit4(pc,(ulong)ptr); }     
+void pushv(pchar& pc, void *ptr)    { emit2(pc,0x35FF); emit4(pc,(ulong)ptr); }
+void popv(pchar& pc, void *ptr)     { emit2(pc,0x058F); emit4(pc,(ulong)ptr); }
 void callf(pchar& pc, void *pfn) {
   emit1(pc,0xBA);   emit4(pc,(ulong)pfn);     // mov edx, offset copy array
   emit2(pc,0xD2FF);                                   // call edx
@@ -821,7 +826,7 @@ void callf(pchar& pc, void *pfn) {
 void mov_acc(pchar& pc, ulong val)  { emit1(pc,0xB8);   emit4(pc,val);  }    // mov eax,...
 void mov_ptr(pchar& pc, void *val)  { emit1(pc,0xB9);   emit4(pc,(ulong)val);  } // mov ecx..
 void copy_acc(pchar& pc, void *ptr) { emit1(pc,0xA1);   emit4(pc,(ulong)ptr);  }
-void copy_cx(pchar& pc, void *ptr)  { emit2(pc,0x0D89); emit4(pc,(ulong)ptr); }               
+void copy_cx(pchar& pc, void *ptr)  { emit2(pc,0x0D89); emit4(pc,(ulong)ptr); }
 void sub_esp(pchar& pc, int val)    { emit2(pc,0xEC81);   emit4(pc,(ulong)val); }
 void push_qword(pchar& pc, void *ptr) { emit2(pc,0x05DD); emit4(pc,(ulong)ptr); }
 void ret(pchar& pc)                 { emit1(pc,(char)0xC3);   }
@@ -831,7 +836,7 @@ void *generate_native_stub(Function *pfn)
 // The stub must copy the arguments by calling copy_array(), and then calls Engine::execute().
   char cde_buff[200];
   Signature *sig = pfn->signature();
-  
+
   int no_args = sig->byte_size()/sizeof(int);
   void *rra = new ulong;
   ArgBlock *xargs = new ArgBlock;
@@ -843,9 +848,9 @@ void *generate_native_stub(Function *pfn)
   bool fun_is_cdecl;
   if (pfn->is_method()) {
       fun_is_cdecl = pfn->is_cdecl();
-  } else 
+  } else
       fun_is_cdecl = pfn->export_as_cdecl();
-  
+
   popv(pc,rra);                                                    // save return addr
   if (pfn->is_method())  {
       if (pfn->class_context()->import_scheme()->uses_stdmethod()) // is this a stdmethod call?
@@ -864,11 +869,11 @@ void *generate_native_stub(Function *pfn)
 #ifndef __GNUC__
     mov_ptr(pc,xargs);
     mov_acc(pc,no_args);                                          // call copy_array
-    callf(pc,(void *)&copy_array);                                
+    callf(pc,(void *)&copy_array);
   // copy_array mucks w/ ESP by explicitly popping the arguments;
   // cdecl calls assume that caller will sort out ESP.
- 
-   if (fun_is_cdecl) 
+
+   if (fun_is_cdecl)
      sub_esp(pc, sizeof(int)*no_args);                            // restore esp if cdecl
   #else
     pushc(pc,(unsigned long)xargs);
@@ -877,8 +882,8 @@ void *generate_native_stub(Function *pfn)
     sub_esp(pc, -8);                  // because copy_array is cdecl...
     if (! fun_is_cdecl)              // if we're NOT cdecl then clean up like a good boy!
       sub_esp(pc, -sizeof(int)*no_args);
-    
-  #endif				 
+
+  #endif
   }
   pushc(pc,(ulong)xargs);
   pushc(pc,flags);
@@ -899,7 +904,7 @@ void *generate_native_stub(Function *pfn)
 
 
 // *add 1.1.4 The Linux tool chain currently doesn't allow you to link to self,
-//            so we have to explicitly specify self-exports. 
+//            so we have to explicitly specify self-exports.
 #ifndef CANNOT_SELF_LINK
  static const int sNoSelfLink = false;
 #else
@@ -921,11 +926,11 @@ bool set_current_lib_file(char *file)
   bool explicit_link = true;
   if (strcmp(file,"$self")==0) {// self-linking case!
 // *ch 1.2.9 patch
-#ifdef _WIN32    
+#ifdef _WIN32
     file = Main::uc_exec_name();
 #else
     file = "";
-#endif    
+#endif
 	explicit_link = ! sNoSelfLink;
   } else
     if (strcmp(file,"$caller")==0) {
@@ -939,11 +944,11 @@ bool set_current_lib_file(char *file)
 	   sfile = Main::uc_lib_dir() + sfile;
 	   s_lib = load_library(sfile.c_str());
 	 }
-   } else s_lib = IMPLICIT_LINK;  
+   } else s_lib = IMPLICIT_LINK;
    lib_list.push_back(s_lib);
    if (!s_lib) return false;
 // *fix 1.1.4 Subsequent #lib where the loaded DLL is the same - don't reset!
-   if (sfile != s_file) { 
+   if (sfile != s_file) {
 	   Import::reset(true);
 	   s_file = sfile;
    }
@@ -961,25 +966,25 @@ void unload_library(Handle hlib)
     if (hlib != IMPLICIT_LINK && hlib != NULL) {
         free_library(hlib);
         cleanup_ordinal_lookup();
-    } 
+    }
 }
 
 // *fix 1.2.4 if passed NULL (i.e. no current DLL _importing_ taking place)
 // this function will try to unload the last handle loaded.
 void unload_lib(Handle hlib)
-{ 
+{
   if (hlib == NULL) {
     hlib = lib_list.back();
   }
   unload_library(hlib);
   lib_list.remove(hlib);
   s_lib = NULL;
-} 
+}
 
 void *get_dll_handle() { return (void *)s_lib; }
 
 void set_dll_handle(void *dl)
-{ 
+{
 	s_lib = (Handle)dl;
 }
 
@@ -999,7 +1004,7 @@ int lookup_ordinal(const char *name)
 }
 
 // *change 1.2.2 (Eric) imp file format is now more relaxed;
-// (a) ignore any line that begins with a "# ", and 
+// (a) ignore any line that begins with a "# ", and
 // (b) everything after the mangled name
 // *add 1.2.4 Will look in UC LIB directory a la .DLLs
 // *add 1.2.4 UC2 type means that value is not ordinal but address
@@ -1010,7 +1015,7 @@ int convert_ordinal(char *buf)
   else {
     unsigned long l;
     sscanf(buf,"%x",&l);
-    return (int)l;  
+    return (int)l;
   }
 }
 
@@ -1029,8 +1034,8 @@ bool generate_ordinal_lookup(const char *index_file)
     if (! in || in.eof()) {
       cerr << "cannot find '" << sfile << "'\n";
       return false;
-    }  
-  }  
+    }
+  }
   in >> magic >> compiler;
   if (magic != "UC1" && magic != "UC2") return false;
   s_lookup_is_ordinal = magic == "UC1";
@@ -1061,7 +1066,7 @@ void finis()
  HandleList::iterator ili;
  for(ili = lib_list.begin(); ili != lib_list.end(); ++ili) {
       Handle lib = *ili;
-      if (lib != process_handle) 
+      if (lib != process_handle)
          unload_library(lib);
  }
 }

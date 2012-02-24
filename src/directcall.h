@@ -5,16 +5,18 @@
 typedef int (*CALLFN) (void);
 
 // flags for calling callfn()
-extern int DC_CDECL;
-extern int DC_QWORD;
-extern int DC_NOWORD;
-extern int DC_RET_OBJ;
-extern int DC_RET_VAL;
+enum {
+    DC_CDECL = 1,
+    DC_QWORD = 2,
+    DC_NOWORD = 4,
+    DC_RET_OBJ = 8,
+    DC_RET_VAL = 16 + 8
+};
 
 class Function;
 
 struct NFBlock {
-  CALLFN pfn;   // the function to be called    
+  CALLFN pfn;   // the function to be called
   int nargs;    // dwords in call (-1 means use TOS)
   int flags;   // cdecl or stdcall? returns dword or qword?
   static int create(Function *pfn, CALLFN fn);
@@ -34,7 +36,7 @@ struct Sig {
 
 #define IMPLICIT_LINK ((void *)-1)
 
-namespace Builtin {  
+namespace Builtin {
   void init();
   int alloc_size(void *p);
   void bad_ptr_check(void *p);
@@ -45,7 +47,7 @@ namespace Builtin {
   void set_direct_import(void* p);
   void set_dll_handle(void *dl);
   void unload_lib(void *hlib);
-  bool set_current_lib_file(char *file); 
+  bool set_current_lib_file(char *file);
   string get_current_lib_file();
   void finis();
   void *generate_native_stub(Function *pfn);

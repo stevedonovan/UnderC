@@ -5,7 +5,7 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
  */
- 
+
 
  #include "common.h"
  #include "function_match.h"
@@ -21,6 +21,7 @@
 
 #include <strstream>
 #include <cstring>
+#include <cstdlib>
 
 Table* gScopeContext;
 
@@ -40,7 +41,7 @@ void skip_function_body(int brace_count=1); // *TEMP* in templates.cpp
  void dissemble(PFBlock fb); // in DISSEM
  void dissembler_init();
 
- bool interactive_mode(); 
+ bool interactive_mode();
 
  // found in parser code - don't muck w/ in_declaration directly!
  extern bool IEF;
@@ -72,7 +73,7 @@ struct _BitField {
 void Entry::set_bit_field(int offs, int bit_offs, int bit_size)
 {
  int sz = sizeof(_BitField);
- data =  Parser::global().alloc(sz,NULL); 
+ data =  Parser::global().alloc(sz,NULL);
  rmode = OREL_F;
  _BitField *bf = (_BitField *)Parser::global().addr(data);
  bf->offs = offs;
@@ -80,8 +81,8 @@ void Entry::set_bit_field(int offs, int bit_offs, int bit_size)
  bf->bit_size = bit_size;
  bf->rest = 0;
 // unsigned int rdata;
-// memmove(&rdata,&bf,4); 
-// data = rdata; 
+// memmove(&rdata,&bf,4);
+// data = rdata;
 }
 
 void unpack_bitfield(int data, int& offs, int& bit_offs, int& bit_size)
@@ -111,7 +112,7 @@ string as_str(Type t)
 }
 
 void fail(const string& msg)
-{ 
+{
     throw msg;
 }
 
@@ -133,7 +134,7 @@ void fail(const string& msg)
   mGlobal.clear();
  }
 
-int yyerror(const char *s);  
+int yyerror(const char *s);
 
  void error(string msg)
  {
@@ -164,8 +165,8 @@ int yyerror(const char *s);
 
  // shared w/ parser,for the mo!
  namespace Parser {
-  
-  ParserState state; 
+
+  ParserState state;
   PEntry mEIntDivByZero=NULL,mEAccessViolation=NULL,mEFloatDivByZero=NULL,
          mEException=NULL,mERangeError=NULL;
   PExpr mOCout=NULL;
@@ -179,7 +180,7 @@ int yyerror(const char *s);
 
   Global& global() { return mGlobal; }
 
-  Table*  std_namespace() 
+  Table*  std_namespace()
   {
     return (Table*) sStdNamespace;
   }
@@ -190,7 +191,7 @@ int yyerror(const char *s);
 	Parser::debug.class_dword_align = ipack;
     return true;
   }
- 
+
 // temporary stuff used by the grammar to Express Itself.
 void out(char *s)
  { std::cout << s; }
@@ -202,7 +203,7 @@ string quotes(const string& s)
 
 // type stack stuff
 void  tpush(Type t)
-{ 
+{
   state.tstack.push(t);
   if (state.tstack.depth() >= state.tstack.capacity())
 	  state.tstack.pop();
@@ -303,12 +304,12 @@ PEntry symbol_lookup(const string& name)
   Table *context = &state.context() ;
   PEntry pe = context->lookup(name);
   if (!pe) return NULL;
-  if (debug.no_access_control) return pe;  
+  if (debug.no_access_control) return pe;
   if (!is_class(pe->context)) {
     return pe; // interactive!!
   }
 
-  // Access control - this entry came from a class....  
+  // Access control - this entry came from a class....
   PClass pe_class = (Class *)pe->context;
 
   // if we are in a function, see if it is a friend!
@@ -327,7 +328,7 @@ PEntry symbol_lookup(const string& name)
     if (base_access == Private) access = Private; else
     if (base_access == Protected && access == Public) access = Protected;
   }
-  if (access==Public) return pe; 
+  if (access==Public) return pe;
 
   if (this_class) {
    if (access == Protected && this_class->inherits_from(pe_class)) return pe;
@@ -361,7 +362,7 @@ void ParserState::reset()
   in_typedef = false;
   in_class = false;
   in_method = false;
-  in_switch = false;  
+  in_switch = false;
   class_dcl = t_void;
   scope_context = NULL;
   in_loop = false;
@@ -370,7 +371,7 @@ void ParserState::reset()
   extern_flag_C = false;
   modifier = None;
   err = "";
-  arg_list.clear(); 
+  arg_list.clear();
   // NB to restore any stacks!
   // note this mucks up the state while we are paused...need
   // to think this one through HACK04
@@ -378,10 +379,10 @@ void ParserState::reset()
     context_stack.clear();
     push_context(&global());
   }
-//  mCodeBlock.pstart = code().end_code();  // will clear static code buffer 
+//  mCodeBlock.pstart = code().end_code();  // will clear static code buffer
   if (is_function_code()) {
-    code().end_code();          // clear the function code buffer   
-    set_function_code(false);   // so we're back in static code 
+    code().end_code();          // clear the function code buffer
+    set_function_code(false);   // so we're back in static code
   }
   block_stack.clear();         // clear any pending blocks
   tstack.clear();             // clear the type stack
@@ -389,23 +390,23 @@ void ParserState::reset()
 
   s_expr_handler = NULL;
 
-  dcl_init_list.clear();  
+  dcl_init_list.clear();
 }
 
-void ParserState::push_context(Table *tbl) 
+void ParserState::push_context(Table *tbl)
 {
   context_stack.push(tbl);
 }
 
-Table& ParserState::context() 
-{   
-    Table *cntxt = context_stack.TOS(); 
+Table& ParserState::context()
+{
+    Table *cntxt = context_stack.TOS();
     if (!cntxt) { // *DEBUG*
        warning("Restoring lost context...");
        cntxt = &global();
        push_context(cntxt);
-    } 
-    return *cntxt;  
+    }
+    return *cntxt;
 }
 
 void ParserState::add_to_arg_list(Type t, const string& name, Expression init)
@@ -443,7 +444,7 @@ bool mFakeInitBlock = false;
 
 bool ParserState::handle_method_body(Class* pc, bool plain_method)
 {
-  // With imported methods, the idea is to ignore the inline code and link to the exported fn.  
+  // With imported methods, the idea is to ignore the inline code and link to the exported fn.
     if (Builtin::get_dll_handle() != NULL) {
   // *fix 1.2.0L GCC under Linux doesn't export these guys, so compile them as usual!
 // *ch 1.2.9 patch
@@ -453,9 +454,9 @@ bool ParserState::handle_method_body(Class* pc, bool plain_method)
      // (ignore case of methods outside class defn...)
      if (pc != NULL) pop_context();
      // but force a dynamic link to those w/in the class body
-     else  declare_function(tpop(),token_stack.pop(),NULL);  
+     else  declare_function(tpop(),token_stack.pop(),NULL);
      //  and ignore the method body
-     Template::grab_function_body(plain_method,NULL); 
+     Template::grab_function_body(plain_method,NULL);
      // *fix 1.2.8 see 'hack of the week' in the next block - we gotta fool the parser!
      if (! plain_method) {
          Input::insert_string("__init_block__ {}");
@@ -464,12 +465,12 @@ bool ParserState::handle_method_body(Class* pc, bool plain_method)
 #endif
   } else {
     // Only method bodies _inside_ class definitions are cached. Or caching can be switched off...
-     if (! debug.skip_method_bodies || pc != NULL) return false;  
+     if (! debug.skip_method_bodies || pc != NULL) return false;
     // otherwise, we want to cache these bodies for later compilation when the class is finalized;
-    // make sure they're declared      
+    // make sure they're declared
      TemplateInstance* ti = in_template;
      in_template = NULL;
-     Function* pf = declare_function(tpop(),token_stack.pop(),NULL);            
+     Function* pf = declare_function(tpop(),token_stack.pop(),NULL);
      in_template = ti;
      char* body_buff = Template::generate_function_header(pf,plain_method,false);
      Template::grab_function_body(plain_method,body_buff);
@@ -482,12 +483,12 @@ bool ParserState::handle_method_body(Class* pc, bool plain_method)
      } else {
          block_stack.push(0);
          Input::insert_string("}");
-     }   
+     }
   }
   dcl_reset();                                // and ensure that the state is properly reset!
-  while (tstack_depth() > 2) tpop();                
+  while (tstack_depth() > 2) tpop();
   clear_parse_flags();
-  return true;    
+  return true;
 }
 
 /// Managing blocks!
@@ -500,14 +501,14 @@ void ParserState::init_block(int type)
 // two separate operations: constructing the function and its block,
 // and then initializing it!
  if (in_method) {
-   in_method = false; 
+   in_method = false;
    // if we're inside a class body, then skip this initialization
    if (debug.skip_method_bodies && (class_dcl != t_void || mFakeInitBlock)) {
        block_stack.push(0);
        mFakeInitBlock = false;
        return;
    }
-   if (!is_local(&context())) { 
+   if (!is_local(&context())) {
        error("Context not local!");
        return;
    }
@@ -527,7 +528,7 @@ void ParserState::init_block(int type)
    // *fix 1.1.3 If this was a template method, then don't muck up the IC!
    // Careful to exclude the case of instantiating methods of a template class.
    bool template_instantiating =
-       cntxt->type() == INSTANTIATION_CONTEXT  
+       cntxt->type() == INSTANTIATION_CONTEXT
     && ! in_template->get_template()->get_entry()->is_method();
    flags = CONTEXT_PUSHED;
    if (class_dcl != t_void) { // nested Class:: notation...
@@ -535,11 +536,11 @@ void ParserState::init_block(int type)
      pc = class_dcl.as_class();
      // class context may _already_ be pushed in the case of constructor
      // initialization lists - but we flag it as a method anyhow.
-     if (cntxt != pc  /*&& ! template_instantiating*/) { 
+     if (cntxt != pc  /*&& ! template_instantiating*/) {
          push_context(pc);
          cntxt = pc;
      }
-     if (! template_instantiating) flags |= IN_METHOD;  
+     if (! template_instantiating) flags |= IN_METHOD;
    }
 
    // *add 1.1.0 Expressly forbid nested functions! Otherwise we get nasty brace mismatch issues...
@@ -562,7 +563,7 @@ void ParserState::init_block(int type)
    flags |= FUN_BLOCK;
  } else
  if (in_switch) {
-   flags = IN_SWITCH;    
+   flags = IN_SWITCH;
    is_breakable = true;
  } else
  if (in_class) {
@@ -583,10 +584,10 @@ void ParserState::init_block(int type)
  }
  if (is_continueable) {
    flags |= CONTINUEABLE;
-   continue_stack.push(new Label(&code()));  
+   continue_stack.push(new Label(&code()));
    in_loop = false;
  }
- block_stack.push(flags); 
+ block_stack.push(flags);
  clear_parse_flags();
 }
 
@@ -598,7 +599,7 @@ bool ParserState::context_generated()
 void ParserState::check_context(int mode)
 {
 // if a fresh context has been pushed, cool...
- if (context_generated()) return; 
+ if (context_generated()) return;
  Function *function = current_function();
  // function==NULL is a C++ error, but is allowed in interactive mode
  push_context(new LocalContext(&context(),function));
@@ -614,20 +615,20 @@ void end_switch();
 
 void ParserState::finalize_block()
 {
- if (block_stack.depth() < 1) 
+ if (block_stack.depth() < 1)
 	 block_stack.push(CONTEXT_PUSHED);
 
   int flags = block_stack.pop();
   if (flags & IN_SWITCH) end_switch();
   if (flags & CONTINUEABLE) {
       m_continue = continue_stack.pop();
-      m_continue->here();     
+      m_continue->here();
   } else m_continue = NULL;
 
   if (flags & BREAKABLE) break_stack.pop();
   if (flags & FUN_BLOCK) { // *fix 0.9.5 UCW can fall over if braces are mismatched..
      if (m_ret_label_stack.empty()) error("misplaced braces");
-     else m_ret_label->here(); 
+     else m_ret_label->here();
 
   // *hack 1.1.0 It's difficult to skip the body of a imported ctor w/ init list,
   // so ensure that declare_function() is called to import this function!
@@ -642,7 +643,7 @@ void ParserState::finalize_block()
     context().finalize();
     pop_context();
     class_dcl = t_void;
-  }   
+  }
 
   // If we were in a method body, then the class context must be dropped
   if (flags & IN_METHOD) pop_context();
@@ -653,12 +654,12 @@ void ParserState::finalize_block()
       m_ret_label = NULL;
       m_ret_label_stack.pop();
 
-  } 
+  }
   state.in_construct_destruct = IsPlain; //*fix 1.2.4
 }
 
 Label *ParserState::return_label()
-{ 
+{
   return m_ret_label;
 }
 
@@ -713,15 +714,15 @@ bool do_loop_start(PExpr cond, bool jump_back)
 
 bool do_loop_end(bool is_jump, bool is_forward)
 {
- Label *l1 = state.label_stack.pop(); 
+ Label *l1 = state.label_stack.pop();
  // now either jump forward (if-else) or back (while-do-for)
- if (is_jump) label_jump(JMP, is_forward);   
+ if (is_jump) label_jump(JMP, is_forward);
  l1->here(); // the forward jump!
  return true;
 }
 
 bool do_for_end(PExpr e)
-{ 
+{
  if (e) code().compile(e,DROP_VALUE);
  do_loop_end(true);
  return true;
@@ -731,7 +732,7 @@ bool do_for_end(PExpr e)
 bool do_do_end(PExpr cond)
 {
 // this will be the break label
- Label *l1 = state.label_stack.pop(); 
+ Label *l1 = state.label_stack.pop();
  compile_condition(cond);
  check_temp_context();
  // if condition fails, we jump back to the top label;
@@ -739,7 +740,7 @@ bool do_do_end(PExpr cond)
  // break will jump to here
  l1->here();
  return true;
-} 
+}
 
 void check_enclosing_scopes(LocalContext *outer)
 // Given a local context, look at the enclosing scopes until we hit
@@ -752,9 +753,9 @@ void check_enclosing_scopes(LocalContext *outer)
  LocalContext *cntxts[BLOCK_DEPTH];
  LocalContext *lc = (LocalContext *)&state.context();
  int ic = 0;
- while ((cntxts[ic++] = lc) != outer)  
-   lc = (LocalContext *)lc->parent_context(); 
- while (--ic >= 0) 
+ while ((cntxts[ic++] = lc) != outer)
+   lc = (LocalContext *)lc->parent_context();
+ while (--ic >= 0)
    if (cntxts[ic] != outer && cntxts[ic]->first_obj() != NULL) {
 		 cntxts[ic]->check_objects();
 		 return;
@@ -765,27 +766,27 @@ bool do_return(PExpr e)
 {
   Label *ret_label = state.return_label();
   if (!ret_label) { error("return only in function"); return false; }
-  Function *fn = ((LocalContext&)state.context()).function(); 
+  Function *fn = ((LocalContext&)state.context()).function();
   Type rt = fn->return_type();
 //  if (fn->name()=="bh_begin")
-//     ret_label = 0;     
+//     ret_label = 0;
    // *add 1.1.1 support for __declare; uses first return type!
   if (rt == t_null) { // t_undefined
 	  rt = e->type();
 	  rt.strip_const();
 	  fn->adjust_return_type(rt);
-  } 
+  }
   // *change 1.1.0 Void functions can return void 'values' (ISO standard behaviour)
-  if (rt == t_void && e != NULL && e->type() != t_void) { 
+  if (rt == t_void && e != NULL && e->type() != t_void) {
       error("void function cannot return value");
       return false;
   }
   if (e) {
-      PExpr ret_exp = Expressions::return_op(fn,rt,e); 
-      if (ret_exp->is_nil()) { 
+      PExpr ret_exp = Expressions::return_op(fn,rt,e);
+      if (ret_exp->is_nil()) {
           error("Could not copy return object");
           return false;
-      }  
+      }
       code().compile(ret_exp);
   }
   // *fix 1.1.0 Must ensure that a proper UNWIND operation occurs for any locals
@@ -794,7 +795,7 @@ bool do_return(PExpr e)
   return true;
 }
 
-// *fix 1.2.4 When breaking out of a loop inside a local context, do check that 
+// *fix 1.2.4 When breaking out of a loop inside a local context, do check that
 // there _actually is_ a context local to the loop!  We were trashing objects!
 // *fix 1.2.5 The new 'false' param for LocalContext::check_objects() prevents
 //  the system for considering this context to be fully unwound. We were losing
@@ -854,7 +855,7 @@ static Label* create_goto_label(char* label_name)
 {
 // NB to create the label in the overall function context, not some local block
  Table* cntxt = ((LocalContext&)state.context()).function()->context();
- PEntry label_entry = cntxt->add(label_name);  
+ PEntry label_entry = cntxt->add(label_name);
  label_entry->type = t_label;
  label_entry->size = 0;
  Label* label = new Label(&code());
@@ -868,7 +869,7 @@ static Label* check_goto_label(PEntry label_entry)
      fail("goto only allowed in functions");
   if (label_entry->type != t_label)
      fail(label_entry->name + " is already defined");
-  return (Label*)label_entry->data;    
+  return (Label*)label_entry->data;
 }
 
 void do_goto(char* label_name)
@@ -879,7 +880,7 @@ void do_goto(char* label_name)
   PEntry label_entry = cntxt->lookup(label_name);
   if (label_entry) label = check_goto_label(label_entry);
   if (! label) {           // ----not declared yet; forward jump----
-     label = create_goto_label(label_name);  
+     label = create_goto_label(label_name);
      // if there were local objects needing destruction, keep track of this!
      if (check_local_unwind()) label->context(cntxt);
   } else {                 // ----backward jump---------------------
@@ -913,7 +914,7 @@ void goto_label_existing(PEntry pe)
 
 
 string name_of(Type t)
-{ 
+{
  static string s;
  t.as_string(s);
  return s;
@@ -925,12 +926,12 @@ bool ParserState::begin_scope(Type t)
     error(quotes(name_of(t)) + " is not a class, struct or namespace");
     return false;
  } else {
-    PClass pc = t.as_class();  
+    PClass pc = t.as_class();
   //* this forces instantiation of templates when we need to access their members
     if (! t.is_namespace()) pc->make_available();
     push_context(pc);
     scope_context_stack.push(scope_context);
-    scope_context = &context(); 
+    scope_context = &context();
     gScopeContext = scope_context;
     return true;
  }
@@ -962,12 +963,12 @@ Type ParserState::add_class(int s_or_c, const string& pname, int deriv_access, T
 try {
  Table *instantiation_context = NULL;
  Table *cntxt = &context();
- // *add 1.1.4 
+ // *add 1.1.4
  // * tagless structs are given a temporary name
  // * in C mode, structs and unions are made distinct so they don't conflict w/ variable names ('struct tm tm')
  string name = pname;
  if (name == "") name = make_temp_name();
- else if (debug.c_mode && is_struct) name = "$_" + name; 
+ else if (debug.c_mode && is_struct) name = "$_" + name;
  PEntry pe = context().lookup(name);
  bool already_defined = pe != NULL;
 
@@ -987,7 +988,7 @@ try {
     }
     pe = cntxt->add(name);
 	//if (deriv_access == ForwardClass && in_typedef)
- } 
+ }
  Class *base = NULL;
  if (deriv_access != NotDerived && deriv_access != ForwardClass) {
    string nb = quotes(as_str(base_class));
@@ -1017,7 +1018,7 @@ try {
    // *fix 1.1.2 A forward class definition must not clear out an existing class
    // redefinition or full definition.
     new_class = pe->type.as_class();
-   // two cases: full defn of forward class, 
+   // two cases: full defn of forward class,
    //  and redefinition of existing class (an extension!)
    //*SJD* Absolutely need to call the base-setting code for derived classes
     new_class->set_base_class(base,deriv_access);
@@ -1030,7 +1031,7 @@ try {
      Module::current()->add_typename(pe);
      push_context(new_class);
      state.in_class = true;
-     state.class_dcl = t_void;  
+     state.class_dcl = t_void;
 
   }
   return pe->type;
@@ -1046,7 +1047,7 @@ void ParserState::set_access_mode(int val)
 
 void ParserState::add_friend_class(const string& name)
 {
- if (!is_class(&context())) error("Friend not allowed here"); 
+ if (!is_class(&context())) error("Friend not allowed here");
  else {
   PEntry pe = symbol_lookup(name);
   if (!pe->type.is_class()) error("Must be a class context");
@@ -1066,7 +1067,7 @@ void ParserState::add_namespace(string name)
  if (is_anonymous) name = Module::anonymous_namespace_name();
  PEntry pe = context().lookup(name);
  bool already_defined = pe != NULL;
- if(!already_defined) { 
+ if(!already_defined) {
      pe = context().add(name);
      ns = new Namespace(&context());
      pe->data = (int)ns;
@@ -1081,10 +1082,10 @@ void ParserState::add_namespace(string name)
 }
 
 
-Signature *ParserState::get_signature(Type t, bool clear_arglist) 
+Signature *ParserState::get_signature(Type t, bool clear_arglist)
 {
-// 'clear_arglist' now (apart from doing what it says afterwards) 
-// also attaches the list of parameter names to the signature. 
+// 'clear_arglist' now (apart from doing what it says afterwards)
+// also attaches the list of parameter names to the signature.
  TypeList ts;
  int sz = 0;
  bool was_stdarg = false;
@@ -1098,7 +1099,7 @@ Signature *ParserState::get_signature(Type t, bool clear_arglist)
     ts.push_back(ali->type);
     // *fix 1.2.2 Displayed prototypes of imported functions had extra '*' symbols;
     // they were probably put in to signify 'no name'
-    if (ali->name != "*")  sl.push_back(ali->name);  
+    if (ali->name != "*")  sl.push_back(ali->name);
                     else   sl.push_back("");
     sz += (ts.back().is_double() ? sizeof(double) : sizeof(int));
  }
@@ -1107,14 +1108,14 @@ Signature *ParserState::get_signature(Type t, bool clear_arglist)
  if (pc->type() == INSTANTIATION_CONTEXT) pc = pc->parent_context();
  Class *cptr = is_class(pc) ? (Class *)pc : NULL;
 
- //HACK15  If this is a method pointer declaration, then use 
+ //HACK15  If this is a method pointer declaration, then use
  // state.class_dcl which is set in the declaration grammar
  if (was_fun_ptr && state.class_dcl != t_void) {
    cptr = state.class_dcl.as_class();
    state.class_dcl = t_void;
  }
 
- Signature *sig = new Signature(t,ts,cptr); 
+ Signature *sig = new Signature(t,ts,cptr);
  sig->byte_size(sz);
  sig->stdarg(was_stdarg);
  if (member_is_const) sig->set_const();
@@ -1122,7 +1123,7 @@ Signature *ParserState::get_signature(Type t, bool clear_arglist)
  // *fix 1.1.2 Argument names are now always saved by get_signature()
  sig->set_arg_names(sl);
  if (clear_arglist) end_args();
- 
+
  //*HACK* This can be set by array args...
  // (usually reset by add_variable)
  s_array_size = 1;
@@ -1131,17 +1132,17 @@ Signature *ParserState::get_signature(Type t, bool clear_arglist)
  return sig;
 }
 
-// *fix 1.1.3 This is only called by do_function_template(), but 
+// *fix 1.1.3 This is only called by do_function_template(), but
 // there are two cases (i) a method of a template class declared outside,
 // and (ii) a genuine method template.
 Signature *get_prototype(bool& outside_class)
 {
  string name = state.token_stack.pop();
  Type rtype  = Parser::tpop(); //??
- dcl_reset();  
- 
+ dcl_reset();
+
  Signature::set_fun_name(name);
- Signature *sig = state.get_signature(rtype,true); 
+ Signature *sig = state.get_signature(rtype,true);
  outside_class = false;
  if (state.class_dcl != t_void) {
    sig->set_class_ptr(state.class_dcl.as_class());
@@ -1173,15 +1174,15 @@ PExprList get_default_arguments()
     if (ali->init) { pel->push_back(ali->init); gotcha = true; }
     else if (gotcha) error("Default arguments must be at the end");
     else pel->push_back(NULL);
- if (!gotcha) { 
+ if (!gotcha) {
    delete pel; return NULL;
- } else return pel; 
+ } else return pel;
 }
 
 static bool mIsConversion = false;
 
 FunctionEntry *
-create_function_entry(Signature *sig, const string& name, PEntry pe) 
+create_function_entry(Signature *sig, const string& name, PEntry pe)
 {
    if (pe==NULL) pe = state.context().add(name);
    mIsConversion = name == CONVERSION_OPNAME;
@@ -1219,34 +1220,34 @@ void error_not_in_class(const string& name, Type class_type)
 FunctionEntry *
 lookup_function_entry(Signature *sig, const string& name,bool fn_defn,
                                      Function **fn, int& slot_id)
-{ 
+{
  Type method_scope = state.class_dcl;
  state.class_dcl = t_void;
  bool method_body = method_scope != t_void;
 
- PEntry pe = symbol_lookup(name);  
+ PEntry pe = symbol_lookup(name);
  mIsConversion = name == CONVERSION_OPNAME;
  FunctionEntry *pfe = NULL, *local_entry = NULL;
  slot_id = 0;
  *fn = NULL;
  if (pe) { // already is an entry
-    bool is_function = pe->type.is_signature();   
-    Table* cntxt = &state.context(); 
+    bool is_function = pe->type.is_signature();
+    Table* cntxt = &state.context();
     pfe = (FunctionEntry *)pe->data;
 
-    // but is it local?  In which case we try to overload 
+    // but is it local?  In which case we try to overload
     if (cntxt->is_local_entry(pe)){
      // *add 1.2.8 'main' can't be overloaded...
      if (name == "main") return NULL;
-     if (is_function) { 
+     if (is_function) {
         *fn = pfe->simple_match(sig);
         if (*fn) { // but not if this signature is already present!
            // if this function is already complete, we can only
-           // redeclare it, not redefine it.           
+           // redeclare it, not redefine it.
            if ((*fn)->context() && fn_defn) {
                if (!interactive_mode()) { error_already_defined(name); return NULL; }
              else (*fn)->clear(); // ISSUE: again, interactive mode is more lenient
-           } 
+           }
            // *issue 0.9.5 allows us to actually change the return type; when shd it be an error?
            if ((*fn)->return_type() != sig->return_type()) { *fn = NULL; return NULL; }
            return pfe;  // reuse entry...
@@ -1266,7 +1267,7 @@ lookup_function_entry(Signature *sig, const string& name,bool fn_defn,
         // doesn't exist at this point!
             if (method_body && state.in_template == NULL)
                 error_not_in_class(sig_as_str(sig,name),method_scope);
-            else return pfe;          
+            else return pfe;
         }
      } else { error_already_defined(name); return NULL; }// and it wasn't a function!
    }
@@ -1279,18 +1280,18 @@ lookup_function_entry(Signature *sig, const string& name,bool fn_defn,
        // if a virtual method, get its slot id
        // but always redeclare (hence hiding the original entry)
        if (*fn != NULL) {
-         if ((*fn)->is_virtual()) { 
+         if ((*fn)->is_virtual()) {
 			 slot_id = (*fn)->slot_id();
 			 if (slot_id > 512) slot_id = 1;
 		 }
          //*HACK* this was very irritating - switch it off while importing...
-        // else warning(quotes(name) + " will be hidden");   
-       } 
+        // else warning(quotes(name) + " will be hidden");
+       }
    }
    *fn = NULL; //*????*
    // *fix 1.2.9 The _specific case_ where we're instantiating a function template;
    // the entry already exists!
-   if (state.in_template && 
+   if (state.in_template &&
        state.in_template->get_template()->get_entry()->entry() == pe) return pfe;
    else  return local_entry ? local_entry : NULL; // NULL create a new entry please!
  } else // not found!
@@ -1298,7 +1299,7 @@ lookup_function_entry(Signature *sig, const string& name,bool fn_defn,
   error_not_in_class(name,method_scope);
   return NULL;
  } else return NULL;
-}   
+}
 
 
 void ParserState::set_construct_destruct(int ftype)
@@ -1309,8 +1310,8 @@ void ParserState::set_construct_destruct(int ftype)
 Function *generate_function(Signature *sig, FunctionEntry *pfe, int slot_id, bool imported)
 {
   PClass pclass = class_context();
-  Function *fn = new Function(sig,pfe); 
-  //*NOTE* This is somewhat awkward, and needs to be done up 
+  Function *fn = new Function(sig,pfe);
+  //*NOTE* This is somewhat awkward, and needs to be done up
   // before _anybody else_ sees it!
   if (pclass != NULL && state.modifier != Static && state.in_construct_destruct == IsPlain)
        state.in_construct_destruct = 3;
@@ -1321,17 +1322,17 @@ Function *generate_function(Signature *sig, FunctionEntry *pfe, int slot_id, boo
   // *change 1.2.3 Flag how this function must be exported as a callback
   fn->export_as_cdecl(state.modifier != Stdcall);
 
-  if (state.modifier==Virtual || slot_id > 0) {     
+  if (state.modifier==Virtual || slot_id > 0) {
      if (!pclass) fail("'virtual' not allowed here");
      /// A new virtual method gets a new (non-zero) slot id
      if (slot_id == 0) slot_id = pclass->next_slot();
-     fn->slot_id(slot_id); 
+     fn->slot_id(slot_id);
 	 // *fix 1.1.0 add the slot to the class...
-	 pclass->set_slot(fn->slot_id(),fn);             
+	 pclass->set_slot(fn->slot_id(),fn);
   }
-  state.modifier = None; 
+  state.modifier = None;
 
-  if (mIsConversion) { 
+  if (mIsConversion) {
      if (!pclass) fail("conversion operator must be a method");
      pclass->set_conversion_to(fn);
   }
@@ -1350,15 +1351,15 @@ void set_default_args(Function *fn, bool do_clear, bool is_defn=false)
 {
   // set any default arguments - will overwrite any currently defined ones!
   PExprList pel = get_default_arguments();
-  if (pel) { 
-     // *fix 0.9.4 Now complains about default args in fn. defn 
+  if (pel) {
+     // *fix 0.9.4 Now complains about default args in fn. defn
      // *NOTE* We should move this 'not defined' test to Function...
      if (is_defn && fn->fun_block()->pstart == NULL
         && fn->has_default_args()) fail("Cannot redefine default arguments");
      fn->set_default_args(pel);
      delete pel;
   }
-  if (do_clear) state.arg_list.clear(); 
+  if (do_clear) state.arg_list.clear();
 }
 
 
@@ -1371,7 +1372,7 @@ Table* enclosing_namespace(Table* pt)
 
 Function *ParserState::declare_function(Type t,const string& name, PExpr poss_init)
 {
- int slot_id, modifier_flags = modifier;  
+ int slot_id, modifier_flags = modifier;
  in_declaration = false;
  Function* fn = NULL;
  Table* fcntext = NULL;
@@ -1391,15 +1392,15 @@ try {
      push_context(fcntext);
   }
 
-  FunctionEntry *pfe = lookup_function_entry(sig,name,false,&fn, slot_id); 
+  FunctionEntry *pfe = lookup_function_entry(sig,name,false,&fn, slot_id);
 
   if (in_friend_dcl) {  // Parser::state.in_friend_dcl
       push_context(class_ptr);
-  } 
+  }
 
   if (!pfe) pfe = create_function_entry(sig,name);
   if (!fn) { // add a new function to the overloaded set!
-   fn = generate_function(sig,pfe,slot_id,was_import); 
+   fn = generate_function(sig,pfe,slot_id,was_import);
   }
 
   if (fcntext) pop_context();
@@ -1422,11 +1423,11 @@ try {
        FORALL(eli,*pfl) {
 		  PEntry pe = *eli;
 		  if (pe->name == name)  // attach the method templates to the methods...
-		    pfe->set_template(PFunctionEntry(pe->data)->get_template()); 	      
-       }	 
-    } 
+		    pfe->set_template(PFunctionEntry(pe->data)->get_template());
+       }
+    }
   }
- 
+
   if (poss_init != NULL) { // *add 0.9.5 pure virtual methods
      if (class_ptr == NULL) fail("must be in class context");
      if (!fn->is_virtual()) fail("method must be virtual");
@@ -1445,7 +1446,7 @@ try {
   }
  } catch(string msg) { error(msg); }
  // NB to reset state!!
- modifier = None;  
+ modifier = None;
  in_friend_dcl = false;
  return fn;
 }
@@ -1456,16 +1457,16 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
  PEntry pe;
  Function *fn = NULL;
  ArgList by_val_list;
- 
- try {  
+
+ try {
   PClass  class_ptr = class_context();
 
   Signature *sig = get_signature(t);
   FunctionEntry *pfe = lookup_function_entry(sig,name,true,&fn,slot_id);
   if (!pfe)  pfe = create_function_entry(sig,name);
   if (!fn)  // add a new function to the overloaded set!
-     fn = generate_function(sig,pfe,slot_id,false); 
- 
+     fn = generate_function(sig,pfe,slot_id,false);
+
   fn->builtin(ftype);
   if (fn->builtin()) fn->import_scheme(Import::scheme());
   set_default_args(fn,false,true);
@@ -1473,7 +1474,7 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
 #if _DEBUG
   gLastFunction = fn; //*DEBUG*
   if (gDebugBreak) {
-      if (gDebugBreak == 2) 
+      if (gDebugBreak == 2)
           __break(2);
       else
          gFunBlock = fn->fun_block();
@@ -1492,7 +1493,7 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
       fn->clear();
       set_function_code(true); // *fix 0.9.5 was not called before constructor init. lists
   }
-  push_context(fcntxt);  
+  push_context(fcntxt);
 
   if (class_ptr) { // methods need a 'this' variable!
      Type cpt = class_ptr->entry()->type;
@@ -1503,7 +1504,7 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
      p_this->data = THIS_OFFSET;
   }
 
-  dcl_init_size = 0; 
+  dcl_init_size = 0;
 
   // Add any args, ignoring the initializers
   // (1) Passing objects _by value_ is achieved by a dummy ref. argument,
@@ -1534,12 +1535,12 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
        passing_obj_by_value = true;
      }
 
-     pe = add_variable(t,name,NULL,ARG); 
+     pe = add_variable(t,name,NULL,ARG);
 
      if (passing_obj_by_value) {
        by_val_list.back().init = Expressions::entry_op(pe);
        passing_obj_by_value = false;
-     }  
+     }
   }
   // any objects passed by value are now declared in the function context; these
   // are initialized using the reference parameter created above.
@@ -1550,7 +1551,7 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
     by_val_list.clear();
   }
 
- } catch(string msg) { error(msg); }  
+ } catch(string msg) { error(msg); }
  class_dcl = t_void;  // just in case...
  return fn;
 }
@@ -1595,7 +1596,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
   int size;
 // *add 1.2.3 Support for 'static' applied within file scope
 // The trick here is to explicitly load this module's anonymous namespace
-  bool is_static = mode == ENUM_INIT; 
+  bool is_static = mode == ENUM_INIT;
   if (mode == Static) {
       is_static = true;
       if (is_global(&context())) {
@@ -1604,12 +1605,12 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
       }
   }
   if (name=="*") name = make_temp_name(); // assign a temporary name...
-  if (t == t_null  && ! in_typedef) { // *add 1.1.1 support for __declare    
+  if (t == t_null  && ! in_typedef) { // *add 1.1.1 support for __declare
     if (init == NULL) fail("must initialize a __declare variable");
     t = init->type();
 	t.strip_const();   // i.e. we want the base type
 	t.make_zero_int(); // *fix 1.1.2 the zero bit must go!
-	if (t.is_function()) t.incr_pointer(); // *fix 1.2.0 (Eric) otherwise we crash	
+	if (t.is_function()) t.incr_pointer(); // *fix 1.2.0 (Eric) otherwise we crash
   }
   // _cannot_ use a namespace name as if it were a plain type!
   if (t.is_namespace()) fail("Namespace not allowed here");
@@ -1624,36 +1625,36 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
 
   // *fix 1.1.2 Watch out for bad array init here, except for char arrays
   // *fix 1.2.0 Deduce the size of the array in declarations like 'char p[] = "hello"'
-  if (t.is_pointer() && s_array_size != 1) { // a fiddle: means we have an array!     
-     bool is_elist = init && init->is_expr_list();     
+  if (t.is_pointer() && s_array_size != 1) { // a fiddle: means we have an array!
+     bool is_elist = init && init->is_expr_list();
      if (init && ! is_elist) {
 		 if (! t.is_char() || init->type() != t_char_ptr || ! init->is_entry())
 		   error("bad array initializer");
 		 else if (s_array_size==0) {
 		   s_array_size = strlen((char *)init->entry()->global_ptr())+1;
-		 }		 
-	 } else 
+		 }
+	 } else
      if (s_array_size == 0) { // hm, may be asking us to guess the array size!
-       if (init && is_elist) s_array_size = init->expr_list()->size();       
+       if (init && is_elist) s_array_size = init->expr_list()->size();
        else fail("arrays of size zero not allowed"); // *add 1.2.9
-     } 
+     }
   }
   size = s_array_size*s_twodim_array;  // will be > 1 for arrays!
 
   // Has this variable already been added?
   pe = context().lookup(name);
   bool already_declared = pe != NULL;
-  if (already_declared) { 
+  if (already_declared) {
      if (context().is_local_entry(pe)) {
       // *fix 0.9.4 Redefinition is not an error if 'extern'; we reuse an entry unless it will be larger
-      // *fix 1.2.2 or will be differently initialized...   
+      // *fix 1.2.2 or will be differently initialized...
        // *fix 1.2.3b If we've already allocated in an extern declaration, then now initialize...
        if (pe->m_access == NotInitialized) {
           pe->rmode = DIRECT;
           is_class_context = false;
           goto rest_of_init;
        }
-       if (! in_extern()) error_already_defined(name); 
+       if (! in_extern()) error_already_defined(name);
        else return pe;  // *fix 1.2.3b Don't redeclare extern variables....
        if (pe->type == t && pe->size >= size && !t.is_class() && !init) {
           reset_array_size();
@@ -1664,7 +1665,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
     //if (pe->type == t) warning(quotes(name) + ": hidden variable");
   }
 
-  pe = context().add(name);  
+  pe = context().add(name);
   // put any non-tempory variables in the init list
   if (name[0] != '$') dcl_init_list.push_back(pe);
   pe->type = t;
@@ -1675,7 +1676,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
   if (t.is_pointer() && s_array_size != 1) {
       if (s_array_size < 0)
           error("array size cannot be negative");
-      t.decr_pointer(); 
+      t.decr_pointer();
       if (s_twodim_array > 1)
         t.decr_pointer();
   }
@@ -1686,7 +1687,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
   is_static = pe->rmode == DIRECT;  // *fix 1.0.0
   pe->m_typename = false;
 
-  
+
   //*HACK* 2D arrays are _formally_ allowed in class defs...
   if(pe->rmode == OREL) s_twodim_array = 1;
 
@@ -1703,21 +1704,21 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
        // leave room for the pointer table...
       size += sizeof(void *)*s_array_size;
     }
-    alloc_context = is_static ? &global() : &context(); 
+    alloc_context = is_static ? &global() : &context();
     is_class_context = alloc_context ? is_class(alloc_context) : false;
 
     // *add 1.1.4 Bit fields are now allowed in structures
     // *fix 1.2.0 Now allocated to ensure 4-byte alignment for the next field, to be consistent with GCC
     // *fix 1.2.3 Bit fields will now fit properly in structures one word in size
     if (init && init->is_const()) {
-        if(pe->rmode != OREL || ! pe->type.is_int()) 
+        if(pe->rmode != OREL || ! pe->type.is_int())
             fail("Bit fields must be integer and are only allowed in structs");
         int bit_size = const_int_expr(init->entry());
         if (bit_offs == 0) {
             size = 4 - alloc_context->size() % 4; // room available upto next 4-byte boundary
             offset = alloc_context->alloc(size,NULL);
             field_size = 8*size; // bits left in this field
-        } 
+        }
         pe->set_bit_field(offset,bit_offs,bit_size);
         bit_offs += bit_size;
         if (bit_offs > field_size) bit_offs = 0;  // have we gone over a boundary?
@@ -1726,7 +1727,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
    // *add 1.2.0 Support for 8-byte alignment of doubles in structures
        if (is_class_context && debug.class_dword_align == 8 && t == t_double)
          pe->data = alloc_context->alloc_qword();
-       else 
+       else
          pe->data = alloc_context->alloc(size,NULL);
 	   bit_offs = 0;
     }
@@ -1746,7 +1747,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
        (pe->data) += (pe->is_stack_relative() ? 1 : sizeof(int));
      }
     }
-  } else 
+  } else
   if (is_local(&context())) {
     PFBlock fb = ((FunctionContext&)context()).fun_block();
     pe->data = fb->nargs;
@@ -1765,8 +1766,8 @@ rest_of_init:
   // no default initialization for class members!
   if (init || !is_class_context) {
    // even if no init, we pass objects through this in case they
-   // _may_ need default construction. Don't try to construct in typedefs! 
-   if (init || (t.is_object() && mode != DEFER_TEMP/* && !in_typedef*/)) { 
+   // _may_ need default construction. Don't try to construct in typedefs!
+   if (init || (t.is_object() && mode != DEFER_TEMP/* && !in_typedef*/)) {
     if (init && (!alloc_context || (is_class_context && mode != ENUM_INIT)))
       fail("initialization not allowed here");
    //*SJD* The context flag needs some work....
@@ -1774,9 +1775,9 @@ rest_of_init:
         PExpr e = Expressions::initialize_op(pe,init,NULL,mode==TEMP ? 1 : 0);
         if (e != NULL && ! e->is_nil())
 			   (is_static ? static_code() : code())
-			             .compile(e,in_loop_dcl() ? 0 : DROP_VALUE);       
+			             .compile(e,in_loop_dcl() ? 0 : DROP_VALUE);
       } else if (init->is_entry()) {
-        pe->data = init->entry()->data;      
+        pe->data = init->entry()->data;
       } else fail("bad init");
     }
     else if (t.is_reference() && (mode != ARG && !in_typedef))
@@ -1789,8 +1790,8 @@ rest_of_init:
 
 // This is called after every declaration; used to detect anonymous unions
 void ParserState::check_dcl_init(Type t)
-{ 
-    if (dcl_init_list.size() > 0) { 
+{
+    if (dcl_init_list.size() > 0) {
         dcl_init_list.clear();
         return;  // there were declarations
     }
@@ -1809,13 +1810,13 @@ void ParserState::check_dcl_init(Type t)
         for(eli = el.begin(); eli != el.end(); ++eli) {
            PEntry entry = *eli;
            string name = entry->name;
-           PEntry new_pe = cntxt->new_entry(name); 
+           PEntry new_pe = cntxt->new_entry(name);
            new_pe->type = entry->type;
            new_pe->size = entry->size;
            new_pe->data = union_entry->data;
-           new_pe->rmode = is_class(cntxt) ? OREL : DIRECT;  
-           cntxt->add_entry(name,new_pe);           
-        }       
+           new_pe->rmode = is_class(cntxt) ? OREL : DIRECT;
+           cntxt->add_entry(name,new_pe);
+        }
     }
 }
 
@@ -1828,8 +1829,8 @@ int size_of_entry(PEntry pe)
 {
  Type t = pe->type;
  // for arrays, use the size of the base type...
- if (array_size(pe) > 1 && t.is_pointer()) { 
-      t.decr_pointer(); 
+ if (array_size(pe) > 1 && t.is_pointer()) {
+      t.decr_pointer();
       return array_size(pe)*t.size();
  } else return t.size();
 }
@@ -1854,7 +1855,7 @@ int const_int_expr(PEntry pe)
 }
 
 int const_int_expr(Expression e)
-{ 
+{
 // *add 1.1.4 Some limited ability to fold compile-time constants
 // *add 1.2.5 Added relational ops for #if expressions
  if (! e->is_entry()) {
@@ -1880,15 +1881,15 @@ int const_int_expr(Expression e)
      case LEQ:       return v1 <= v2;
      case GREATER:   return v1 > v2;
      case GEQ:       return v1 >= v2;
-	 default: fail("Must be a simple constant integer expression");	 
-     }  
+	 default: fail("Must be a simple constant integer expression");
+     }
  }
  // plain entry case...
  return const_int_expr(Expressions::ExprToEntry(e));
 }
 
 void *create_const_entry(Type t, PEntry& rpe)
-{ 
+{
   PEntry pe = new Entry;
   pe->rmode = DIRECT;
   t.make_const();
@@ -1922,14 +1923,14 @@ try {
   // and we need a distinct name, rather like the equivalent w/ struct.
   bool nameless = name=="" && ! in_typedef;
   if (nameless) name="?enum";                 // entry name of nameless enum
-  else if (name=="") name = make_temp_name(); // assign a temporary name... 
-  else if (debug.c_mode) name = "$_" + name; 
+  else if (name=="") name = make_temp_name(); // assign a temporary name...
+  else if (debug.c_mode) name = "$_" + name;
   //PEntry pe = symbol_lookup(name);
-  // *fix 1.2.7 _only_ look in local context; 
+  // *fix 1.2.7 _only_ look in local context;
   // a previously defined enum wd collide w/ a definition w/in a class
   PEntry pe = context().lookup(name,false);
   // *hack 1.1.4 this test in C mode interferes w/ old-fashioned 'enum Name var'
-  if (! debug.c_mode && pe && !nameless) fail("already defined"); 
+  if (! debug.c_mode && pe && !nameless) fail("already defined");
   if (! pe) {
      pe = context().add(name);
      pe->rmode = DIRECT;
@@ -1937,14 +1938,14 @@ try {
      enum_obj = new Enum(name);
 	 enum_obj->entry(pe);          // *add 1.2.7 Enum now carries entry...
      pe->data = global().alloc(sizeof(Enum),enum_obj);
-     if (!nameless) { 
-         et = Type(enum_obj); 
+     if (!nameless) {
+         et = Type(enum_obj);
          Module::current()->add_typename(pe);  // will need to clean these entries out...
      }
      pe->type = et;
-  } else 
+  } else
  // *fix 1.2.7 The enum object is via a _direct_ reference!
-      enum_obj = (Enum *)global().addr(pe->data); 
+      enum_obj = (Enum *)global().addr(pe->data);
    gEnum = enum_obj;
 
    return pe->type;
@@ -1953,21 +1954,21 @@ try {
 }
 
 
-void ParserState::add_enum(Type et, string name, PExpr init)  
+void ParserState::add_enum(Type et, string name, PExpr init)
 {
   // Add a constant to the current enumeration!
   // *fix 1.2.1 (Eric) Simplified, and no longer mistreats shorts...
-  bool was_in_typedef = in_typedef;  
+  bool was_in_typedef = in_typedef;
   PEntry pe_entry,entry;
   in_typedef = false;
   try {
-   if (init) 
+   if (init)
       gVal = const_int_expr(init);
    *(int *)create_const_entry(t_int, pe_entry) = gVal++;
-   entry = add_variable(et,name,Expressions::entry_op(pe_entry),ENUM_INIT);  
+   entry = add_variable(et,name,Expressions::entry_op(pe_entry),ENUM_INIT);
    gEnum->add_entry(entry);
-  } catch(string msg) 
-  { error(msg); }   
+  } catch(string msg)
+  { error(msg); }
   in_typedef = was_in_typedef;
 }
 
@@ -1992,7 +1993,7 @@ void do_end_try_catch_block(bool is_final)
  if (!is_final) code().jump(JMP,end);
  else {
  // Get rid of the JMP from the last block
-  if (code().last_pi()->opcode == JMP) 
+  if (code().last_pi()->opcode == JMP)
      code().backspace();
   end->here();
   state.mTryStack.pop();
@@ -2030,19 +2031,19 @@ using namespace Expressions;
 
 void do_throw(PExpr e)
 {
- Type t; 
+ Type t;
  if (e != NULL) {
   t = e->type();
   // Here's the big fiddle: when we throw objects we create them
   // dynamically! We copy references as well since they are often
   // dubious. HACK05
-  if (t.is_class() && !t.is_pointer()) 
+  if (t.is_class() && !t.is_pointer())
      e = Expressions::new_op(t,NULL,Expressions::expr_list(e));
-  code().compile(e);    
+  code().compile(e);
  } else { // if we re-raise the exception, then we mark it w/ t_void!
    code().emit_push_int(0);
    t = t_void;
- }  
+ }
  t.strip_qualifiers();
  code().emit_except_throw(t);
 }
@@ -2066,17 +2067,17 @@ try {
  else
  if (!IEF && block_depth() == 0) {
 
-   if (debug.dump_expr) { 
+   if (debug.dump_expr) {
      Expressions::dump(cmsg,e);  cmsg << std::endl;
    }
-   // insert an appropriate dump instruction if non-void   
+   // insert an appropriate dump instruction if non-void
    Type t = e->type();
 //  /*
    // *SJD* This feature is irritating and needs a rethink!!
    // Basic idea is to build up the symbolic equiv of 'cout << obj << endl'
    // *fix 1.1.2 The usual error is now silent, and a newline is output.
    // We don't try to do class ptrs for the mo. I am not sure whether
-   // this is the best default behaviour, so I've left it in this ugly 
+   // this is the best default behaviour, so I've left it in this ugly
    // state!
    // *change 1.2.8 don't do this when the debugger is driven externally.
    if (mOCout != NULL && (t.is_class() || t.is_enum()) && ! debug.interactive_debugging) {
@@ -2087,11 +2088,11 @@ try {
        if (t.is_pointer()) {
 		    Type t2 = pout->arg1()->arg_list()->back()->type();
 			if (t2.is_void()) goto default_case;
-       }  
+       }
        if (pout && ! pout->is_nil()) { // append '<< endl' expression
 		   pout = Expressions::append_op (pout,
 			       Expressions::function_op(mXInsert,
-			         Expressions::expr_list(mOCout,mXEndl)));                     
+			         Expressions::expr_list(mOCout,mXEndl)));
          code().compile(pout,DROP_VALUE);
          return true;
        }
@@ -2099,7 +2100,7 @@ try {
    }
 default_case:
    // *fix 1.2.1 (Eric's double evaluation bug) Expressions with object values were compiled twice!
-   code().compile(e); 
+   code().compile(e);
    if (t != t_void) {
        int tinfo, op;
        if (e->is_variable()) { op = SHOWV; tinfo = (int)e->entry(); }
@@ -2133,14 +2134,14 @@ void finalize_temp_code(bool do_dissemble, Type rt)
 // *add 1.1.0 can (optionally) return an integer so that
 // the result of main() can be passed back...
 	code().emit_return(rt);
-    if (mCodeBlock.pstart && ! Engine::paused()) 
+    if (mCodeBlock.pstart && ! Engine::paused())
     try { // sometimes (utils.uc) we get trouble doing this...
       delete mCodeBlock.pstart;
     } catch(...) {
      mCodeBlock.pstart = 0;
     }
     mCodeBlock.pstart = code().end_code();
-    if (do_dissemble) dissemble(&mCodeBlock);    
+    if (do_dissemble) dissemble(&mCodeBlock);
 }
 
 int exec_temp_code(int flags,ArgBlock *xargs)
@@ -2158,7 +2159,7 @@ bool statement_end()
 
   // *fix 1.2.8 need to allow temporary code to execute before
   // main() is called in batch mode.
-  // *change 1.2.9 we use the loaded module list to execute 
+  // *change 1.2.9 we use the loaded module list to execute
   // initialization code, controlled by this flag
   // interactive_mode() ?
  if (! Parser::debug.compile_program && block_depth() == 0) {
@@ -2183,10 +2184,10 @@ void dump_expression(Type t, void *ptr, PEntry pe)
     try {
       cmsg << t.value_as_string(ptr);
 	} catch(...) {
-      cmsg << "???";   
+      cmsg << "???";
 	}
 	cmsg << std::endl;
-  }  
+  }
 }
 
 PExpr get_object_return_expr()
@@ -2204,10 +2205,10 @@ Namespace* lookup_namespace(char *name)
 PEntry add_std_exception(char *name)
 {
   PEntry pe = state.context().lookup(name);
-  if (pe && pe->type.is_class()) { 
+  if (pe && pe->type.is_class()) {
      Type t = pe->type.as_class();
      return state.add_variable(t,"*");
-  }                       
+  }
   else return NULL;
 }
 
@@ -2232,7 +2233,7 @@ void init_lib()
  mXInsert = get_entry_expr("<<");
  mXEndl = get_entry_expr("endl");
 
- 
+
 }
 
 // *hack 1.1.4 C programmers will of course use any available keywords,
@@ -2240,7 +2241,7 @@ void init_lib()
 // *fix 1.2.0 only actually switches mode if necessary
 void set_c_mode(bool yesno)
 {
-  if (yesno == debug.c_mode) return;  
+  if (yesno == debug.c_mode) return;
   debug.c_mode = yesno;
   if (yesno) {
 	  TokenStream::macro_subst("delete","delete_");
@@ -2258,7 +2259,7 @@ void init()
  state.class_dcl = t_void;
  state.scope_context = NULL;
  state.scope_context_stack.clear();
- state.context_stack.push(NULL); 
+ state.context_stack.push(NULL);
  state.context_stack.push(&mGlobal);
 
  state.token_stack.push("*"); // so we know if we've gone over!
@@ -2273,13 +2274,13 @@ void init()
  debug.auto_dissemble = false;
  debug.auto_exec = true;
  debug.strict = false;
- debug.skip_method_bodies = true; 
+ debug.skip_method_bodies = true;
  #ifdef _DEBUG
  debug.function_trace = true;
- debug.ptr_check = true;  
+ debug.ptr_check = true;
  #else
  debug.function_trace = true; // *change 1.2.4 Now controls stack trace on crash!
- debug.ptr_check = false; 
+ debug.ptr_check = false;
  #endif
  debug.class_dword_align = 4;
  debug.verbose = false;
@@ -2326,7 +2327,7 @@ void init()
 
  // block_stack.push(CONTEXT_PUSHED);
 
- // Add the bool constants true & false 
+ // Add the bool constants true & false
  // *SJD* Strictly speaking, these guys should be keywords, but what the hell
  Type t_const_bool = t_bool;
  t_const_bool.make_const();
@@ -2366,25 +2367,25 @@ void dump_var(PEntry pe)
  if (!pe) {
     state.context().dump_entries(std::cout,1);
     return;
- } 
- 
+ }
+
  Type t = pe->type;
  bool class_entry = is_class(pe->context);
  if (class_entry && pe->m_typename) {
     t.as_class()->dump_entries(std::cout,1);
-    return;   
+    return;
  }
  string prefix = class_entry ? PClass(pe->context)->name() + "::" : string("");
  std::cout << "VAR ";
  if (t.is_signature()) Signature::set_fun_name("");
  if (! t.is_function()) {
   try {
-    std::cout << pe->type; 
+    std::cout << pe->type;
   } catch(...) {
    std::cout << "<void>";
   }
  }
- std::cout << ' ' << prefix << pe->name 
+ std::cout << ' ' << prefix << pe->name
       << " size " << size_of_entry(pe)
       << " offset " << pe->data << std::endl;
 
@@ -2398,21 +2399,21 @@ void dump_var(PEntry pe)
  // *LINUX* CATCH_SIGNALS
     if (pe->type.is_class()) {
          std::cout << "CLASS(" << pe->type.as_class()->name() << ") ";
-         pe->type.as_class()->dump_entries(std::cout,0); 
+         pe->type.as_class()->dump_entries(std::cout,0);
     } else
     if (pe->rmode==DIRECT) {
      void *ptr = pe->global_ptr();
      // *fix 1.0.0 dumping arrays of characters should now work...
      if (size_of_entry(pe) > 1) ptr = (void *) &ptr;
      res = t.value_as_string(ptr);
-     if (res != "") { 
+     if (res != "") {
        std::cout << res;
-       do_dump = true; 
+       do_dump = true;
      }
    }
   if (do_dump) std::cout << " was value" << std::endl;
  } catch(...) { warning("problem with dumping value...."); }
 }
-////        
+////
 } // namespace Parser
 
