@@ -183,7 +183,7 @@ Errors::check_output()
 
 // *add 1.2.4 We can redirect cmsg and cerr in console mode by setting
 // these pointers appropriately (cmsg is #def'd to be *_cmsg_out etc - see classlib.h)
-#ifd defined(_CONSOLE) || defined(_USRDLL)
+#if defined(_CONSOLE) || defined(_USRDLL)
 # ifndef _FAKE_IOSTREAM
 #   undef cerr
 # endif
