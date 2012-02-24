@@ -68,7 +68,7 @@ tparser.cpp: parser.y
 
 tparser.o: tparser.cpp
 
-clean: 
+clean:
 	rm -f *.o ucc *~ ../lib/string_imp.dll
 
 lib:
@@ -89,7 +89,7 @@ directcall.o: directcall.cpp directcall.h common.h \
         opcodes.h directcall.h mangle.h hard_except.h os.h
 
 dissem.o: dissem.cpp common.h \
-        opcodes.h breakpoints.h	
+        opcodes.h breakpoints.h
 
 engine.o: engine.cpp engine.h common.h errors.h \
         opcodes.h directcall.h breakpoints.h hard_except.h
@@ -99,7 +99,7 @@ expressions.o: expressions.cpp expressions.h common.h \
 
 function.o: function.cpp function.h common.h opcodes.h \
          module.h
-  
+
 breakpoints.o: breakpoints.cpp breakpoints.h common.h \
          module.h opcodes.h tokens.h std_utils.h os.h
 

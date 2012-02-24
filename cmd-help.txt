@@ -2,7 +2,7 @@ UnderC Command-line Options (available with --help)
 
 ucc <options> { <source file> }
 
-Defaults to interactive mode if there's no source file specified; 
+Defaults to interactive mode if there's no source file specified;
 reads C++ definitions from defs.h, looking first in current directory
 and then in the UnderC home directory.
 
