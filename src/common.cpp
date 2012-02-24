@@ -1091,7 +1091,8 @@ Signature *ParserState::get_signature(Type t, bool clear_arglist)
  bool was_stdarg = false;
  ArgList::iterator ali;
  StringList sl;
- if (arg_list.back().type == t_void) { // means '...'!!
+ // watch out for functions with no arguments!
+ if (arg_list.size() > 0 && arg_list.back().type == t_void) { // means '...'!!
     arg_list.pop_back();
     was_stdarg = true;
  }

@@ -5,7 +5,7 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
  */
- 
+
 #include "classlib.h"
 #include "common.h"
 #include "errors.h"
@@ -35,11 +35,11 @@ int yyerror(const char *s)
  next_statement();
  // *fix 1.2.8 Insist on only collecting errors w/in the same file
  string old_file = Parser::state.file;
- if (old_file == "" || old_file == Input::filename()) { 
+ if (old_file == "" || old_file == Input::filename()) {
    if (Errors::output_is_redirected() && current_err.length() > 0) current_err += "\n";
    current_err += s;
    Parser::state.file = Input::filename();
-   Parser::state.lineno = Input::lineno(); 
+   Parser::state.lineno = Input::lineno();
  }
  return 1;
 }
@@ -53,7 +53,7 @@ char *msg_buffer() { return msg_buff; }
 // out for runnaway processes.  Currently there's no pretense at being thread-safe
 // or even re-entrant.
 
-#ifndef _WCON 
+#ifndef _WCON
 
 std::ostrstream str_cmsg(msg_buff,MSG_BUFF_SIZE),
            str_cerr(err_buff,ERR_BUFF_SIZE);
@@ -72,7 +72,7 @@ bool cerr_is_redirected(std::ostream&)
 char *
 Errors::get_redirect_buffer(int which)
 {
-  if (which == 1) { 
+  if (which == 1) {
 	return msg_buff;
   }	else
   if (which == 2) {
@@ -83,7 +83,7 @@ Errors::get_redirect_buffer(int which)
   else return NULL;
 }
 
-void 
+void
 Errors::redirect_output(bool to_buff, bool main_console)
 {
 #ifdef _WCON
@@ -95,7 +95,7 @@ Errors::redirect_output(bool to_buff, bool main_console)
        wcon_redirect_off(cerr);
     }
 #else
-	if (to_buff) {       
+	if (to_buff) {
 #ifdef _CONSOLE
           _cmsg_out = &str_cmsg;
           _cerr_out = &str_cerr;
@@ -111,12 +111,12 @@ Errors::redirect_output(bool to_buff, bool main_console)
            str_cmsg << std::ends;
 	   str_cerr << std::ends;
     }
-#endif 
+#endif
 }
 
 bool
 Errors::output_is_redirected()
-{ 
+{
 #ifdef _WCON
   return wcon_is_redirected(cmsg);
 #else
@@ -141,10 +141,10 @@ Errors::set_halt_state(string msg, string fname, string file, int lineno, bool w
   current_err = msg;
   if (! was_ip) {  // we shd try to at least find the file otherwise...
     Parser::state.file = file;
-    Parser::state.lineno = lineno; 
+    Parser::state.lineno = lineno;
   }
   else Parser::state.lineno = lineno;  // *fix 1.1.1 to flag us as having crashed!
-  
+
   //* if (was_error || ! output_is_redirected()) {
       // *add 1.2.8 don't bug the user if we've already complained to the debugger...
       // but preserve true error messages for the meantime.
@@ -152,12 +152,12 @@ Errors::set_halt_state(string msg, string fname, string file, int lineno, bool w
         if (! was_ip) cerr  << file << ' ' << lineno << ": ";
         else cerr << '(' << lineno << ") ";
         cerr << msg << std::endl;
-      } 
+      }
 #ifdef _WCON
 // *change 1.2.8 we do not bother the IDE if this event happened outside the program thread.
       if (! Program::in_main_thread()) {
        if (was_error) {
-		wcon_clear(0);  // clear WCON input buffer as a precaution... 
+		wcon_clear(0);  // clear WCON input buffer as a precaution...
         IDE::error(); // inform the IDE....
        } else
 	    IDE::breakpoint();
@@ -166,15 +166,15 @@ Errors::set_halt_state(string msg, string fname, string file, int lineno, bool w
   //* }
 }
 
-void 
+void
 Errors::reset_error_state()
 {
-  Parser::state.lineno = 0; 
+  Parser::state.lineno = 0;
   current_err = "";
 }
 
 
-int 
+int
 Errors::check_output()
 {
     if (output_is_redirected()) { redirect_output(false); return 1; }
@@ -183,7 +183,7 @@ Errors::check_output()
 
 // *add 1.2.4 We can redirect cmsg and cerr in console mode by setting
 // these pointers appropriately (cmsg is #def'd to be *_cmsg_out etc - see classlib.h)
-#ifdef _CONSOLE
+#ifd defined(_CONSOLE) || defined(_USRDLL)
 # ifndef _FAKE_IOSTREAM
 #   undef cerr
 # endif
