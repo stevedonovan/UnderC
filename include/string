@@ -95,6 +95,8 @@ EXPORT _string operator+ (const _string& s1, char *str2);
 
 #pragma dlink
 
+#define LINESIZE 512
+
 std::ostream& operator<< (std::ostream& os, const std::string& s)
 {
   os << s.c_str();
@@ -102,7 +104,8 @@ std::ostream& operator<< (std::ostream& os, const std::string& s)
 }
 
 std::istream& operator>> (std::istream& is, std::string& s)
-{ char buff[512]; 
+{
+  char buff[LINESIZE]; 
   is >> buff;
   s = buff; 
   return is;
@@ -110,8 +113,8 @@ std::istream& operator>> (std::istream& is, std::string& s)
 
 std::istream& getline(std::istream& is, std::string& s)
  { 
-   char buff[512];
-   is.getline(buff,MAX_LINE);
+   char buff[LINESIZE];
+   is.getline(buff,LINESIZE);
    s = buff;
    return is;
  }
