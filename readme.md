@@ -18,6 +18,9 @@ compiled C++ shared libraries to be used, but rapid changes and differences in
 the ABI between the supported compilers (MSVC and GCC) make this a hard
 target, especially for a portable version.)
 
+UnderC supports two extensions to the old standard, `typeof` and `__declare`.
+`typeof` has been in GCC for a long time, and roughly corresponds to the new `decltype` keyword; `__declare` is equivalent to the new `auto`.
+
 ## Building from Source
 
 You will only need g++ and readline-dev to build UnderC; bison is only needed if you 
@@ -32,7 +35,6 @@ The configure step's main job is to encode the home directory directly in the
 directories.  Thereafter, you can make a symlink or even a copy on your path
 and `ucc` will remember its home.
 
-
 ## An Example Transcript
 
     $> UnderC C++ Interpreter vs 1.2.9L
@@ -41,11 +43,11 @@ and `ucc` will remember its home.
     ;> // demonstrating std::string
     ;> string s = "hello dolly";
     ;> s.substr(0,5);
-    (string) 'hello'
+    (std::string) 'hello'
     ;> s.substr(s.find("dolly"),5);
-    (string) 'dolly'
+    (std::string) 'dolly'
     ;> s += " you're so swell";
-    (string&) 'hello dolly you're so swell'
+    (std::string&) 'hello dolly you're so swell'
     ;> s.length();
     (int) 27
     ;> // creating a list of strings...
@@ -54,9 +56,9 @@ and `ucc` will remember its home.
     ;> ls.push_back(s);
     ;> ls.push_back("way back when");
     ;> ls.front();
-    (string&) 'hello dolly you're so swell'
+    (std::string&) 'hello dolly you're so swell'
     ;> ls.back();
-    (string&) 'way back when'
+    (std::string&) 'way back when'
     ;> ls.push_front("singing...");
     ;> typedef list<string> LS;
     ;> LS::iterator li;
@@ -104,8 +106,7 @@ strcpy, strncpy, strcat, strcmp, strdup, strtok, strstr, strlen,memmove,
 puts,printf,sprintf,gets,fgets,fprintf,fscanf,fread,fwrite,feof,
 fopen,fclose,fflush 
 
-
-## Importing Functions and Classes
+## Importing Functions
 
 It is easy to import any extern "C" function from a DLL. For example,
 all modern Linux systems have the runtime shared library, libc.so.6
@@ -119,6 +120,102 @@ To make `isalpha()` available, one can say:
 
 It is also possible to use '#pragma dlink' which has the same meaning as 
 '#lib' but is C++ compatible.
+
+## UnderC Library
+
+There are 'pocket' versions of standard libraries like iostreams and strings, and some common C headers as well.
+
+Since UC is an interpreter,  you can evaluate C++ expressions; this is particularly useful because UC can be built as a shared library.
+
+`void uc_macro_subst(const char* expr, char* buff, int buffsize);`
+
+Expands the text in expr using the UnderC preprocessor, putting the result
+into buff.
+
+`void uc_cmd(const char* cmd);`
+
+Executes a UC #-command, like #l or #help.
+  uc_cmd() expects the name of the command, _without_ the hash,
+  e.g. uc_cmd("l fred.cpp") or uc_cmd("help").
+
+`int uc_exec(const char* expr);`
+
+Evaluates any C++ expression or statement; will return non-zero if
+unsuccessful. 
+
+`void uc_result_pos(int ret, char* buff, int buffsize, char* filename, int* line);`
+
+Copies the result of the last uc_exec() into a buffer; if passed a non-zero 
+value in 'ret' it will get the error string,
+otherwise the string will contain the value of the expression evaluated
+(generally anything which is a 'message')
+If 'filename' isn't NULL, then it will contain the file at which the message
+occured, and 'line' will receive the line number.
+ 
+### Evaluating C++ Expressions
+
+`uc_exec()` is fed a C++ statement as you would type it in, complete with semicolon if required. You may be evaluating a statement for its side-effects, or be declaring something, but sometimes it's necessary to see the result of an operation:
+
+    ;> uc_exec("23+2;");
+    ;> char buff[80];
+    ;; uc_result_pos(0,buff,80,0,0);
+    ;> buff;
+    (char*) "(int) 25
+    "
+
+The result is in fact exactly what you would get from the interactive UnderC prompt, complete with expression type and line feed at the end.  It's fairly straightforward to strip these elements away.  In fact, the UnderC shared library exports a function called `uc_eval()` which does precisely this.
+
+If the expression fails to compile, or has a run-time error, `uc_exec()` will return a non-zero value.  `uc_result_pos()` can then be used to get the error message.
+
+    ;> int line; char file[120];
+    ;> uc_exec("23=2");
+    (int) -1
+    ;> uc_result(-1,buff,80,file,&line); buff;
+    (char*) "Can't assign to a const type"
+    ;> file; line;
+    (char*) "CON"
+    (int) 6
+
+### Regular Expressions with rx++
+
+rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using John Lord's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers do not currently have a standard way of using them (although the next iteration of the standard library promises to rectify this, probably by using the BOOST libraries)
+
+    ;> #include <rx++.h>
+    ;> Regexp rx("dog");
+    ;> char* str = "the dog sat on the mat; the dog went outside";
+    ;> rx.match(str);
+    (bool) true
+    ;> rx.matched();
+    (std::string) 'dog'
+
+You may wish to directly access the matched position in the given string:
+
+    ;> rx.index();
+    (int) 4
+    ;> rx.end_match();
+    (int) 7
+    ;> int s = rx.index(), e = rx.end_match();
+    ;> char buff[80];
+    ;> strncpy(buff,str+s,e-s);
+    (char*) "dog"
+
+The full POSIX functionality is available.  For example, regular expressions are a 
+powerful way to extract formated data such as dates.  Anything inside escaped parentheses
+(\(, \)) is a group, which can be extracted from the matched string using a one-based index to the Regexp::matched() method:
+
+    ;> Regexp rdat("\([0-9]*\)/\([0-9]*\)/\([0-9]*\)");
+    ;> rdat.match(dates);
+    (bool) true
+    ;> rdat.matched();     // the whole matched expression
+    (std::string) '10/09/2003'
+    ;> rdat.matched(1);
+    (std::string) '10'
+    ;> rdat.matched(2);
+    (std::string) '09'
+    ;> rdat.matched(3);
+    (std::string) '2003'
+
+rx++.h doesn't have the most efficient implemention (in particular the string extraction in `Regexp::matched()` is expensive) but it makes using the POSIX calls less confusing.
 
 ## Command Summary
 
