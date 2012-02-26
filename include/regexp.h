@@ -72,8 +72,6 @@ extern "C" {
    		  char *errbuf, size_t errbuf_size);
  int regexec (const regex_t *preg, const char *str,
                  size_t nmatch, regmatch_t pmatch[], int eflags);
- int regnexec (const regex_t *preg, const char *str,int sz,
-                 size_t nmatch, regmatch_t pmatch[], int eflags);
  void regfree (regex_t *preg);
 }
 
