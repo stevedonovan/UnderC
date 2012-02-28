@@ -235,9 +235,12 @@ int Type::size() const                 // implements sizeof()
   else return sizeof(int);
 }
 
+using std::endl;
+
 class TypeSearch: public TableSearcher {
 private:
 	Class* m_class;
+	Signature* m_sig;
 	Type m_type;
 	Type m_dummy;
 	Type m_result;
@@ -249,6 +252,7 @@ public:
 	void set_type(Type t) {
       m_type = t;
 	  m_class = t.as_class();
+	  m_sig = t.as_signature();
     }
 
 	Type result() { return m_result; }
@@ -275,7 +279,12 @@ public:
 		 m_result = td;
 		 return true;
      }
-    }
+    } else // also match function pointer typedefs
+	 if (tt.is_signature() && tt.as_signature()->match(*m_sig,true)) {
+		 m_dummy.as_dummy()->set_name(pe->name);
+		 m_result = m_dummy;
+		 return true;
+	 }
     return false;
    }
 
@@ -347,11 +356,16 @@ void Type::as_string(string& s) const
  if (is_class())  s += class_as_str(as_class());
  else
  if (is_signature()) {
+   bool fun_pointer = is_pointer();  
+  // Try use any available typedef for function pointers
+   if (fun_pointer) {
+     if (lookup_typedef_name(*this,s)) return;
+   }
    char buff[256];
    std::ostrstream out(buff,256);
-   if (is_pointer()) Signature::set_fun_name("(*)");
+   if (fun_pointer) Signature::set_fun_name("(*)");
    out << *as_signature();
-   if (is_pointer()) Signature::set_fun_name("");
+   if (fun_pointer) Signature::set_fun_name("");
    out << std::ends;
    s = buff;   
    return;
