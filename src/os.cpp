@@ -156,7 +156,11 @@ Handle get_process_handle()
 
 Handle load_library(const char *name)
 {
-  return dlopen(*name!=0 ? name : NULL,RTLD_LAZY);
+  Handle h = dlopen(*name!=0 ? name : NULL,RTLD_LAZY);
+    if (h == NULL) {
+        puts(dlerror());
+    }
+    return h;
 }
 
 void free_library(Handle h)
