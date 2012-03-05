@@ -14,31 +14,31 @@
 #include <cstring>
 #include <strstream>
 
+std::vector<void *> Type::_test_;
+
+ std::vector<Class *>  Type::_classes_;
+ std::vector<Signature *>  Type::_signatures_;
+ std::vector<Enum *>       Type::_enums_;
+
  std::ostream& operator << (std::ostream&, string);
  std::istream& operator >> (std::istream&, string&);
 
-
-const Type 
+const Type
   t_bool(TT_BOOL), t_null(TT_NULL,0), t_template_type((Class *)-1),
   t_void, t_char(TT_CHAR), t_uchar(TT_CHAR,TT_UNSIGNED), t_int(TT_INT), t_uint(TT_INT,TT_UNSIGNED),
   t_short(TT_SHORT), t_ushort(TT_SHORT,TT_UNSIGNED), t_long(TT_INT,TT_LONG),
-  t_ulong(TT_INT,TT_LONG | TT_UNSIGNED), 
+  t_ulong(TT_INT,TT_LONG | TT_UNSIGNED),
   t_float(TT_FLOAT), t_double(TT_FLOAT,TT_LONG),
   t_void_ptr(TT_VOID,TT_PTR), t_char_ptr(TT_CHAR,TT_PTR),
   t_zero(TT_ZERO),t_label(TT_NULL,1);
 
-namespace { // local to this module
- std::vector<Class *>      _classes_;
- std::vector<Signature *>  _signatures_;
- std::vector<Enum *>       _enums_;
-}
+
 
 template <class T>
 int index_into(std::vector<T>& v, T val)
 {
  for(int i = 0; i < v.size(); i++)
   if (v[i] == val) return i;
-
  // otherwise it ain't here - add to vector!
  v.push_back(val);
  return v.size()-1;
@@ -49,10 +49,10 @@ int index_into(std::vector<T>& v, T val)
 // Should this not be part of what it means for signatures to match?
 Signature *unique_signature(Signature *sig)
 {
-  std::vector<Signature *>::iterator is = _signatures_.begin(),
-                                     ie = _signatures_.end();
+  std::vector<Signature *>::iterator is = Type::_signatures_.begin(),
+                                     ie = Type::_signatures_.end();
   for(; is != ie; ++is) {
-    Signature *s = *is;  
+    Signature *s = *is;
     // *change 1.2.3a Signature::match() is here called in "exact match" mode!
     if (s->return_type()==sig->return_type() && s->match(*sig,true)) return *is;
   }
@@ -66,12 +66,23 @@ Signature *find_signature(void *type_data)
    return uniq ? uniq : orig;
 }
 
+Type::Type(Class *pc)
+   { complex_init(TT_CLASS,(void *)pc); }
+Type::Type(Signature *ps)
+   { complex_init(TT_SIGNATURE,(void *)ps); }
+Type::Type(Enum *pe)
+   { complex_init(TT_ENUM,(void *)pe); }
+Type::Type(Namespace *ns)
+   { complex_init(TT_NAMESPACE, (void *)ns); }
+
+
 
 Type::Type(TypeEnum t, int extra)
 {
   *((long *)this) = 0;  //*SJD* Nasty but effective!
+
   if(t == TT_NULL) {
-    m_extra = extra;   
+    m_extra = extra;
     return;
   }
 // hmm...are bools considered a kind of integer?
@@ -108,14 +119,14 @@ void Type::complex_init(TypeEnum t, void *type_data)
   } else
   if (t == TT_ENUM || t == TT_DUMMY) {
     if (t == TT_DUMMY) m_short = 1;
-    m_enum = 1;     
+    m_enum = 1;
     // for dummies , _identical names_ means equality!
     // (can get away with this because both types derive from NamedType)
     Enum *ndata = (Enum *)type_data;
     int sz = _enums_.size();
     if (ndata->name() != "" || t != TT_DUMMY) {
       for(int i = 0; i < sz; i++)
-        if (_enums_[i]==ndata 
+        if (_enums_[i]==ndata
           /*|| t == TT_DUMMY && _enums_[i]->name() == ndata->name()*/)
             { m_extra = i;    return; }
     } else {
@@ -138,7 +149,7 @@ void Type::complex_init(TypeEnum t, void *type_data)
     m_extra = _enums_.size();
     _enums_.push_back(ndata);
   }
- 
+
 }
 
 bool Type::operator == (Type t)  const
@@ -152,7 +163,7 @@ bool Type::is_null() const
 { return *((long *)this) == 0; }
 
 bool Type::is_bare() const
-{ 
+{
   return !is_const() && !is_pointer() && !is_reference();
 }
 
@@ -205,7 +216,7 @@ Class     *Type::as_class() const
 
 Enum      *Type::as_enum() const
 {
- return _enums_[m_extra]; 
+ return _enums_[m_extra];
 }
 
 //----- depth of derivation; 0 for no relation (delegated to class object)
@@ -218,12 +229,12 @@ int      Type::inherits_from(Type t) const
 int Type::size() const                 // implements sizeof()
 {
   if (is_pointer()) return sizeof(void *);
-  else 
+  else
   if (is_enum()) return sizeof(int);   else;  // for now....
   if (is_int()) {
    if (is_short()) return sizeof(short);  else
    if (is_long())  return sizeof(long);  else
-   if (is_char())  return sizeof(char);  
+   if (is_char())  return sizeof(char);
    else return sizeof(int);
   } else
   if (is_float()) {
@@ -231,7 +242,7 @@ int Type::size() const                 // implements sizeof()
   } else
   if (is_class()) return as_class()->size();
   // *fix 1.2.3 Our bools now have standard size (8-bits)
-  else if (is_bool()) return sizeof(bool);  
+  else if (is_bool()) return sizeof(bool);
   else return sizeof(int);
 }
 
@@ -244,7 +255,7 @@ private:
 	Type m_type;
 	Type m_dummy;
 	Type m_result;
-	
+
 public:
 	TypeSearch() {
 		m_dummy = Type::make_dummy("_*_",t_void,NULL);
@@ -339,7 +350,7 @@ string class_as_str(Class *pc)
 }
 
 void Type::as_string(string& s) const
-{ 
+{
  if (Parser::debug.use_typedef_names && lookup_typedef_name(*this,s)) return;
  s = "";
  if (is_enum()) { s = enum_as_str(as_enum()); return; }
@@ -356,7 +367,7 @@ void Type::as_string(string& s) const
  if (is_class())  s += class_as_str(as_class());
  else
  if (is_signature()) {
-   bool fun_pointer = is_pointer();  
+   bool fun_pointer = is_pointer();
   // Try use any available typedef for function pointers
    if (fun_pointer) {
      if (lookup_typedef_name(*this,s)) return;
@@ -367,19 +378,19 @@ void Type::as_string(string& s) const
    out << *as_signature();
    if (fun_pointer) Signature::set_fun_name("");
    out << std::ends;
-   s = buff;   
+   s = buff;
    return;
- } else 
+ } else
  if (is_dummy()) s += as_dummy()->value_as_string();
 
  if (is_pointer()) {
     for(int i = 0; i < pointer_depth(); i++) s += "*";
  }
  #ifdef _DEBUG
- if (is_variable()) s += "!"; else  
+ if (is_variable()) s += "!"; else
  #endif
  if (is_reference() && !is_variable()) s += "&";
- 
+
 }
 
 std::ostream& operator << (std::ostream& os, Type t)
@@ -419,10 +430,10 @@ TypeDistance
     t1.make_zero_int();
 
  // these are really exact or trivial matches but we need to know for arg passing
-   if (t1 == t2) return REFERENCE_MATCH;     
+   if (t1 == t2) return REFERENCE_MATCH;
    if (t1.is_const()) {
-     // a non-const reference converts trivially to its const equivalent; 
-     if(t1 == make_const(t2)) return REFERENCE_MATCH;  //T& => const T&   
+     // a non-const reference converts trivially to its const equivalent;
+     if(t1 == make_const(t2)) return REFERENCE_MATCH;  //T& => const T&
      // T => const T& -- always cool because our constants have addresses
      // *fix 1.2.1 Must however exclude const T => T&!
      Type t2r = t2;
@@ -434,12 +445,12 @@ TypeDistance
         if (t1 == t2r) return REFERENCE_MATCH;  // T => const T&
      }
    }
- } 
- t2.make_zero_int(); 
- t1.make_zero_int();  
+ }
+ t2.make_zero_int();
+ t1.make_zero_int();
  if (!t1.is_ref_or_ptr()) t2.strip_const();
  if (t1 == t2) return EXACT_MATCH;
- 
+
  // T * => const T *;  T[] => T*, T* => T[]
  if (t1.is_pointer()) {
      if (t1.is_const()) t1.strip_const();
@@ -455,7 +466,7 @@ TypeDistance
  return NO_MATCH;
 }
 
-TypeDistance 
+TypeDistance
  promote_match(Type t1, Type t2)
 {
 // promotions between t2 (actual) and t1 (formal) argument.
@@ -483,14 +494,14 @@ TypeDistance
    if (t2.is_zero()) return STD_MATCH;
   } else
  if (t2.is_pointer()) {
-    if (t1.is_void() && t1.pointer_depth()==1) 
+    if (t1.is_void() && t1.pointer_depth()==1)
         return ref_argument ? REF_STD_MATCH : STD_MATCH;
     if (!t1.is_pointer()) return NO_MATCH;
- } 
+ }
 
- if (t1 == t_bool && t2.is_int()) {       
+ if (t1 == t_bool && t2.is_int()) {
     return STD_MATCH;
- } 
+ }
  if (t1.is_pointer()) {
    if(t2.is_zero()) return STD_MATCH;
    if(t1.is_signature() && t2.is_signature() /*&& t1.as_signature()==t2.as_signature()*/)
@@ -500,11 +511,11 @@ TypeDistance
 // *fix 0.9.5 Standard reference matches score lower than ordinary reference matches
  if (t2.inherits_from(t1)) return (ref_argument && ! t2.is_plain_reference()) ?
                                       REF_STD_MATCH : STD_MATCH;
-                              
+
  return NO_MATCH; // for now
 }
 
-TypeDistance  
+TypeDistance
  match(Type t1,Type t2)
 {
  TypeDistance td = trivial_match(t1,t2);
@@ -521,11 +532,11 @@ TypeDistance
 Type Type::promote()  const
 {
 // from Lippman (2nd, 174)
- if (is_pointer() || is_reference() && ! is_variable()) return *this; //* doesn't apply!! 
+ if (is_pointer() || is_reference() && ! is_variable()) return *this; //* doesn't apply!!
  if (is_char() || is_short()) return t_int;
  if (is_short() && is_unsigned()) return t_int; // sizeof(int) > sizeof(short)
  if (is_float()) return t_double;
- if (is_bool()) return t_int; 
+ if (is_bool()) return t_int;
  return *this;
 }
 
@@ -536,24 +547,24 @@ string Type::value_as_string(void *ptr, bool do_quotes) const
 // *add 1.1.2 Putting quotes around strings is now optional.
  static char buff[512];
  memset(buff,0,512);
- std::ostrstream out(buff,512);  
+ std::ostrstream out(buff,512);
  if (is_pointer()) {
      //*fix 1.2.6 Was attempting to dump char** etc as character constants
-    if (is_char() && pointer_depth() == 1){  
+    if (is_char() && pointer_depth() == 1){
     char *cp = *(char **)ptr;
     if (cp) {
 		if (do_quotes) out << '"';
 		out	<< cp;
-		if (do_quotes) out << '"'; 
+		if (do_quotes) out << '"';
     } else out << "NULL";
    } else
-   out << (void *)*(int **)ptr; 
+   out << (void *)*(int **)ptr;
  }  else
  if (is_enum()) { // *add 1.2.6 show enumeration constants, if possible
     int val = *(int *)ptr;
     string name = as_enum()->lookup_value(val);
     out << val << ' ' << name;
- }  else  
+ }  else
  if (is_bool()) out << (*(int *)ptr ? "true" : "false"); else
  if (is_int()) {
      bool unsign = is_unsigned();
@@ -567,7 +578,7 @@ string Type::value_as_string(void *ptr, bool do_quotes) const
        if (unsign)  out << (unsigned_t)*(unsigned int *)ptr;
        else         out << *(int *)ptr;
      }
- } else 
+ } else
  if (is_double()) out << *(double *)ptr;   else
  if (is_float()) out << *(float *)ptr; else
  if (is_class()) {
@@ -577,7 +588,7 @@ string Type::value_as_string(void *ptr, bool do_quotes) const
 	   if (do_quotes) out << '\'';
 	   out << **(char ***)ptr;
 	   if (do_quotes) out << '\'';
-   } else out << pc->name() << " {}"; 
+   } else out << pc->name() << " {}";
  }
  out << std::ends;
  return buff;
@@ -603,7 +614,7 @@ std::ostream& operator << (std::ostream& os, TypeDistance td)
    return os;
  }
 
-  
+
 
 
 

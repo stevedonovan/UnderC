@@ -1,0 +1,1 @@
+cpp.program{'ucc',src='*',exclude='dll_entry',odir=true,defines='NO_READLINE _CONSOLE'}

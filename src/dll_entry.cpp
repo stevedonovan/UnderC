@@ -9,7 +9,6 @@
 #include "module.h"
 #include "input.h"
 
-#define WITHIN_UC 1
 #include "ucri.h"
 
 #ifdef _WCON
@@ -51,7 +50,7 @@ void set_main_thread(unsigned long id);
 CEXPORT void XAPI uc_interactive_loop()
 {
 #ifdef _WCON
-   Thread::local(1);   
+   Thread::local(1);
    sConThread = new ConsoleThread();
    sConThread->resume();
    set_main_thread((long)sConThread->handle());
@@ -82,13 +81,13 @@ CEXPORT int XAPI uc_init(char *defs_file, bool use_defs)
     if (use_defs) {
 #ifdef _WCON
         sConThread->suspend();
-#endif	  
+#endif
       redirected_eval("#include <classlib.h>",false);
       redirected_eval("using namespace std;",false);
-#ifdef _WCON	  
+#ifdef _WCON
       sConThread->resume();
-#endif      
-    } 
+#endif
+    }
 
 	return ret;
 }
@@ -114,7 +113,7 @@ CEXPORT void *XAPI uc_main_window()
  return NULL;
 #endif
 }
-	
+
 // UC_exec() can be passed _any_ UC command or
 // expression
 CEXPORT int XAPI uc_exec(char* buffer)
@@ -172,7 +171,7 @@ CEXPORT int XAPI uc_eval(char *expr, char *res, int sz)
     }
 	// *fix 1.1.4 nasty extra line feed!
 	int len = strlen(res);
-    if (res[len-1]=='\n') { res[len-1] = '\0'; len--; }    
+    if (res[len-1]=='\n') { res[len-1] = '\0'; len--; }
 
     // removed quoted strings...
     if (*res == '\'' || *res == '\"') {
@@ -249,7 +248,7 @@ CEXPORT void * XAPI uc_compile_fn(char *parm, char *expr)
   return Builtin::generate_native_stub(fun_ptr);
 }
 
-// *add 1.1.4 
+// *add 1.1.4
 CEXPORT int  XAPI uc_load(char *path)
 {
  char buff[EXPR_BUFF_SIZE];
@@ -259,7 +258,7 @@ CEXPORT int  XAPI uc_load(char *path)
 
 CEXPORT int  XAPI uc_run()
 {
-  return uc_exec("#r"); 
+  return uc_exec("#r");
 }
 
 CEXPORT int XAPI uc_import(char *dcl, void *fn)

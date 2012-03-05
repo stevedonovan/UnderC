@@ -73,7 +73,7 @@ int DCL(EBX), DCL(ECX);
 void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
 {
    int sz = sizeof(int)*argc;
-   asm {
+   _asm {
     mov ecx, argc
     mov ebx, args
     // push the arguments onto the stack, backwards
@@ -492,7 +492,7 @@ int _range_check(int sz, int i)
         char buff[80];
         if (i >= sz) sprintf(buff,"Range Error: %d >= %d",i,sz);
                else  sprintf(buff,"Range Error: %d < 0",i);
-#ifdef WIN32
+#ifdef _WIN32
         throw RangeError(buff);
 #else
         throw_range_error(buff);
@@ -502,6 +502,17 @@ int _range_check(int sz, int i)
 }
 
 static int mRangeCheck;
+
+typedef double (*MFun)(double);
+typedef double (*MFun2)(double,double);
+
+template <class T>
+MFun dfun(T (*f)(T)) {  return f; }
+template <class T>
+MFun2 dfun2(T (*f)(T,T)) {  return f; }
+
+#define D(f) (dfun<double>(f))
+#define D2(f) (dfun2<double>(f))
 
 void init()
 {
@@ -514,7 +525,6 @@ void init()
  sig->push_back(t_int);
  Type st(sig);
  st.incr_pointer();
-
  add(Sig(t_void_ptr) << t_void_ptr,"_native_stub",(CALLFN)_native_stub);
  add(Sig(t_void_ptr) << t_int,          "_new",(CALLFN)&_new);
  add(Sig(t_void_ptr) << t_int << t_int, "_new_vect",(CALLFN)&_new_vect);
@@ -523,14 +533,14 @@ void init()
  add(Sig(t_void_ptr) << t_int << t_int, "_new_vect_ex",(CALLFN)&_new_vect_ex);
  add(Sig(t_void) << t_void_ptr << t_int,"_delete_ex",(CALLFN)&_delete_ex);
 
- add(Sig(t_double) << t_double,"sin",(CALLFN)&sin);
- add(Sig(t_double) << t_double,"cos",(CALLFN)&cos);
- add(Sig(t_double) << t_double,"tan",(CALLFN)&tan);
- add(Sig(t_double) << t_double << t_double,"atan2",(CALLFN)&atan2);
- add(Sig(t_double) << t_double << t_double,"pow",(CALLFN)&pow);
- add(Sig(t_double) << t_double,"exp",(CALLFN)&exp);
- add(Sig(t_double) << t_double,"log",(CALLFN)&log);
- add(Sig(t_double) << t_double,"sqrt",(CALLFN)&sqrt);
+ add(Sig(t_double) << t_double,"sin",(CALLFN)D(sin));
+ add(Sig(t_double) << t_double,"cos",(CALLFN)D(cos));
+ add(Sig(t_double) << t_double,"tan",(CALLFN)D(tan));
+ add(Sig(t_double) << t_double << t_double,"atan2",(CALLFN)D2(atan2));
+ add(Sig(t_double) << t_double << t_double,"pow",(CALLFN)D2(pow));
+ add(Sig(t_double) << t_double,"exp",(CALLFN)D(exp));
+ add(Sig(t_double) << t_double,"log",(CALLFN)D(log));
+ add(Sig(t_double) << t_double,"sqrt",(CALLFN)D(sqrt));
  add(Sig(t_double) << t_ccp,"atof",(CALLFN)&atof);
  add(Sig(t_long) << t_ccp,"atoi",(CALLFN)&atoi);
  add(Sig(t_char_ptr) << t_int << t_char_ptr << t_int, "itoa", (CALLFN)&itoa);
@@ -677,7 +687,6 @@ void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg, int ftype)
 #else
  insert_ptr_map(fn,pfn);
 #endif
-
  fe->finalize();
  state.pop_context(); // usually done by block-end!
 }

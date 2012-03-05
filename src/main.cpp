@@ -49,9 +49,9 @@ int gDebugBreak = 0;
 FBlock* gFunBlock = 0;
 void __break(int);
 #else
-int check_mem() 
+int check_mem()
 {
-  return 1;  
+  return 1;
 }
 
 #endif
@@ -64,7 +64,7 @@ void clear_global_namespace();  // in table.cpp
 
 void dump_module_traceback(); // in uc_tokens.cpp
 
-#ifdef BUILD_WITH_GTK 
+#ifdef BUILD_WITH_GTK
 void special_init(int *argc, char ***argv, bool on_off);  // found in UCW_GTK
 #else
 void special_init(int *argc, char ***argv, bool on_off) { }
@@ -84,8 +84,8 @@ int call_parser()
   try {
     if (yyparse()==1) { // an error occured!
        Input::clear();
-       return FAIL; 
-    } else 
+       return FAIL;
+    } else
 	   return OK; // successful exit!
   } catch(int) {
 #ifndef _WCON
@@ -108,16 +108,16 @@ int uc_eval(char *expr, bool append_semicolon=true, bool synchronous=false, char
  bool old_compile_flag = Parser::debug.compile_program;
  Parser::debug.compile_program = false;
  Input::insert_stream(new std::istrstream(ibuff),name ? name : "$EXPR",lineno);
- if (synchronous) { 
+ if (synchronous) {
      int ret = call_parser();
      delete ibuff;
      Parser::debug.compile_program = old_compile_flag;
-     if (ret == OK) { 
+     if (ret == OK) {
          if (Engine::paused()) return HALTED;
          if (Parser::state.lineno > 0) return CRASHED;
      }
      return ret;
- } 
+ }
  else {
   Parser::debug.compile_program = old_compile_flag;
   return PENDING;
@@ -156,7 +156,7 @@ int _uc_exec(char* s, void* cntxt, char* filename, int line)
   int lineno;
   // protect the temporary code block from being trashed
   Instruction* immed_code = Parser::immediate_code_ptr();
-  Parser::immediate_code_ptr(NULL); 
+  Parser::immediate_code_ptr(NULL);
   // redirect errors and messages
   Errors::reset_error_state();
   Errors::redirect_output(true);
@@ -180,7 +180,7 @@ int _uc_exec(char* s, void* cntxt, char* filename, int line)
   Parser::state.file = file;
   Parser::state.lineno = lineno;
   // make sure errors & messages no longer redirected
-  Errors::check_output(); 
+  Errors::check_output();
   Parser::immediate_code_ptr(immed_code);
   return ret;
 }
@@ -219,7 +219,7 @@ int ext_run_program(char *cmdline, int stepping)
 
 bool insert_input_file(char *filename)
 {
-  std::ifstream *pfs = new std::ifstream(filename, std::ios::in); 
+  std::ifstream *pfs = new std::ifstream(filename, std::ios::in);
   if (!(*pfs)) {
         delete pfs;
         return false;
@@ -229,9 +229,9 @@ bool insert_input_file(char *filename)
 }
 
 int safe_atoi(char *str)
-{ 
+{
   return str==NULL ? 0 : atoi(str);
-} 
+}
 
 bool command_error(char *msg, char *sym=NULL)
 {
@@ -283,7 +283,7 @@ char *get_temp_log()
  time_t t;
  time(&t);
  ts = localtime(&t);
- ts->tm_mon++;  
+ ts->tm_mon++;
  sprintf(buff,"%02d%02d-%02d%02d",ts->tm_mon,ts->tm_mday,ts->tm_hour,ts->tm_min);
  return buff;
 }
@@ -304,7 +304,7 @@ void show_help(char* help_text, char* cmd, char marker)
       in.getline(buff,sizeof(buff));
       if (buff[0] == marker) {
        if (! cmd) cmsg << buff << std::endl;
-       else {         
+       else {
          if (strncmp(cmd,buff+1,strlen(cmd))==0) {
             buff[0] = ' ';
             while (buff[0] != marker) {
@@ -315,11 +315,11 @@ void show_help(char* help_text, char* cmd, char marker)
          }
        }
       }
-    }  
+    }
 }
 #endif
 
-// *change 1.2.8 added more control on whether one wants the contents of the parent 
+// *change 1.2.8 added more control on whether one wants the contents of the parent
 // context as well.
 void display_locals(Table *tbl, void *pobj, bool is_ptr = false, bool do_all = false)
 {
@@ -338,7 +338,7 @@ void display_locals(Table *tbl, void *pobj, bool is_ptr = false, bool do_all = f
   if (do_all) flags |= Table::ALL;
   tbl->dump_entries(os,flags);
   os << std::ends;
-  
+
   Parser::debug.no_access_control = true;
   uc_eval(buff,false,true);
   Parser::debug.no_access_control = false;
@@ -360,12 +360,12 @@ static bool s_last_c_mode, s_last_strict_mode, s_is_cpp_source = false;
 
 // only called if the file could be opened...
 int module_open()
-{ 
+{
     string ext = Utils::file_extension(Module::current()->name());
     s_is_cpp_source = ext == ".c" || ext == ".cpp" || ext == ".cxx";
     s_last_c_mode = Parser::debug.c_mode;
     s_last_strict_mode = Parser::debug.strict;
-    if (ext == ".c") Parser::set_c_mode(true);     
+    if (ext == ".c") Parser::set_c_mode(true);
     Parser::debug.strict = s_is_cpp_source;
     Parser::debug.compile_program = s_is_cpp_source;
     Module::clean_namespaces();
@@ -385,7 +385,7 @@ int module_close()
           code().emit_return(t_void);
           pi = code().end_code();
       } else pi = NULL;
-      LoadedModuleList::finish_module(pi);      
+      LoadedModuleList::finish_module(pi);
     }
     s_is_cpp_source = false;
     Module::restore_namespaces();
@@ -410,7 +410,7 @@ int compile_module(char *file, bool is_conditional)
     bool is_break = Parser::current_function() != NULL;
     if (is_break) Parser::state.push_context(&Parser::global());
 // *add 0.9.8 #l should now do a dependency check to allow changed headers to be included...
-    Module *pm = Module::from_name(file);   
+    Module *pm = Module::from_name(file);
     if (!is_conditional) {
       if (pm != NULL) {
        //pm->reset_flags();
@@ -437,18 +437,18 @@ int yylex(); // further along here...
 extern bool tok_dbg;
 
 bool UCTokenStream::user_cmd(string ppd)
-{ 
+{
   static string current_file;
   if (ppd == "q") return false; else
 #ifdef _WCON
-  if (ppd == "ql") { 
+  if (ppd == "ql") {
     wcon_copy_to_log(get_temp_log());
     return false;
   } else
 #endif
   // *add 1.1.2 #pragma! Just dlink and pack()
     // *fix 1.2.0 it's not an error to leave out the library name
-  if (ppd == "pragma") {	   
+  if (ppd == "pragma") {
 	  char *line = get_upto(0,false);
 	  string what = strtok(line," ()");
 	  char *arg   = strtok(NULL," ()");
@@ -466,7 +466,7 @@ bool UCTokenStream::user_cmd(string ppd)
           __break(1);
           gDebugBreak = 0;
         }
-      } 
+      }
 #endif
   } else
   if (ppd == "x") uc_system(get_upto(0,false)); else
@@ -474,7 +474,7 @@ bool UCTokenStream::user_cmd(string ppd)
      Utils::change_dir(Input::next_token(true));
   } else
   if (ppd == "pwd") {
-     cmsg << Utils::get_curr_dir() << std::endl;      
+     cmsg << Utils::get_curr_dir() << std::endl;
   } else
   if (ppd == "l" || ppd == "lc") {
     Errors::reset_error_state();
@@ -484,10 +484,10 @@ bool UCTokenStream::user_cmd(string ppd)
     else return command_error("Please supply file\n");
     bool condn = ppd == "lc";
     int ret = compile_module(cfile,condn);
-    
+
     if (ret == CANT_OPEN && !condn) cant_open_err(cfile);
-    else if (ret == FILE_UNCHANGED) cmsg << "unchanged\n"; 
-  } else 
+    else if (ret == FILE_UNCHANGED) cmsg << "unchanged\n";
+  } else
   if (ppd == "bl") {
    // *add 0.9.4 Use this before a series of #lc commands...
     Module::reset_modify_flags();
@@ -519,7 +519,7 @@ bool UCTokenStream::user_cmd(string ppd)
   if (ppd == "opt") {
      char *line = get_upto(0,false);
      char *opt = strtok(line,", ");
-     while (opt) { 
+     while (opt) {
       char ch = *opt++;
       bool is_on = *opt == '+';
       bool strip_prompt, block_ide, change_block_ide = false;
@@ -532,7 +532,7 @@ bool UCTokenStream::user_cmd(string ppd)
       case 'v': Parser::debug.verbose = is_on; tok_dbg = is_on; break;
       case 's': Parser::debug.strict = is_on; break;
       case 'p': Parser::debug.ptr_check = is_on; break;
-      case 'a': Parser::debug.no_access_control = is_on; break; 
+      case 'a': Parser::debug.no_access_control = is_on; break;
       case 'c': strip_prompt = is_on; break;
       case 'q': block_ide = is_on; change_block_ide = true; break;
       case 'C': Parser::set_c_mode(is_on); break;
@@ -540,11 +540,11 @@ bool UCTokenStream::user_cmd(string ppd)
       case 'L': Parser::debug.suppress_link_errors = is_on;  break;
       case 'i': Parser::debug.interactive_debugging = is_on; break;
       case 'S': Parser::debug.no_trace_std = is_on; break;
-      case 'e': Parser::debug.errors_as_break = is_on; break; 
+      case 'e': Parser::debug.errors_as_break = is_on; break;
       case 'R': Parser::debug.range_check = is_on;  break;
       // temporary debugging options go here...
       }
-      opt = strtok(NULL,", ");     
+      opt = strtok(NULL,", ");
 #ifdef _WCON
       // defaults initially to being on....
       if (strip_prompt) wcon_prompt_char(';',0);
@@ -557,8 +557,8 @@ bool UCTokenStream::user_cmd(string ppd)
     display_locals(NULL,NULL,false,Input::next_token() != NULL);
   } else
 // *add 1.2.8 #dl <obj> shows only _local_ fields, not inherited as well.
-    if (ppd == "d" || ppd == "dl") { 
-    PEntry pe = Input::lookup_next_symbol(); 
+    if (ppd == "d" || ppd == "dl") {
+    PEntry pe = Input::lookup_next_symbol();
     if (pe == NULL)  return cant_find("symbol");
     Type t = pe->type;
     if (!t.is_class()) return command_error("Not an object");
@@ -573,9 +573,9 @@ bool UCTokenStream::user_cmd(string ppd)
         int imod = pfe->back()->line_nos()->module();
         Module *pm = Module::from_id(imod);
         if (pm != NULL) Module::remove(pm);
-     } 
+     }
      if (pe == NULL) return cant_find("symbol");
-     Parser::global().remove(pe);     
+     Parser::global().remove(pe);
   } else
   if (ppd == "s") { // *add 0.9.4 Now can stop runaway programs w/ #s
 #ifdef _WCON
@@ -583,19 +583,19 @@ bool UCTokenStream::user_cmd(string ppd)
 #endif
   } else
   if (ppd == "st" || ppd == "sto") { // *add 1.1.4 Single-stepping through programs!
-      s_single_step = true;  
-      Engine::set_single_stepping(ppd == "st");      
+      s_single_step = true;
+      Engine::set_single_stepping(ppd == "st");
       Program::run(gCurrentArgs,false /*Input::next_token() == NULL*/);
   } else
   if (ppd == "clr") { // clear input (0) or console (1)
 #ifdef _WCON
       wcon_clear(safe_atoi(Input::next_token()));
-#endif 
+#endif
 // otherwise need some portable way of doing clr 0?
   } else
   if (ppd == "attach") {
     //	  char *fn = Input::next_token();
-    //	  attach_main_context(fn); 
+    //	  attach_main_context(fn);
   } else
   if (ppd == "mod") {
       char *fun = Input::next_token();
@@ -626,7 +626,7 @@ bool UCTokenStream::user_cmd(string ppd)
       //cout << "b " << file << ':' << lineno << endl;
       Breakpoint::toggle(file,lineno,ppd == "b",cmsg);
   } else
-  if (ppd == "bs") { // set a number of breakpoints in a file   
+  if (ppd == "bs") { // set a number of breakpoints in a file
      Errors::reset_error_state();
      char *tok, *file = Input::next_token();
      int lines[10], i = 0;
@@ -654,10 +654,10 @@ bool UCTokenStream::user_cmd(string ppd)
   if (ppd == "u" || ppd == "mm" || ppd == "fe") {
     // char *name = next_token();
      PEntry pe = Input::lookup_next_symbol();
-     if (pe == NULL) return true; 
+     if (pe == NULL) return true;
      int idx = safe_atoi(Input::next_token(true));
      if (pe->type.is_function()) {
-         if (ppd == "u") Parser::dump_function(pe,true,idx,std::cout);        
+         if (ppd == "u") Parser::dump_function(pe,true,idx,std::cout);
          else {
            Function *pf = *(((FunctionEntry *)pe->data)->begin());
            if (ppd == "fe") {
@@ -668,7 +668,7 @@ bool UCTokenStream::user_cmd(string ppd)
 			std::cout << Mangle::GCC3(pf) << std::endl;
            }
          }
-     } 
+     }
   } else
   if (ppd == "v") { // inspect - used to be 'var'!!
      PEntry pe = Input::lookup_next_symbol();
@@ -684,21 +684,21 @@ bool UCTokenStream::user_cmd(string ppd)
   }
   else
   if (ppd == "vmt") {
-    PEntry pe = Input::lookup_next_symbol(); 
+    PEntry pe = Input::lookup_next_symbol();
     if (pe == NULL)  return true;
     Type t = pe->type;
     int *ptr = *(int **)pe->global_ptr();
     ptr--;  // now at hidden pointer...
     PClass pc = t.as_class();
     if (! pc->has_VMT()) std::cout << "No VMT\n";
-    std::cout << "name " << pc->name() << " " << pc->last_slot() << std::endl;         
+    std::cout << "name " << pc->name() << " " << pc->last_slot() << std::endl;
 	for(int i = 1; i < pc->last_slot(); i++) {
 	   std::cout << i << ' ';
 	   ((Function *)ptr[i])->dump(std::cout);
-	   std::cout << std::endl;	  
+	   std::cout << std::endl;
     }
   }
-  else 
+  else
   if (ppd == "unload") {
       Builtin::unload_lib(Builtin::get_dll_handle());
   }
@@ -716,7 +716,7 @@ bool UCTokenStream::user_cmd(string ppd)
   if (ppd == "li") Function::lookup(Input::next_token(true))->line_nos()->dump(cmsg);
     // *fix 1.2.1 (Eric) Complain if this command is not recognized
 #endif
-  else 
+  else
      cerr << '\'' << ppd << "\' is not a command or preprocessor statement" << std::endl;
   return true;
 }
@@ -743,6 +743,7 @@ int setup_lib()
 char *uc_get_title()
 { return mUCTitle; }
 
+
 void Main::initialize()
 {
   Exception::initialize();
@@ -762,7 +763,7 @@ void Main::initialize()
 void init_mem_check() // *DEBUG*
 {
     static bool init = false;
-    if (! init) { 
+    if (! init) {
         init = true;
 // *DEBUG* Fine control of leak detection
 // Get current flag
@@ -807,6 +808,7 @@ bool add_include_path(string path)
 {
   Utils::check_path_end(path);
   if (! Utils::can_access(path)) {
+      cerr << "cannot find " << path << std::endl;
      error("Cannot find include directory " + path);
 	 return false;
   }
@@ -870,9 +872,9 @@ bool Main::process_command_line(int& argc, char**& argv)
     mPgmName = strdup(progname);
     Utils::strip_last(progname);  // strip off the '\ucw.exe'
 #ifdef _DEBUG
-    Utils::strip_last(progname);   // strip off the 'wdebug' 
+    Utils::strip_last(progname);   // strip off the 'wdebug'
     Utils::strip_last(progname);   // strip off the 'src'
-#endif         
+#endif
     mUCDir = argv[0];
    }
 #endif
@@ -884,7 +886,7 @@ bool Main::process_command_line(int& argc, char**& argv)
    //    (under Win32 we get this from argv[0])
    //  - the UC_HOME environment variable
    //  - the -H option
-   
+
    // *fix 1.2.8 don't use the UC_HOME macro under Win32; rely on argv[0]
    // for the initial guess.
 
@@ -900,23 +902,25 @@ bool Main::process_command_line(int& argc, char**& argv)
     // the value set in the environment overrides the compiled in default
     inc_path = t;  // *fix 1.0.0L bash doesn't like 'UC-INC'
   }
-  string path;  
+  string path;
+
   if (inc_path==NULL) {
-#ifdef WIN32    
+#ifdef _WIN32
    path = mUCDir;
+
 #endif
-  } else { 
+  } else {
     path = inc_path;
     mUCDir = inc_path; // *fix 1.0.0L UC_HOME must override this!
   }
- 
+
   if (argv != NULL) {
     char opt;
     while (args.get_opt(&opt)) {
       switch(opt) {
-      // the command line option overrides any previously set value	
+      // the command line option overrides any previously set value
       case 'H': path = mUCDir = args.get_opt_parameter(); break;  // *add 1.1.3 Can override UC_HOME
-      case 'I': 
+      case 'I':
           if (ipaths == MAX_INCLUDE_PATHS) error("Exceeded available include paths");
           else paths[ipaths++] = args.get_opt_parameter();
           break;
@@ -929,12 +933,12 @@ bool Main::process_command_line(int& argc, char**& argv)
       case 'F': Parser::debug.attempt_inline = true; break;  // *add 1.2.3a New Optimization flag
 // *add 1.2.5 run in specified directory
       case 'r': Utils::change_dir(args.get_opt_parameter()); break;
-// *add 1.2.5 switch on range checking of arrays and vectors          
+// *add 1.2.5 switch on range checking of arrays and vectors
       case 'R': Parser::debug.range_check = true;            break;
 // *add 1.2.6 Outputing version and help
 #ifdef _CONSOLE
       case 'v': std::cout << "UnderC " << mUCVersion << std::endl; return false;
-      case '-': 
+      case '-':
          if (strcmp(args.get_opt_parameter(),"help")==0)
          {
              show_help("cmd-help.txt",NULL,'-');
@@ -949,7 +953,7 @@ bool Main::process_command_line(int& argc, char**& argv)
 #endif
 // *add 1.2.6 These are also available as #opt parameters
       case 'T': Parser::debug.use_typedef_names = true;     break;
-      case 'S': Parser::debug.skip_method_bodies = false; break; 
+      case 'S': Parser::debug.skip_method_bodies = false; break;
       default: cerr << "unrecognized option: " << opt << std::endl; return false;
       }
     }
@@ -993,10 +997,10 @@ void Main::finalize()
    Engine::global_unwind();
 
 // and unload any DLLs
-   Builtin::finis();  
+   Builtin::finis();
 
 #ifdef _WCON
-// *add 1.2.8 inform the IDE that we're going down... 
+// *add 1.2.8 inform the IDE that we're going down...
    IDE::ucw_shut_down();
 #endif
 }
@@ -1007,7 +1011,7 @@ int Main::interactive_loop()
     if (call_parser()==FAIL) {
      if (! interactive_mode()) return -1;// bail out if in batch mode
     } else return 0;// successful exit!
-  }  
+  }
 }
 
 ////////// MAIN ///////////////
@@ -1015,18 +1019,17 @@ int Main::interactive_loop()
 int main(int argc, char **argv)
 #else
 int pgm_main(int argc, char **argv)
-#endif  
+#endif
 //----------------------------
 {
   using namespace Main;
 
   initialize();
 
- 
   // *fix 1.2.3 Suppress irritating warning until we can decide what to do here!
   if (! process_command_line(argc, argv)) return 0;
 
-  if (interactive_mode()) {    
+  if (interactive_mode()) {
     banner();
     Input::open("CON");
     Input::set_open_restore(NULL,setup_lib);
@@ -1037,7 +1040,7 @@ int pgm_main(int argc, char **argv)
        Utils::check_path_end(uc_home);
        string default_defs = uc_home + "defs.h";
        if (! Input::open(default_defs.c_str())) check_error();
-    }  
+    }
   } else {
       // *add 1.2.9 Important to call these before/after routines
       // for initialization/finalization code to work properly.
@@ -1056,6 +1059,7 @@ int pgm_main(int argc, char **argv)
 
   finalize();
   return retval;
+
 
 }
 

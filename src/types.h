@@ -11,7 +11,7 @@
 enum TypeEnum {
  TT_VOID=0,
  TT_UNSIGNED=1,TT_LONG=2,TT_PTR=4,
- TT_CHAR,TT_SHORT,TT_INT,TT_FLOAT, 
+ TT_CHAR,TT_SHORT,TT_INT,TT_FLOAT,
  TT_ZERO,TT_SIGNATURE,TT_CLASS,TT_ENUM,TT_BOOL,TT_NAMESPACE,
  TT_DUMMY, TT_CONSTANT, TT_NULL,
  TT_END
@@ -24,7 +24,7 @@ enum TypeDistance {
   EXACT_MATCH, FUN_PTR_MATCH, REFERENCE_MATCH, TRIVIAL_MATCH,
   PROMOTE_MATCH, REF_PROMOTE_MATCH,
   STD_MATCH,  REF_STD_MATCH,
-  CONVERT_FROM_MATCH, CONVERT_TO_MATCH, 
+  CONVERT_FROM_MATCH, CONVERT_TO_MATCH,
   NO_MATCH=9999
 };
 
@@ -44,20 +44,16 @@ class Type {
  Bit  m_int:1, m_float:1;
  Bit  m_long:1, m_short:1, m_unsigned:1, m_char:1;
  Bit  m_bool:1;
- Bit m_zero:1;  
+ Bit m_zero:1;
  Bit m_array:1;// up to 16 bits for fields
  unsigned short m_extra;
- 
+
  public:
-    Type(TypeEnum t=TT_VOID, int extra=TT_VOID);    
-    Type(Class *pc)
-       { complex_init(TT_CLASS,(void *)pc); }
-    Type(Signature *ps)
-       { complex_init(TT_SIGNATURE,(void *)ps); }
-    Type(Enum *pe)
-       { complex_init(TT_ENUM,(void *)pe); }
-    Type(Namespace *ns)
-       { complex_init(TT_NAMESPACE, (void *)ns); }
+    Type(TypeEnum t=TT_VOID, int extra=TT_VOID);
+    Type(Class *pc);
+    Type(Signature *ps);
+    Type(Enum *pe);
+    Type(Namespace *ns);
 
     void complex_init(TypeEnum t, void *type_data);
 
@@ -69,9 +65,9 @@ class Type {
     bool is_const() const      { return m_const; }
     bool is_reference() const  { return m_ref;   }
     bool is_pointer() const    { return m_ptr;   }
-    bool is_ref_or_ptr() const { return m_ref || m_ptr; } 
+    bool is_ref_or_ptr() const { return m_ref || m_ptr; }
     bool is_array() const      { return m_ptr && m_array;  }   //*ARRAY*
-    bool is_unsigned() const   { return m_unsigned; } 
+    bool is_unsigned() const   { return m_unsigned; }
     bool is_number() const     { return (m_int || m_float) && !is_pointer(); }
     bool is_int() const        { return m_int;   }
     bool is_float() const      { return m_float; }
@@ -85,8 +81,8 @@ class Type {
     bool is_class() const      { return m_class; }
     bool is_object() const     { return is_class() & ! is_ref_or_ptr(); }
     bool is_enum() const       { return m_enum && !m_short; }
-    bool is_bool() const       { return m_bool; } 
-    bool is_void() const    
+    bool is_bool() const       { return m_bool; }
+    bool is_void() const
       { return !m_int && m_char; }
     bool is_zero() const       { return m_zero && !m_ref; }
     bool is_namespace() const  { return m_class && m_zero; }  // should never be confused since it's a TYPENAME!
@@ -129,7 +125,7 @@ class Type {
     Class     *as_class() const;
     Enum      *as_enum() const;
     DummyType *as_dummy() const { return (DummyType *)as_enum(); }
-     
+
     int       array_size() { return 0; } // for now...
 
 
@@ -137,9 +133,14 @@ class Type {
     int      inherits_from(Type t) const;  // depth of derivation; 0 for no relation
     int      size() const;                 // implements sizeof()
     static   Type make_dummy(const string& name, Type t, Entry *pe);
+    static  std::vector<void *> _test_;
+    static std::vector<Class *>      _classes_;
+    static std::vector<Signature *>  _signatures_;
+    static std::vector<Enum *>       _enums_;
+
 };
 
-extern const Type 
+extern const Type
   t_void, t_char, t_uchar, t_int, t_uint,
   t_short, t_ushort, t_long, t_ulong,
   t_float, t_double, t_bool,
@@ -163,4 +164,4 @@ TypeDistance  trivial_match(Type t1, Type t2);
 TypeDistance  promote_match(Type t1, Type t2);
 TypeDistance  std_match(Type t1, Type t2);
 
-#endif                  
+#endif

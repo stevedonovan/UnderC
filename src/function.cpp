@@ -64,11 +64,11 @@ public:
            if (!find_line && lili->line >= li.line) {
                li = *lili;
                return true;
-           }         
+           }
        return false;
    }
 
-   // *add 1.2.7    
+   // *add 1.2.7
    void dump(std::ostream& out)
    {
        LineInfoList::iterator lili;
@@ -76,7 +76,7 @@ public:
            out << lili->line << ' ' << lili->ip_offset << ' ' << lili->file << std::endl;
    }
 
-   
+
    int  lookup_ip(int line) // override
    {
     LineInfo li;
@@ -88,10 +88,10 @@ public:
    void lookup_range(int& l1, int& l2)
    {
        LineInfoList::iterator lili;
-       if (m_li.size()==0) { l1 = l2 = -1; }
+       if (m_li.size()==0) { l1 = l2 = -1; return; }
        l1 = m_li.front().line;
-       l2 = m_li.back().line;      
-   } 
+       l2 = m_li.back().line;
+   }
 
    LineNumbers() : m_module(-1) {}
 
@@ -123,7 +123,7 @@ std::ostream& operator << (std::ostream& os, Signature& sig)
  StringList *args = sig.get_arg_names();
  if (args && args->size()==0) args = NULL;
  if (!s_ctor && !s_dtor)  // *fix 1.1.2 these don't have return types!
-   os << sig.return_type() << ' ';  
+   os << sig.return_type() << ' ';
  string na = s_fun_name;
  char first = na[0];
  // *fix 1.2.7 wasn't outputing 'operator' in front of '()'
@@ -155,7 +155,7 @@ std::ostream& operator <<(std::ostream& os, Function& f)
 }
 
 
-LocalContext::LocalContext(Table *parent, Function *f) 
+LocalContext::LocalContext(Table *parent, Function *f)
   : Table(parent,SREL,0),m_function(f), m_no_auto_dtor(false)
 {
     m_type = FUNCTION;
@@ -225,7 +225,7 @@ void FunctionContext::initialize()
 {
  Function *fn = function();
  fn->attach_context(this);
- 
+
  FBlock *fb = fun_block();
  if (fb->pstart) delete fb->pstart;  // may be previously defined!
  fb->pstart = 0;
@@ -260,7 +260,7 @@ void FunctionContext::finalize()
  // *fix 1.1.0 Finalizing the context often generates an UNWIND;
  // ensure that all returns jump to it first!
  if (ret_lbl && code.last_pi()->opcode == UNWIND) ret_lbl->here(-1);
- 
+
  // appropriate RETx instruction
  code.emit_return(m_function->return_type());
 
@@ -357,7 +357,7 @@ int NFBlock::create(Function *pfn, CALLFN fn)
 
  // Some schemes use half-assed cdecl convention for returning objects
  // *add 1.2.6 add support for true return by value (GCC3)
- ImportScheme* import = pfn->import_scheme(); 
+ ImportScheme* import = pfn->import_scheme();
  if (import && rt.is_object() && import->ret_obj_popped()) {
      if (! import->true_return_by_value(rt))
         fblk.flags += DC_RET_OBJ;
@@ -397,7 +397,7 @@ bool Function::undefined()
   return m_fun_block->pstart == NULL;
 }
 
-void 
+void
 Function::set_construct_destruct(int ftype, bool no_implicit_type_conversion)
 {
  m_ftype = ftype;
@@ -429,10 +429,10 @@ void Function::clear()
 // an opportunity to dispose of code, etc
 {
 // *NOTE* blew up trying to delete this....how was it alloc?
- //delete m_fun_block->context; 
+ //delete m_fun_block->context;
 
  // line number info
- delete m_line_nos; 
+ delete m_line_nos;
  m_line_nos = new LineNumbers;
 
  // function block
@@ -456,9 +456,9 @@ Function::set_default_args(PExprList pel)
  ExprList::iterator eli;
   for (eli = pel->begin(); eli != pel->end(); ++eli,++k)
     if (*eli != NULL) {
-      if (m_default_index == -1) m_default_index = k; 
+      if (m_default_index == -1) m_default_index = k;
       m_default_args->push_back(*eli);
-    } 
+    }
 }
 
 bool
@@ -468,8 +468,8 @@ Function::can_match(int size)
   int asz = signature()->size();
   if (!m_default_args) {
     if (stdarg()) return size >= asz;
-    else return size == asz; 
-  } else 
+    else return size == asz;
+  } else
   return size >= m_default_index && size <= asz;
 }
 
@@ -487,7 +487,7 @@ Function::complete_arg_list(PExprList args)
 
 void Function::dump(std::ostream& os)
 {
- Signature::set_fun_name(name(),is_constructor(),is_destructor()); 
+ Signature::set_fun_name(name(),is_constructor(),is_destructor());
  os << *signature();
 }
 
@@ -538,7 +538,7 @@ FunctionEntry::nth_fun(int idx)
 {
    iterator fei = begin();
    Function *fn;
-   if (idx == 0) idx = 1; 
+   if (idx == 0) idx = 1;
    if (idx >= size()) idx = size();
    for(int i = 1; i <= size(); ++i, ++fei)
        if (i == idx) { fn = *fei; break; }
@@ -554,7 +554,7 @@ FunctionEntry::fun_from_fblock(FBlock *pfb)
 }
 
 
-// these odd little functions are useful when debugging the system, 
+// these odd little functions are useful when debugging the system,
 // since Visual Studio and GDB will happily execute them for you on request.
 static char buff[60];
 
@@ -579,7 +579,7 @@ char *sh_type(Type& t)
 // we allow for looser matches (particularly method signatures)
 bool Signature::match(const Signature& sig, bool do_strict) const
 {
-// Comparing signatures 
+// Comparing signatures
 // *fix 1.2.2b (Eric) Functions w/ no args can be incorrectly matched
  if (this == &sig) return true;
  if (size() != sig.size() || !class_ptr() != !sig.class_ptr()) return false;
@@ -593,7 +593,7 @@ bool Signature::match(const Signature& sig, bool do_strict) const
      return false; // *fix 0.9.6 constness makes signatures distinct
  if (stdarg() != sig.stdarg())
      return false; // *fix 1.2.3 (Eric) And so does whether this is stdarg or not
- 
+
  Signature::iterator ti,tio;
  try {
  for(ti = begin(), tio = sig.begin(); ti != end(); ++ti,++tio)
