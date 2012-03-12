@@ -23,6 +23,10 @@
 #include <cstring>
 #include <cstdlib>
 
+using std::endl;
+#define clog cerr
+#define LOG(msg) clog << msg << endl
+
 Table* gScopeContext;
 
 #ifdef _DEBUG
@@ -149,7 +153,7 @@ int yyerror(const char *s);
  void warning(string _msg)
  {
    cmsg << Input::filename() << ' ' << Input::lineno() << ": "
-       << _msg << std::endl;
+       << _msg << endl;
  }
 
  string make_temp_name()
@@ -387,7 +391,6 @@ void ParserState::reset()
   block_stack.clear();         // clear any pending blocks
   tstack.clear();             // clear the type stack
   IEF=false;
-
   s_expr_handler = NULL;
 
   dcl_init_list.clear();
@@ -430,7 +433,7 @@ void ParserState::end_args()
 void clear_parse_flags()
 {
  force_comma_flag(); // *hack 0.9.6 the dcl stack is getting out of order...
- state.token_stack.clear();
+ //state.token_stack.clear();
 }
 
 void restore_global_context()
@@ -545,7 +548,7 @@ void ParserState::init_block(int type)
 
    // *add 1.1.0 Expressly forbid nested functions! Otherwise we get nasty brace mismatch issues...
    if (is_local(cntxt)) {
-       error("Cannot have functions within functions"); return;
+//       error("Cannot have functions within functions"); return;
    }
    string name = token_stack.TOS();
 
@@ -558,8 +561,9 @@ void ParserState::init_block(int type)
    dcl_reset();
 
    // *change 1.2.3 The return label is now backed by a stack
-   m_ret_label = new Label(&code());
-   m_ret_label_stack.push(m_ret_label);
+   ret_label = new Label(&code());
+   return_stack.push(ret_label);
+   // clog << "push new ret " << ret_label << endl;
    flags |= FUN_BLOCK;
  } else
  if (in_switch) {
@@ -615,27 +619,32 @@ void end_switch();
 
 void ParserState::finalize_block()
 {
+ Label  *continue_label;
  if (block_stack.depth() < 1)
 	 block_stack.push(CONTEXT_PUSHED);
 
   int flags = block_stack.pop();
   if (flags & IN_SWITCH) end_switch();
   if (flags & CONTINUEABLE) {
-      m_continue = continue_stack.pop();
-      m_continue->here();
-  } else m_continue = NULL;
+      continue_label = continue_stack.pop();
+      continue_label->here();
+  } //else m_continue = NULL;
 
   if (flags & BREAKABLE) break_stack.pop();
   if (flags & FUN_BLOCK) { // *fix 0.9.5 UCW can fall over if braces are mismatched..
-     if (m_ret_label_stack.empty()) error("misplaced braces");
-     else m_ret_label->here();
+     if (return_stack.empty()) error("misplaced braces");
+     else {
+         ret_label = return_stack.pop();
+         ret_label->here();
+       // clog << "popped ret " << ret_label << endl;
+     }
 
   // *hack 1.1.0 It's difficult to skip the body of a imported ctor w/ init list,
   // so ensure that declare_function() is called to import this function!
     if (Builtin::get_dll_handle() && is_class(&context())) {
        string name;
        if (!Builtin::add_dll_function(current_function(),0,name))
-          cerr << "cannot link to ctor " + quotes(name) << std::endl;
+          cerr << "cannot link to ctor " + quotes(name) << endl;
 //	   fn->builtin(Function::CDECL); //?
 	}
   }
@@ -648,19 +657,14 @@ void ParserState::finalize_block()
   // If we were in a method body, then the class context must be dropped
   if (flags & IN_METHOD) pop_context();
   // can now dispose of the continue/return label
-  if (flags & CONTINUEABLE) delete m_continue;
-  if (flags & FUN_BLOCK) {
-      delete m_ret_label;
-      m_ret_label = NULL;
-      m_ret_label_stack.pop();
-
-  }
+  if (flags & CONTINUEABLE) delete continue_label;
+  if (flags & FUN_BLOCK) delete ret_label;
   state.in_construct_destruct = IsPlain; //*fix 1.2.4
 }
 
 Label *ParserState::return_label()
 {
-  return m_ret_label;
+  return ret_label;
 }
 
 //---------------doing control statements---------------
@@ -764,12 +768,9 @@ void check_enclosing_scopes(LocalContext *outer)
 
 bool do_return(PExpr e)
 {
-  Label *ret_label = state.return_label();
-  if (!ret_label) { error("return only in function"); return false; }
+  if (state.return_stack.empty()) { error("return only in function"); return false; }
   Function *fn = ((LocalContext&)state.context()).function();
   Type rt = fn->return_type();
-//  if (fn->name()=="bh_begin")
-//     ret_label = 0;
    // *add 1.1.1 support for __declare; uses first return type!
   if (rt == t_null) { // t_undefined
 	  rt = e->type();
@@ -791,7 +792,8 @@ bool do_return(PExpr e)
   }
   // *fix 1.1.0 Must ensure that a proper UNWIND operation occurs for any locals
   check_enclosing_scopes(fn->context());
-  code().jump(JMP,ret_label);
+  // clog << "jump ret " << state.return_label() << endl;;
+  code().jump(JMP,state.return_label());
   return true;
 }
 
@@ -865,7 +867,7 @@ static Label* create_goto_label(char* label_name)
 
 static Label* check_goto_label(PEntry label_entry)
 {
-  if (! state.return_label())
+  if (state.return_stack.empty())
      fail("goto only allowed in functions");
   if (label_entry->type != t_label)
      fail(label_entry->name + " is already defined");
@@ -1442,7 +1444,7 @@ try {
    // *fix 0.9.5 state.modifier is reset - this CONTINUOUSLY gives trouble...
    // *hack 1.1.4 Some libraries have a number of entries which can't be found.
       if (!Builtin::add_dll_function(fn,modifier_flags,name) && ! debug.suppress_link_errors)
-        cerr << "cannot link to " + quotes(name) << std::endl;
+        cerr << "cannot link to " + quotes(name) << endl;
     }
   }
  } catch(string msg) { error(msg); }
@@ -2077,7 +2079,7 @@ try {
  if (!IEF && block_depth() == 0) {
 
    if (debug.dump_expr) {
-     Expressions::dump(cmsg,e);  cmsg << std::endl;
+     Expressions::dump(cmsg,e);  cmsg << endl;
    }
    // insert an appropriate dump instruction if non-void
    Type t = e->type();
@@ -2195,7 +2197,7 @@ void dump_expression(Type t, void *ptr, PEntry pe)
 	} catch(...) {
       cmsg << "???";
 	}
-	cmsg << std::endl;
+	cmsg << endl;
   }
 }
 
@@ -2358,14 +2360,14 @@ void dump_function(PEntry pe, bool do_dissemble, int idx, std::ostream& os)
    FunctionEntry *pfe = (FunctionEntry *)pe->data;
    FBlock *fb = NULL;
    // *fix 1.2.9 we were blowing up when showing function templates with no instances
-   if (pfe->size()==0) os << "<no instances" << std::endl;
+   if (pfe->size()==0) os << "<no instances" << endl;
    else {
      if (idx > -1) fb = pfe->nth_fun(idx)->fun_block();
      if (!do_dissemble) pfe->dump(os);
      if (do_dissemble && fb && fb->pstart) {
-       os << "nargs = " << fb->nargs << " nlocal = " << fb->nlocal << std::endl;
+       os << "nargs = " << fb->nargs << " nlocal = " << fb->nlocal << endl;
        dissemble(fb);
-       os << "at address " << fb << std::endl;
+       os << "at address " << fb << endl;
      }
    }
 }
@@ -2396,7 +2398,7 @@ void dump_var(PEntry pe)
  }
  std::cout << ' ' << prefix << pe->name
       << " size " << size_of_entry(pe)
-      << " offset " << pe->data << std::endl;
+      << " offset " << pe->data << endl;
 
  if (t.is_function()) {
    dump_function(pe,debug.auto_dissemble,1,std::cout);
@@ -2420,7 +2422,7 @@ void dump_var(PEntry pe)
        do_dump = true;
      }
    }
-  if (do_dump) std::cout << " was value" << std::endl;
+  if (do_dump) std::cout << " was value" << endl;
  } catch(...) { warning("problem with dumping value...."); }
 }
 ////

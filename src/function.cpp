@@ -248,7 +248,9 @@ void FunctionContext::finalize()
  // if the last instruction was a trival RETURN jump, ignore it!
  int op = code.last_pi()->opcode;
  Label *ret_lbl = Parser::state.return_label();
+   // cerr << "ret fun " << ret_lbl << std::endl;
  if (op == JMP && code.last_pi()->data == code.ip_offset()) {
+    // cerr << "removing ret " << std::endl;
    ret_lbl->remove(code.last_pi());  // take out this JMP
    code.backspace();                 // skip back
    ret_lbl->here();                  // repatch all other instances of return jump

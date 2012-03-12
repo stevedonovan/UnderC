@@ -34,57 +34,72 @@ PEntry last_type_entry;
 PExpr gFunInit = NULL;  // used to flag pure virtual methods...
 
 void dcl_set(bool yes, bool comma_flag) {
- dcl_stack.push(state.in_declaration);
- if (dcl_stack.depth() > 40) outln("runaway dcl stack");
- state.in_declaration = yes;
- als.push(comma_flag);  /* force ',' _not_ to be COMMA */
+  dcl_stack.push(state.in_declaration);
+  if (dcl_stack.depth() > 40) outln("runaway dcl stack");
+  state.in_declaration = yes;
+  als.push(comma_flag);  /* force ',' _not_ to be COMMA */
 }
 
 void dcl_reset() { 
- state.in_declaration = dcl_stack.pop();
- als.pop();
+  state.in_declaration = dcl_stack.pop();
+  als.pop();
 }
 
 void force_comma_flag() { 
- als.clear();
- dcl_stack.clear();
- dcl_set(false,false);
+  als.clear();
+  dcl_stack.clear();
+  dcl_set(false,false);
 }
 
 bool in_arg_list()   {
- return als.TOS();
+  return als.TOS();
 }
 
-inline void enter_arglist() { dcl_set(false); }
+inline void enter_arglist() { 
+  dcl_set(false);
+}
 
-void leave_arglist() { dcl_reset(); }
+void leave_arglist() {
+  dcl_reset();
+}
 
 string tag_name; /* A fiddle */
 bool IEF=false;
 /*BoolStack ief_stack;*/
-void IEF_set()   { /*ief_stack.push(IEF);*/ IEF=true; }
-void IEF_reset() { IEF=false; /*ief_stack.pop();*/ } 
 
-void ttpush(TType t) { tpush(AsType(t)); }
+void IEF_set()   {
+    /*ief_stack.push(IEF);*/
+  IEF=true;
+}
+
+void IEF_reset() {
+  IEF=false;
+    /*ief_stack.pop();*/ 
+} 
+
+void ttpush(TType t) {
+  tpush(AsType(t));
+}
 
 void raise_error(string msg) 
 {
- int yyerror(const char *);
+  int yyerror(const char *);
 
- if (state.err != "") { msg = state.err; state.err = ""; }
- state.reset();
- als.clear(); als.push(false); 
- yyerror(msg.c_str());
+  if (state.err != "") { msg = state.err; state.err = ""; }
+  state.reset();
+  als.clear();
+  als.push(false); 
+  yyerror(msg.c_str());
 }
 
 bool check_error()
 {
- if (state.err != "") {
+  if (state.err != "") {
     raise_error(state.err);
 	state.err = "";
 	return true;
- }
- return false;
+  }
+  return false;
 }
 
 %}
@@ -311,11 +326,11 @@ function_definition:
   function_front block
   { }
 | ctor_dtor
-{}
+  {}
 | explicit_mod ctor_dtor
-{}
+  {}
 | conversion_operator block
-{}
+  {}
 ;
 
 ctor_dtor:
@@ -344,7 +359,7 @@ class_init_item:
     { 
 	 ((Class*)state.context().parent_context())
 	    ->add_class_init_list(AsType($1).as_class()->entry(),$2);
-	/* fix 1.2.3a Can crash UC if we don't catch errors in the init list */
+	 /* fix 1.2.3a Can crash UC if we don't catch errors in the init list */
 	 if (check_error()) YYABORT;  
 	}
 
@@ -367,10 +382,10 @@ poss_const: /*EMPTY*/ { $$=0; }
 ;
 
 mod_type_name:
-  type_name                      {dcl_set();}
-| modifiers type_name            {dcl_set();}
-| CONST type_name                {dcl_set(); tots().make_const();} 
-| modifiers CONST type_name      {dcl_set(); tots().make_const();}
+  type_name                 {dcl_set();}
+| modifiers type_name       {dcl_set();}
+| CONST type_name           {dcl_set(); tots().make_const();} 
+| modifiers CONST type_name {dcl_set(); tots().make_const();}
 ;
 
 modifiers: 
@@ -426,12 +441,24 @@ array_expr:
 	']' %prec ARRAY  { dcl_reset(); $$ = $3; }
 ;
 
-tname_expr:  /*empty*/          { $$=ttots(); state.token_stack.push(""); }
+tname_expr:  /*empty*/   
+{ 
+    $$=ttots();
+    state.token_stack.push("");
+}
   | token                       { $$=$1;   }
-  | pointer_expr arg_list       { Type t = AsType($1); t.decr_pointer(); $$ = AsTType(state.signature_type(t));     }
+  | pointer_expr arg_list 
+{ 
+    Type t = AsType($1);
+    t.decr_pointer();
+    $$ = AsTType(state.signature_type(t));
+ }
   | '(' scope STAR token ')' end_scope  arg_list
-                                 /* fix 1.2.3a Set the class type for this method ptr declaration first */
-                                { state.class_dcl = AsType($2); $$ = AsTType(state.signature_type(AsType($4)));  } 
+/* fix 1.2.3a Set the class type for this method ptr declaration first */
+{ 
+     state.class_dcl = AsType($2);
+     $$ = AsTType(state.signature_type(AsType($4))); 
+} 
   | STAR poss_const tname_expr  { $$ = incr_ptr($3);         }
   | ADDR  tname_expr            { $$ = make_ref($2);         }
   | scope token end_scope       { $$ = $2;   state.class_dcl = AsType($1); }
@@ -566,16 +593,17 @@ poss_derived: /*EMPTY*/ { $$=NotDerived; }
 ;
 
 token_or_typename:
-    TOKEN                   { $$ = $1;               }
+    TOKEN                   { $$ = $1;  }
   | TYPENAME                { $$ = $1->name.c_str(); }
 ;
 
-class_name: /*empty*/       { $$ = "";               } 
-  | token_or_typename       { $$ = $1;               } 
+class_name: /*empty*/       { $$ = "";   } 
+  | token_or_typename       { $$ = $1;   } 
   | template_class          
-   { PClass pc = AsType($1).as_class();
-     $$ = pc->name().c_str();
-    }
+{
+    PClass pc = AsType($1).as_class();
+    $$ = pc->name().c_str();
+}
   | TEMPLATE_NAME           { $$ = $1->name.c_str(); }
 ;    
 
@@ -593,14 +621,11 @@ class_declaration:
        typedef_stack.push(state.in_typedef);
        state.in_typedef = false;
       }
-
 	statement_list '}' 
-
      {
 	   state.finalize_block(); IEF_reset();
   	   state.in_typedef = typedef_stack.pop(); 
 	 } 
-
   | class_or_struct_ex class_id  
      { tpush(state.add_class($1,$2,ForwardClass,t_void)); }	 
 ;

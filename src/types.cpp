@@ -14,8 +14,6 @@
 #include <cstring>
 #include <strstream>
 
-std::vector<void *> Type::_test_;
-
  std::vector<Class *>  Type::_classes_;
  std::vector<Signature *>  Type::_signatures_;
  std::vector<Enum *>       Type::_enums_;

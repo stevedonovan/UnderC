@@ -93,14 +93,11 @@ struct ParserState {
   Stack<int,BLOCK_DEPTH> block_stack;
   Stack<CatchHandler *,10> mTryStack;
   Stack<SwitchBlock *,10> switch_stack;
-  LabelStack label_stack, continue_stack, break_stack;
-
+  LabelStack label_stack, continue_stack, break_stack, return_stack;
+  Label *ret_label;
   Table *scope_context;
   TokenStack token_stack;
   ContextStack context_stack;
-  Label *m_continue;
-  Label *m_ret_label;
-  LabelStack m_ret_label_stack;
   // methods
   ParserState() { reset(); }
   void reset();

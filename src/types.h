@@ -133,7 +133,6 @@ class Type {
     int      inherits_from(Type t) const;  // depth of derivation; 0 for no relation
     int      size() const;                 // implements sizeof()
     static   Type make_dummy(const string& name, Type t, Entry *pe);
-    static  std::vector<void *> _test_;
     static std::vector<Class *>      _classes_;
     static std::vector<Signature *>  _signatures_;
     static std::vector<Enum *>       _enums_;
