@@ -812,6 +812,15 @@ do_it_again:
   if (! skip_whitespace()) return 0;  // means: finis, end of file, bail out.
   if (iscsymf(*P)) { //--------------------- TOKENS --------------
      start_P = P;
+      // C++11 raw strings, in the simplest form of M"(string)"
+     if (*P == 'M' && *(P+1) == '\"' && *(P+2) == '(') {
+         start_P += 3;
+        while (*P && ! (*P == ')' && *(P+1) == '\"')) P++;
+        end_P = P;
+        copy_str(sbuff,start_P,end_P);
+         P+= 2;
+        return T_STRING;
+    }     
      while (iscsym(*P)) P++;
      end_P = P;
      copy_str(tbuff,start_P,end_P);

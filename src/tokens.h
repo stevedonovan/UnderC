@@ -14,7 +14,7 @@ enum { T_END, T_TOKEN, T_INT, T_DOUBLE, T_FLOAT, T_HEX, T_CHAR, T_STRING, T_OCT,
 // *fix 1.1.4 MAX_MACRO_ARGS was too small for the GDK headers
 // *ch 1.2.9 patch Boosted max number of include paths for BeOS port
 const int TT_BUFFSIZE = 4096, MAX_FILE_DEPTH = 20, MAX_NEST_IFDEF = 15;
-const int LINESIZE = 512, STRSIZE = 1024, MAX_MACRO_ARGS = 16, MAX_INCLUDE_PATHS = 30;
+const int LINESIZE = 512, STRSIZE = 4*1024, MAX_MACRO_ARGS = 16, MAX_INCLUDE_PATHS = 30;
 const int MAX_IDEN_SIZE = 32;
 const int MAX_PROMPT_SIZE = 80;
 
