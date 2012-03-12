@@ -203,7 +203,7 @@ static Function * XAPI make_function(const char *args, const char *expr)
  char buff[EXPR_BUFF_SIZE];
  char fn_name[10];
  sprintf(fn_name,"__T%03d",++mFn);
- sprintf(buff,"__declare %s(%s) { return %s; }",fn_name,args,expr);
+ sprintf(buff,"auto %s(%s) { return %s; }",fn_name,args,expr);
  if (uc_exec(buff)) {  // function defined successfully!
 	 return Function::lookup(fn_name);
  } else return NULL;

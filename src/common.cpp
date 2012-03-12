@@ -1607,7 +1607,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
   }
   if (name=="*") name = make_temp_name(); // assign a temporary name...
   if (t == t_null  && ! in_typedef) { // *add 1.1.1 support for __declare
-    if (init == NULL) fail("must initialize a __declare variable");
+    if (init == NULL) fail("must initialize an auto variable");
     t = init->type();
 	t.strip_const();   // i.e. we want the base type
 	t.make_zero_int(); // *fix 1.1.2 the zero bit must go!
@@ -2335,8 +2335,8 @@ void init()
  state.add_variable(t_const_bool,"true",Expressions::constant_op(t_int,1),ENUM_INIT);
  state.add_variable(t_const_bool,"false",Expressions::constant_op(t_int,0),ENUM_INIT);
 
- // *add 1.1.1 support for __declare
- state.add_typedef(t_null,"__declare");
+ // *add 1.1.1 support for __declare; which (1.3.2) is Cx11's auto
+ state.add_typedef(t_null,"auto");
 }
 
 // ***** DIAGNOSTICS *******

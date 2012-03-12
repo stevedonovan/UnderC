@@ -22,8 +22,6 @@ using namespace Expressions;
 #define YYERROR_VERBOSE 1
 #define YYDEBUG 1
 
-#define YYPURE
-
 /* some shortcuts */
 typedef Stack<bool,40> BoolStack;
 BoolStack als(false);
@@ -103,51 +101,51 @@ bool check_error()
 }
 
 %token <str>   TOKEN
-%token <entry> IDEN,CONSTANT,TYPENAME,TYPENAME_FUNCTION,TEMPLATE_NAME, TEMPLATE_NAME_EXPR,
+%token <entry> IDEN CONSTANT TYPENAME TYPENAME_FUNCTION TEMPLATE_NAME TEMPLATE_NAME_EXPR
 %token <classptr> THIS_CLASSNAME
-%token FLOAT,DOUBLE,UNSIGNED,INT,SHORT,LONG,CHAR,VOID,BOOL
-%token TYPEDEF,CLASS,STRUCT,ENUM,OPERATOR,GOTO,UNION
-%token <val> STATIC_CAST,CONST_CAST,DYNAMIC_CAST,REINTERPRET_CAST, STRUCT_X, CLASS_X, STRUCT_Y, CLASS_Y, UNION_Y
-%token IF,ELSE,WHILE,DO,FOR,SWITCH,CASE,RETURN,CONTINUE,BREAK,OPERATOR,DEFAULT
-%token NAMESPACE,USING,TRY,CATCH,THROW,TEMPLATE,EXTERN
-%token THREEDOT, TYPEOF, EXPLICIT, FRIEND, LAMBDA, FAKE_INIT_LIST
-%token <val> CONST,STATIC,STDCALL,API,VIRTUAL,PRIVATE,PROTECTED,PUBLIC,CLASS,STRUCT,UNION
+%token FLOAT DOUBLE UNSIGNED INT SHORT LONG CHAR VOID BOOL
+%token TYPEDEF CLASS STRUCT ENUM OPERATOR GOTO UNION
+%token <val> STATIC_CAST CONST_CAST DYNAMIC_CAST REINTERPRET_CAST  STRUCT_X  CLASS_X  STRUCT_Y  CLASS_Y  UNION_Y
+%token IF ELSE WHILE DO FOR SWITCH CASE RETURN CONTINUE BREAK OPERATOR DEFAULT
+%token NAMESPACE USING TRY CATCH THROW TEMPLATE EXTERN
+%token THREEDOT  TYPEOF  EXPLICIT  FRIEND  LAMBDA  FAKE_INIT_LIST
+%token <val> CONST STATIC STDCALL API VIRTUAL PRIVATE PROTECTED PUBLIC CLASS STRUCT UNION
 
 /* C++ operators, in increasing order of precedence */
 %left COMMA
-%right <val> ASSIGN,MUL_A,DIV_A,MOD_A,ADD_A,MINUS_A,SHL_A,SHR_A,BAND_A,BOR_A,XOR_A
+%right <val> ASSIGN MUL_A DIV_A MOD_A ADD_A MINUS_A SHL_A SHR_A BAND_A BOR_A XOR_A
 %left ARITH_IF
 %left LOG_OR
 %left LOG_AND
 %left BIN_OR
 %left BIN_XOR
 %left BIN_AND
-%left EQUAL, NOT_EQUAL
-%left LESS_THAN, LEQ, GREATER, GEQ
-%left LSHIFT,RSHIFT
-%left PLUS,MINUS
-%left STAR,DIVIDE,MODULO
-%left MEMBER_ARROW, MEMBER_DOT
-%right NEW,DELETE,TYPECAST,DEREF,ADDR,UPLUS,UMINUS,LOG_NOT,BIN_NOT,INCR,DECR,SIZEOF
-%left TYPE_CONSTRUCT,FUN_CALL,ARRAY,ARROW,DOT
+%left EQUAL  NOT_EQUAL
+%left LESS_THAN  LEQ  GREATER  GEQ
+%left LSHIFT RSHIFT
+%left PLUS MINUS
+%left STAR DIVIDE MODULO
+%left MEMBER_ARROW  MEMBER_DOT
+%right NEW DELETE TYPECAST DEREF ADDR UPLUS UMINUS LOG_NOT BIN_NOT INCR DECR SIZEOF
+%left TYPE_CONSTRUCT FUN_CALL ARRAY ARROW DOT
 %left  BINARY_SCOPE
 %right UNARY_SCOPE
 
-%type <val> assign_op, poss_array
-%type <ctype> tname_expr, tname_exp2, token, type_expr, type_expression,type_bracket,function_front
-%type <ctype> typename_function, typename_class, typename_expr, template_class, template_expr, templ_item
-%type <ctype> conversion_operator, class_parm, scope, pointer_expr
-%type <val> poss_unsigned, poss_int,poss_const,typecast_type
-%type <val> access_modifier,poss_access_modifier,class_or_struct,poss_derived, template_class_header, struct_or_class_x,
+%type <val> assign_op  poss_array
+%type <ctype> tname_expr  tname_exp2  token  type_expr  type_expression type_bracket function_front
+%type <ctype> typename_function  typename_class  typename_expr  template_class  template_expr  templ_item
+%type <ctype> conversion_operator  class_parm  scope  pointer_expr
+%type <val> poss_unsigned  poss_int poss_const typecast_type
+%type <val> access_modifier poss_access_modifier class_or_struct poss_derived  template_class_header  struct_or_class_x 
 %type <val> class_or_struct_ex
-%type <str> poss_tag, class_name, poss_class_name, class_id, class_item, template_class_name, token_or_typename
+%type <str> poss_tag  class_name  poss_class_name  class_id  class_item  template_class_name  token_or_typename
 /* these should be 'expression'!! */
-%type <expression> _expr,expr,poss_int_const,poss_initialization,poss_size,condition,poss_expr,brace_item
+%type <expression> _expr expr poss_int_const poss_initialization poss_size condition poss_expr brace_item
 %type <expression> array_expr
 %type <entry> scoped_name
-%type <elist> expr_list,function_arg_list,poss_function_arg_list,init_list,brace_list, brace_expr
+%type <elist> expr_list function_arg_list poss_function_arg_list init_list brace_list  brace_expr
 %type <classptr> this_classname
-%type <typelist> template_type_list, templ_item_list
+%type <typelist> template_type_list  templ_item_list
 %%
 
 program: statement_list ;
