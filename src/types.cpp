@@ -82,6 +82,7 @@ Type::Type(TypeEnum t, int extra)
   *((long *)this) = 0;  //*SJD* Nasty but effective!
 
   if(t == TT_NULL) {
+    m_float = 1;  m_int = 1;
     m_extra = extra;
     return;
   }
@@ -160,7 +161,9 @@ bool Type::operator == (Type t)  const
 }
 
 bool Type::is_null() const
-{ return *((long *)this) == 0; }
+{ 
+    return m_float == 1 &&  m_int == 1;
+}
 
 bool Type::is_bare() const
 {

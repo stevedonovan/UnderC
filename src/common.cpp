@@ -1606,12 +1606,20 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
       }
   }
   if (name=="*") name = make_temp_name(); // assign a temporary name...
-  if (t == t_null  && ! in_typedef) { // *add 1.1.1 support for __declare
+  if (t.is_null()  && ! in_typedef) { // *add 1.1.1 support for __declare
     if (init == NULL) fail("must initialize an auto variable");
+    Type nt = t;
     t = init->type();
+    if (t.is_variable())
+        t.strip_reference();
 	t.strip_const();   // i.e. we want the base type
 	t.make_zero_int(); // *fix 1.1.2 the zero bit must go!
 	if (t.is_function()) t.incr_pointer(); // *fix 1.2.0 (Eric) otherwise we crash
+    if (nt.is_const()) t.make_const();
+    if (nt.is_reference()) {
+        t.make_reference();
+    }
+    
   }
   // _cannot_ use a namespace name as if it were a plain type!
   if (t.is_namespace()) fail("Namespace not allowed here");
