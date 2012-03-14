@@ -83,7 +83,6 @@ void Class::set_base_class(Class *base, int access)
 
         copy_convert_to_list();
 
-
         // if we are derived from an imported class w/ a vtable,
         // then we will have to generate a vtable for these objects.
         // *fix 1.2.0 Use the inherited vtable size
@@ -104,21 +103,61 @@ void Class::set_base_class(Class *base, int access)
    }
 }
 
-Function *Class::default_constructor() { return m_default_constructor; }
-Function *Class::copy_constructor()    { return m_copy_constructor;    }
-Function *Class::destructor()          { return m_destructor;          }
+bool  Class::simple_struct() { return m_simple_struct; }
+bool  Class::is_struct()     { return m_struct; }
+void  Class::make_struct()   { m_struct = true; }
+void Class::set_from_type_list(TypeList& tl) { m_from_list = tl; }
+void Class::set_to_type_list(TypeList& tl) { m_to_list = tl; }
+void  Class::set_access_mode(int mode)     { m_access_mode = mode; }
+int   Class::get_access_mode()             { return m_access_mode; }
+int   Class::base_access_mode()            { return m_base_access; }
+
+Class**   Class::get_VMT()       { return m_VMT; }
+int       Class::last_slot()     { return m_slot_id; }
+int       Class::next_slot()     { return ++m_slot_id; }
+void      Class::make_abstract() { m_abstract = true; }
+bool      Class::is_abstract()   { return m_abstract; }
+
+bool Class::is_template()                       { return m_templ_info != NULL; }
+TemplateInstance* Class::get_template()         { return m_templ_info;  }
+void Class::set_template(TemplateInstance *pti) { m_templ_info = pti; }
+
+ImportScheme* Class::import_scheme() { return m_import; }
+  // *add 1.1.3 Directly fooling w/ the class; hack alert!
+void Class::set_import_scheme(ImportScheme *is) { m_import = is; }  
+
+
+Function *Class::default_constructor()
+{
+  return m_default_constructor;
+}
+
+Function *Class::copy_constructor()
+{
+  return m_copy_constructor;
+}
+
+Function *Class::destructor() 
+{
+  return m_destructor;       
+}
+
 bool  Class::has_constructors()
 { 
-    return m_has_constructors;
+  return m_has_constructors;
 }
 
 // defines our convention for internally naming the constructor/destructor
 // cf. parser.y line 110...
 string Class::constructor_name()
-{ return "__C__"; }
+{
+  return "__C__"; 
+}
 
 string Class::destructor_name()
-{ return "__D__"; }
+{
+  return "__D__";
+}
 
 bool Class::is_anonymous_union()
 {
@@ -131,8 +170,7 @@ void Class::set_anonymous_union()
  m_is_union = true;
 }
 
-PEntry
-Class::add(const string& name)
+PEntry Class::add(const string& name)
 {
   PEntry pe = Table::add(name);
   pe->set_access(get_access_mode());

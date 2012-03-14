@@ -83,14 +83,14 @@ public:
   bool is_anonymous_union(); // *add 1.2.6 support for anonymous unions
   void set_anonymous_union();
 
-  bool  simple_struct() { return m_simple_struct; }
-  bool  is_struct()     { return m_struct; }
-  void  make_struct()   { m_struct = true; }
+  bool  simple_struct();
+  bool  is_struct();
+  void  make_struct();
 
   // stuff to do with imported classes
-  ImportScheme *import_scheme() { return m_import; }
+  ImportScheme *import_scheme();
   // *add 1.1.3 Directly fooling w/ the class; hack alert!
-  void set_import_scheme(ImportScheme *is) { m_import = is; }  
+  void set_import_scheme(ImportScheme *is);
   bool  imported();
   int   vtable_size();
   bool  derived_from_import();
@@ -120,8 +120,8 @@ public:
   int size();    
       
   //*TEMP*
-  void set_from_type_list(TypeList& tl) { m_from_list = tl; }
-  void set_to_type_list(TypeList& tl) { m_to_list = tl; }
+  void set_from_type_list(TypeList& tl);
+  void set_to_type_list(TypeList& tl);
 
   // user-defined conversions to & from this class
   void set_conversion_to(Function *fn);
@@ -132,22 +132,22 @@ public:
   Function *get_conversion_from(Type t);
 
   //access control
-  void  set_access_mode(int mode)     { m_access_mode = mode; }
-  int   get_access_mode()             { return m_access_mode; }
-  int   base_access_mode()            { return m_base_access; }
+  void  set_access_mode(int mode);
+  int   get_access_mode();
+  int   base_access_mode();
   bool is_friend_class(Class *pc);
   bool is_friend_function(void *fn); 
   void add_friend_object(void *pc, bool is_class);
   
   // virtual method management
-  Class**   get_VMT()       { return m_VMT; }
-  int       last_slot()     { return m_slot_id; }
-  int       next_slot()     { return ++m_slot_id; }
+  Class**   get_VMT();
+  int       last_slot();
+  int       next_slot();
   bool      has_VMT();
   void      set_slot(int id, Function *data);
   PFBlock   get_slot(int id);
-  void      make_abstract() { m_abstract = true; }
-  bool      is_abstract()   { return m_abstract; }
+  void      make_abstract();
+  bool      is_abstract();
 
   void      attach_VMT(void *obj, PPClass vmt=NULL);
   static PPClass find_VMT(void *obj);
@@ -159,9 +159,9 @@ public:
  void add_line_no(const string& file, int line);
  static Class *generate_try_block_handler();
  bool make_available();
- bool is_template()                       { return m_templ_info != NULL; }
- TemplateInstance *get_template()         { return m_templ_info;  }
- void set_template(TemplateInstance *pti) { m_templ_info = pti; }
+ bool is_template();
+ TemplateInstance *get_template();
+ void set_template(TemplateInstance *pti);
 };
 
 typedef Class *PClass, **PPClass;
