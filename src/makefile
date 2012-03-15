@@ -2,9 +2,8 @@
 # vs 1.2.4 Can also build as a shared library, if SO is set
 
 # variables from configure
-UC_VERSION=1.2.9
-UC_HOME=/home/user/dev/underc
-
+UC_VERSION=1.3.1
+UC_HOME=/home/azisa/uc/UnderC
 
 OBJ = tparser.o function_match.o class.o code.o common.o \
       directcall.o dissem.o engine.o expressions.o \
@@ -16,47 +15,51 @@ OBJ = tparser.o function_match.o class.o code.o common.o \
 
 NAME = ucc
 DEFINES = -D_CONSOLE
-
+CFLAGS = -Wno-deprecated -Wno-write-strings -m32
 ifdef DEBUG
-CFLAGS = -g -Wno-deprecated -Wno-write-strings
+CFLAGS := -g $(CFLAGS)
 else
-CFLAGS = -O1 -Wno-deprecated  -Wno-write-strings # -O2 causes trouble
+CFLAGS := -O1 $(CFLAGS)
 ifdef DYNAMIC
 LFLAGS = -Wl,-E
 endif
-endif
-
-ifndef NO_READLINE
-DEFINES := $(DEFINES) -D_USE_READLINE
-LFLAGS := $(LFLAGS) -lreadline -lncurses
-ifndef BSD
-LFLAGS := $(LFLAGS) -ldl
-endif
-endif
-
-ifdef STATIC
-LFLAGS := $(LFLAGS) -static
 endif
 
 ifdef SO
 LFLAGS := $(LFLAGS) -shared
 OBJ := $(OBJ) dll_entry.o
 # DEFINES = $(DEFINES) -D_USRDLL
-DEFINES = -D_USRDLL -D_USE_READLINE
-NAME = ucc129.so
+DEFINES = -D_USRDLL
+NAME = ucc131.so
+NO_READLINE = 1
 endif
 
-ifdef GTK
-LFLAGS := $(LFLAGS) `gtk-config --libs`
-DEFINES = -D_CONSOLE -D_USE_READLINE  -D_LINK_GTK
+ifndef NO_READLINE
+DEFINES := $(DEFINES) -D_USE_READLINE
+ifdef REALLY_USE_READLINE
+DEFINES := $(DEFINES) -D_REALLY_USE_READLINE
+LFLAGS := $(LFLAGS) -lreadline -lncurses
+else
+OBJ := $(OBJ) linenoise.o
+endif
+endif
+
+ifndef BSD
+LFLAGS := $(LFLAGS) -ldl
+endif
+
+ifdef STATIC
+LFLAGS := $(LFLAGS) -static
 endif
 
 ucc: $(OBJ)
 	$(CXX) $(CFLAGS) -o $(NAME) $(OBJ) $(LFLAGS)
+ifndef SO
 ifndef DYNAMIC
 	nm -g ucc | awk -f xnames.awk > ../lib/self.imp
 ifndef DEBUG
 	strip ucc
+endif
 endif
 endif
 
@@ -68,7 +71,7 @@ tparser.cpp: parser.y
 
 tparser.o: tparser.cpp
 
-clean: 
+clean:
 	rm -f *.o ucc *~ ../lib/string_imp.dll
 
 lib:
@@ -79,17 +82,21 @@ function_match.o: function_match.cpp function_match.h \
 
 class.o: class.cpp class.h common.h \
    directcall.h operators.h opcodes.h tparser.h std_utils.h
+   
+linenoise.o: linenoise.c
 
 code.o: code.cpp code.h common.h opcodes.h tparser.h
 
 common.o: common.h function_match.h tparser.h code.h \
 	opcodes.h engine.h
 
+# gcc 4.6 optimization omits frame pointers, which upsets callfn
 directcall.o: directcall.cpp directcall.h common.h \
         opcodes.h directcall.h mangle.h hard_except.h os.h
+	$(CXX) -c $(CFLAGS) -fno-omit-frame-pointer $(DEFINES) directcall.cpp        
 
 dissem.o: dissem.cpp common.h \
-        opcodes.h breakpoints.h	
+        opcodes.h breakpoints.h
 
 engine.o: engine.cpp engine.h common.h errors.h \
         opcodes.h directcall.h breakpoints.h hard_except.h
@@ -99,7 +106,7 @@ expressions.o: expressions.cpp expressions.h common.h \
 
 function.o: function.cpp function.h common.h opcodes.h \
          module.h
-  
+
 breakpoints.o: breakpoints.cpp breakpoints.h common.h \
          module.h opcodes.h tokens.h std_utils.h os.h
 

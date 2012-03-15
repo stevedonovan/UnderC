@@ -5,7 +5,7 @@
 #define __CLASS_H
 #include "table.h"
 #include "imports.h"
-#include "function.h"  
+#include "function.h"
 
 class NamedObject {
  string m_name;
@@ -20,7 +20,7 @@ public:
 class Enum: public NamedObject {
   EntryList m_entries;
   PEntry m_entry;
-public: 
+public:
   Enum(string name) : NamedObject(name) { }
   void add_entry(PEntry);
   Table* context();
@@ -55,8 +55,8 @@ protected:
   int m_slot_id;
   PEntry m_base_entry;
   TemplateInstance *m_templ_info;
-  int m_base_access, m_access_mode;
-  bool m_simple_struct, m_has_constructors, m_abstract,m_finalized, m_imported, m_struct, m_is_union;
+  int m_base_access, m_access_mode, m_abstract;
+  bool m_simple_struct, m_has_constructors,m_finalized, m_imported, m_struct, m_is_union;
   Function *m_default_constructor, *m_copy_constructor, *m_destructor;
   ImportScheme *m_import;
 
@@ -106,19 +106,19 @@ public:
   void add_defered_method_body(Function* fn, char* body_buff);
   bool auto_construct(bool make_method);
   void auto_destruct(bool make_method);
-  void auto_assign_copy(bool is_assign); 
+  void auto_assign_copy(bool is_assign);
   void add_class_init_list(PEntry pe, PExprList pel);
-   
-  // inheritance relationships 
+
+  // inheritance relationships
   bool inherits_from(Class *pc);
   int  distance_from(Class *pc);
   Class *base_class();
-  
-  // finishing off class creation 
+
+  // finishing off class creation
   PEntry get_constructor();
   void finalize();
-  int size();    
-      
+  int size();
+
   //*TEMP*
   void set_from_type_list(TypeList& tl);
   void set_to_type_list(TypeList& tl);
@@ -136,9 +136,9 @@ public:
   int   get_access_mode();
   int   base_access_mode();
   bool is_friend_class(Class *pc);
-  bool is_friend_function(void *fn); 
+  bool is_friend_function(void *fn);
   void add_friend_object(void *pc, bool is_class);
-  
+
   // virtual method management
   Class**   get_VMT();
   int       last_slot();

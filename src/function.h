@@ -43,14 +43,14 @@ class LocalContext: public Table {
 protected:
   Function *m_function;
   bool m_no_auto_dtor;
-  
+
 public:
-    LocalContext(Table *parent, Function *fun); 
+    LocalContext(Table *parent, Function *fun);
     int alloc(int sz, void *data);   // override Table::alloc()
     void set_parent(Table *parent);
     void finalize();
     void add_line_no(const string& file, int line); // override
-    
+
 	bool check_objects(bool do_clear=true);
     Function *function() { return m_function; }
 
@@ -93,7 +93,7 @@ protected:
   FunctionContext *m_context;
   bool m_cdecl;
   int m_slot_id;
-  PEntry m_ret_obj;  
+  PEntry m_ret_obj;
   FunctionEntry *m_fun_entry;
   PExprArray m_default_args;
   int m_default_index;
@@ -112,71 +112,64 @@ public:
   enum { CDECL=2, _STDCALL=1, STDMETHOD=3, UCFN=0 };
 
   Function(Signature *sig, FunctionEntry *fe);
-  ~Function();  
+  ~Function();
 
   void attach_context(FunctionContext *context);
-  void set_construct_destruct(int ftype, bool no_implicit_type_conversion = false); 
-  bool is_destructor()  { return m_ftype==2; }
-  bool is_constructor() { return m_ftype==1; }
-  bool is_plain()       { return m_ftype==0; }
-  bool is_method()      { return m_ftype!=0; }
-  
+  void set_construct_destruct(int ftype, bool no_implicit_type_conversion = false);
+  bool is_destructor();
+  bool is_constructor();
+  bool is_plain();
+  bool is_method();
+
    // non-NULL iff this is a 'complete' function
-  FunctionContext * context()     { return m_context; }
-  Signature *       signature()   { return m_sig; }
-  Type              return_type() { return m_sig->return_type(); }
-  LineNumbersB *    line_nos()     { return m_line_nos; }
+  FunctionContext * context();
+  Signature *       signature();
+  Type              return_type();
+  LineNumbersB *    line_nos();
 
   // non-NULL iff this function returns an object value
-  PEntry return_object()   { return m_ret_obj; }
-  void return_object(PEntry pe) { m_ret_obj = pe; }
- 
-  bool stdarg()            { return signature()->stdarg(); }
-  void stdarg(bool stdarg) { signature()->stdarg(stdarg); }
-  bool builtin()           { return m_builtin != 0;  }
-  void builtin(uchar b)    { m_builtin = b;          }
-  bool is_cdecl()          { return m_builtin == CDECL;  }
-  bool stdmethod()                     { return m_builtin == STDMETHOD; }
-  ImportScheme *import_scheme()        { return m_import_scheme; }
-  void import_scheme(ImportScheme *is) { m_import_scheme = is; }
-  void adjust_return_type(Type t) { m_sig->adjust_return_type(t); }
-  
-  void fun_block(FBlock *fblk) { m_fun_block = fblk; }
-  FBlock *fun_block()          { return m_fun_block; }
-  FunctionEntry *fun_entry()   { return m_fun_entry; }
+  PEntry return_object();
+  void return_object(PEntry pe);
+
+  bool stdarg();
+  void stdarg(bool stdarg);
+  bool builtin();
+  void builtin(uchar b);
+  bool is_cdecl();
+  bool stdmethod();
+  ImportScheme *import_scheme();
+  void import_scheme(ImportScheme *is);
+  void adjust_return_type(Type t);
+  void fun_block(FBlock *fblk);
+  FBlock *fun_block();
+  FunctionEntry *fun_entry();
   bool undefined();
   void clear();
   void dump(std::ostream& os);
   string as_str();
   static Function *from_fun_block(FBlock *pfb);
   static Function *lookup(const string& nm);
-
   string  name();
-
   bool can_match(int size);
-  bool has_default_args()     { return m_default_args != NULL; }
-  void set_default_args(PExprList args);   
+  bool has_default_args();
+  void set_default_args(PExprList args);
   PExprList complete_arg_list(PExprList args);
-
   // non-NULL iff this is a method of a class
-  Class *class_context()
-   { return signature()->class_ptr(); }
-
-  bool is_const()                  { return signature()->is_const(); }
-  bool is_static()                 { return class_context() != NULL && !is_method(); } 
+  Class *class_context();
+  bool is_const();
+  bool is_static();
   // *change 1.2.3 A flag which is true if a function is to be _exported_ as cdecl
-  bool export_as_cdecl()           { return m_cdecl; }
-  void export_as_cdecl(bool yesno) { m_cdecl = yesno; }
-  int slot_id()                    { return m_slot_id;  }
+  bool export_as_cdecl();
+  void export_as_cdecl(bool yesno);
+  int slot_id();
   void slot_id(int i);
-  bool is_virtual()                { return m_slot_id != 0; }
-  int  line()                      { return m_line; }
-  int  module()                    { return m_mod;  }
-
+  bool is_virtual();
+  int  line();
+  int  module();
  // (optional) template info
-  bool is_template()                       { return m_templ_info != NULL; }
-  TemplateInstance *get_template()         { return m_templ_info;  }
-  void set_template(TemplateInstance *pti) { m_templ_info = pti; }
+  bool is_template();
+  TemplateInstance *get_template();
+  void set_template(TemplateInstance *pti);
 
 };
 
