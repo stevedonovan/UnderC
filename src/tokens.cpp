@@ -1,14 +1,27 @@
-/* TOKENS.CPP 
- * The TokenStream class (a C/C++ preprocessor/tokenizer)      
+/* TOKENS.CPP
+ * The TokenStream class (a C/C++ preprocessor/tokenizer)
  * UnderC C++ interpreter
  * Steve Donovan, 2001
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
 */
 
+#include <cctype>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
+
 #ifdef _USE_READLINE
+#ifdef _REALLY_USE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#else
+extern "C" {
+#include "linenoise.h"
+}
+#define readline linenoise
+#define add_history linenoiseHistoryAdd
+#endif
 #endif
 
 #pragma warning(disable:4786)
@@ -18,11 +31,6 @@
 
 #include "tokens.h"
 #include "utils.h"
-
-#include <cctype>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
 #include <map>
 #include <fstream>
 
@@ -31,7 +39,7 @@ bool tok_dbg = false;  // *TEMPORARRY**
 // from SUBST.CPP
 char *copy_chars(char* q, char* p);
 char *copy_token(char *p, char *tok);
-char *massage_subst_string(char *buff, char **args, char *str); 
+char *massage_subst_string(char *buff, char **args, char *str);
 char *substitute(TokenStream& tok, char *buff, char **actual_args, char *subst);
 char *copy_str(char *tok, char *start, char *end);
 void insert(char *str, char *ins);
@@ -89,7 +97,7 @@ void fatal_error(TS tok, string msg)
  }
 
  bool TokenStream::macro_delete(const char *name)
- { 
+ {
    PMEntry pme = mMacroTable[name];
    if (!pme) return false; // wasn't there in the first place!
    delete pme;
@@ -99,14 +107,14 @@ void fatal_error(TS tok, string msg)
 
  void TokenStream::macro_builtin(const char *name, int id)
  {
-    PMEntry pme = macro_new(name); 
+    PMEntry pme = macro_new(name);
     pme->subst = NULL;
     pme->nargs = id;
  }
 
  void TokenStream::macro_subst(const char *name, const char *subst)
  {
-   PMEntry pme = macro_new(name); 
+   PMEntry pme = macro_new(name);
    pme->subst = (char *)subst;
    pme->nargs = 0;
  }
@@ -115,8 +123,8 @@ void fatal_error(TS tok, string msg)
  void TokenStream::quote_str(char *dest, const char *src)
  {
    strcpy(dest,"\"");
-   strcat(dest,src); 
-   strcat(dest,"\""); 
+   strcat(dest,src);
+   strcat(dest,"\"");
  }
 //-----------------TokenStream class------------------------
 
@@ -126,7 +134,7 @@ TokenStream::TokenStream(const char *fname, UserCommand cmd)
     filename = "DUD";
      m_C_str = true;
      m_skip = false;
-    in_comment = false; 
+    in_comment = false;
     if(fname) open(fname);
     m_cmd = cmd;
     m_prompter = NULL;
@@ -135,7 +143,7 @@ TokenStream::TokenStream(const char *fname, UserCommand cmd)
 }
 
  static char mPromptBuffer[MAX_PROMPT_SIZE];
- 
+
 char* TokenStream::get_prompt_buffer()
 {
    return mPromptBuffer;
@@ -161,7 +169,7 @@ TokenStream::~TokenStream()
 #ifdef _WCON
 static WConIstream win;
 static istream *con_in = &win;
-#else 
+#else
 static std::istream *con_in = &std::cin;
 #endif
 
@@ -185,16 +193,16 @@ int _uc_include_path(const char *fname, char* buff, int sz)
 bool TokenStream::open(const char *fname, bool system_include)
 {
  //..try to allocate and open a file stream
- std::istream* is = NULL; 
+ std::istream* is = NULL;
  string path,new_cwd,dir;
  int knt = 0;
  bool true_system_include = system_include;
 
- while (is == NULL) 
+ while (is == NULL)
  {
   if (system_include) {
 	 path = mIncludeDir[knt++] + fname;
-  } else 
+  } else
      path = fname;
 
   bool is_relative = Utils::extract_relative_path(path,dir);
@@ -202,19 +210,19 @@ bool TokenStream::open(const char *fname, bool system_include)
   if (! system_include) {
    if (is_relative && m_cwd.size() != 0) {
      path = m_cwd;
-     path += fname; 
+     path += fname;
    } else
      path = fname;
-  } 
+  }
   // *fix 1.0.0L 'CON' is of course not a dev name in Linux!
   // *fix 1.2.1   (Eric) Don't create the file if it can't be found!
-  if (path == "CON") is = con_in; 
-  else is = new std::ifstream(path.c_str(), std::ios::in ); 
+  if (path == "CON") is = con_in;
+  else is = new std::ifstream(path.c_str(), std::ios::in );
   if (!(*is)) {
-     delete is; 
+     delete is;
      is = NULL;
 	 // if we have failed on our first try, keep going...
-     system_include = true;	 
+     system_include = true;
   	 // bail out if we have run out of include paths...
 	 if (knt == mNoIncludePaths) break;
   }
@@ -227,7 +235,7 @@ bool TokenStream::open(const char *fname, bool system_include)
 
  if (is == NULL)
 	 fatal_error(*this,"Cannot open " + (true_system_include ? path : fname /*Utils::full_path(path)*/));
-  
+
  return insert_stream(is,path.c_str() /*fname*/,0,new_cwd);
 }
 
@@ -268,7 +276,7 @@ void TokenStream::clear()
     set_skip(false);
 	if (fstack.depth() > 1) close();
 	while (fstack.depth() > 1) {
-        on_clear(filename.c_str(),line);		
+        on_clear(filename.c_str(),line);
 		close();
     }
     set_str(buff); // and clear buffer!
@@ -314,11 +322,11 @@ int grab_macro_args(TokenStream& tok, char **args)
     if (ch != '(') fatal_error(tok,"absurd!");
     ch = tok.next();
     while (ch != ')') {
-        if (ch == T_TOKEN) { 
+        if (ch == T_TOKEN) {
             *args++ = strdup(tok.get_token());
             nargs++;
         }
-        else 
+        else
         if (ch == T_END) fatal_error(tok,"end of file in macro arguments"); else
         if (ch != ',' && ch != ')') fatal_error(tok,"illegal char in macro argument");
         ch = tok.next();
@@ -410,7 +418,7 @@ bool do_prepro_directive(TokenStream& tok)
     char ch = *tok.current();
     if (ch == '\0' || ch == '!') return true;
 	// fetch the directive name
-    int t = tok.next();    
+    int t = tok.next();
     if (t != T_TOKEN) {
        fatal_error(tok,"expecting preprocessor directive");
        return true;
@@ -429,7 +437,7 @@ bool do_prepro_directive(TokenStream& tok)
         }
         else path = tok.get_str(tbuff);
         tok.open(path.c_str(),is_sys_include);
-    } else 
+    } else
     if (ppd == "define" || ppd == "alias") {
         char *subst, *sym;
         PMEntry pme;
@@ -440,7 +448,7 @@ bool do_prepro_directive(TokenStream& tok)
         t = tok.next();
         if (t != T_TOKEN) expecting_macro_name(tok);
         sym = tok.get_str(tbuff);
-        pme = macro_lookup(sym);         
+        pme = macro_lookup(sym);
         if (pme) warning(tok,"redefining " + string(sym));
         pme = macro_new(sym);
 		pme->is_alias = ppd == "alias";
@@ -457,9 +465,9 @@ bool do_prepro_directive(TokenStream& tok)
     } else
     if (ppd == "ifdef" || ppd == "ifndef" || ppd == "if" || ppd == "elif") {
       if (ppd == "elif") skipping = do_else(tok); // *add 1.2.6 implement #elif
-      else tok.push_skip();	  
+      else tok.push_skip();
 	  //
-	  if (ppd == "if" || ppd == "elif") { // *add 1.2.5 implement #if  
+	  if (ppd == "if" || ppd == "elif") { // *add 1.2.5 implement #if
           char* line = tok.get_upto(0,false);
           if (! line) fatal_error(tok,"expecting #if expression");
           if (! skipping) {  // when we are not skipping, then we can change the skip state!
@@ -474,10 +482,10 @@ bool do_prepro_directive(TokenStream& tok)
 	  } else { // #ifdef, #ifndef
         t = tok.next();
         if (t != T_TOKEN) expecting_macro_name(tok);
-        if (! skipping) { 
+        if (! skipping) {
           bool sym_exists = macro_lookup(tok.get_str(tbuff)) != NULL;
           if(ppd == "ifdef") { if(! sym_exists) tok.set_skip(SKIP); }
-                      else   { if(sym_exists)   tok.set_skip(SKIP); }        
+                      else   { if(sym_exists)   tok.set_skip(SKIP); }
         } else tok.set_skip(NESTED_SKIP);
       }
    } else
@@ -495,13 +503,13 @@ bool do_prepro_directive(TokenStream& tok)
        TokenStream::macro_delete(tok.get_str(tbuff));
    } else
        if (ppd == "warning" || ppd == "error") { // *add 1.2.5 #error, 1.2.6 #warning
-       if (! skipping) { 
+       if (! skipping) {
            char* line = tok.get_upto(0,false);
            warning(tok,line, ppd=="error");
        }
    } else { /// an interactive command!
     if (skipping) return true;
-    if (!tok.user_cmd(ppd))  return false;  
+    if (!tok.user_cmd(ppd))  return false;
    }
    return true;
 }
@@ -543,7 +551,7 @@ bool TokenStream::fetch_line()
      }
      do_prompt();   // really only need to call this when in interactive mode...
 #ifndef _USE_READLINE
-     inf->getline(lbuff,LINESIZE); 
+     inf->getline(lbuff,LINESIZE);
 #else
          if (inf != con_in) inf->getline(lbuff,LINESIZE);
          else {
@@ -557,28 +565,28 @@ bool TokenStream::fetch_line()
 // *fix 1.1.0 spaces after \ messes with the preprocessor's little mind!
      char *endp = lbuff + strlen(lbuff) - 1;
 	 while (*endp && isspace(*endp)) --endp;
-     continuation = (*endp == '\\'); 
+     continuation = (*endp == '\\');
 //     if (continuation) *endp = '\0';  // lop off '\'
      if (continuation) { *(endp+1) = '\0';  *endp = '\n'; }
-     strcat(buff,lbuff);  
+     strcat(buff,lbuff);
 	 line++;
  } while (continuation);
 
- start = P = start_P = buff; 
+ start = P = start_P = buff;
  while(isspace(*P)) P++;
  if (*P == 0) continue;  // can ignore empty lines!
- if (*P == '#' && ! in_comment) { 
+ if (*P == '#' && ! in_comment) {
      m_C_str = false;
      P++;
      try {
        if (!do_prepro_directive(*this)) {
-          close(); 
+          close();
           m_C_str = true;
           return false; // bail out!
        }
      } catch(string msg) {
  // *fix 1.2.7 fatal errors must stop parsing, unless in interactive mode.
- // *fix 1.2.8 true, but that isn't the same as 'inf != con_in'!  
+ // *fix 1.2.8 true, but that isn't the same as 'inf != con_in'!
  //  is_interactive_mode() is a virtual function overriden by UCTokenStream.
        if (! is_interactive_mode()) return false;
      }
@@ -586,14 +594,14 @@ bool TokenStream::fetch_line()
  }
  else
  if (! m_skip) {
-   // ensure that there's a final line feed!    
-    if (m_line_feed) { 
+   // ensure that there's a final line feed!
+    if (m_line_feed) {
       len = strlen(buff);
       buff[len]   = '$';
       buff[len+1] = '\0';
     }
     return true;
- } 
+ }
  } // while looking for non-blank, non-preprocessor lines
 }
 
@@ -620,7 +628,7 @@ char *TokenStream::get_upto(char ch, bool discard_ch)
                   *p = '\0';
                   break;
               }
-	
+
           }
       }
       return str;
@@ -638,17 +646,17 @@ void TokenStream::discard_line()
 //  giving grief - need to handle the case where there's something
 //  still in the input buffer (as is usually the case)
 void TokenStream::grab_line(char *buff)
-{  
+{
   skip_whitespace();
   start_P = P;
   P += strlen(P);
   end_P = P;
   get_str(buff);
-  
+
   //char lbuff[LINESIZE];
-  //inf->getline(lbuff,LINESIZE); 
+  //inf->getline(lbuff,LINESIZE);
   //strcpy(buff,lbuff);
- 
+
 }
 
 void TokenStream::insert_string(char *str)
@@ -672,11 +680,11 @@ bool TokenStream::skip_whitespace()
      goto top;
    } else
    if (*P == '/') { //...filter out comments at this level!!
-       if (*(P+1)=='/') { *P = '\0'; goto top; } 
+       if (*(P+1)=='/') { *P = '\0'; goto top; }
        else
-       if (*(P+1)=='*') { 
+       if (*(P+1)=='*') {
            P++; in_comment = true;
-           while (true){ 
+           while (true){
                if (*P++=='*' && *P=='/') { P++; in_comment = false; goto top; }
                if (*P == 0) if(!fetch_line()) {
                    fatal_error(*this,"unexpected end of file in comment");
@@ -703,17 +711,17 @@ int grab_alias_args(char *ptr, char **args)
 void separate_alias_commands(TokenStream& tok)
 {
 // approved way to fetch the whole line
- char *line = strdup(tok.get_upto(0,true));  
+ char *line = strdup(tok.get_upto(0,true));
  char *cmds[10], buff[80];
  int k = 0;
  // break up into individual @-commands (need to do this separately)
  char *cmd = strtok(line,"@");
- while (cmd) { 
+ while (cmd) {
    cmds[k++] = cmd;
    cmd = strtok(NULL,"@");
  }
 
- // insert the commands back into the stream 
+ // insert the commands back into the stream
  // shifting the current position is necessary to prevent
  // runaway substition of 'cd' etc.
  for(int i = 0; i < k; i++) {
@@ -723,7 +731,7 @@ void separate_alias_commands(TokenStream& tok)
    // *fix 1.2.0 NB to switch off C string mode when calling do_prepro_directive()
    tok.c_string_mode(false);
    try {
-     do_prepro_directive(tok);   
+     do_prepro_directive(tok);
    } catch(string msg) { }
    tok.c_string_mode(true);
  }
@@ -775,8 +783,8 @@ void TokenStream::macro_process(PMEntry pme, char *out)
           if (nargs != pme->nargs) fatal_error(*this,"wrong no. of arguments for this macro");
           substitute(*this,temp_buff, args, pme->subst);
           subst = temp_buff;
-       }    
-    } else 
+       }
+    } else
        subst = pme->subst;
 
     if (! out) insert(P,subst);
@@ -788,13 +796,13 @@ void TokenStream::alias_process(PMEntry pme)
     char *args[MAX_MACRO_ARGS];
     char temp_buff[TT_BUFFSIZE];
     int nargs;
-    if (pme->nargs > 0) {		  
+    if (pme->nargs > 0) {
 		  nargs = grab_alias_args(P,args);
-          set_str(buff); 
+          set_str(buff);
           if (nargs != pme->nargs) fatal_error(*this,"wrong no. of arguments for this macro");
           substitute(*this,temp_buff, args, pme->subst);
           insert(P,temp_buff);
-    } else 
+    } else
        insert(P,pme->subst);
 
 	 skip_whitespace();
@@ -802,7 +810,7 @@ void TokenStream::alias_process(PMEntry pme)
          ++P;
   	     separate_alias_commands(*this);
 		 discard_line();
-     }  
+     }
 }
 
 int TokenStream::next()
@@ -820,7 +828,7 @@ do_it_again:
         copy_str(sbuff,start_P,end_P);
          P+= 2;
         return T_STRING;
-    }     
+    }
      while (iscsym(*P)) P++;
      end_P = P;
      copy_str(tbuff,start_P,end_P);
@@ -833,16 +841,16 @@ do_it_again:
            int t = next();
            char mname[MAX_IDEN_SIZE];
            bool ok = (t == '(' || t == T_TOKEN);
-           if (ok) {  
+           if (ok) {
              if (t == '(') ok = (next() == T_TOKEN);     // skip the '('
              if (ok) {
                get_str(mname);                             // pick up the macro name
                if (t == '(') next();                       // skip the ')'
-               insert(P,(char*)(macro_lookup(mname) ? "1" : "0"));  
+               insert(P,(char*)(macro_lookup(mname) ? "1" : "0"));
                m_C_str = true;
                goto do_it_again;
              }
-           } 
+           }
            m_C_str = true;
            if (! ok) fatal_error(*this,"defined takes one macro argument");
          } else {
@@ -873,7 +881,7 @@ do_it_again:
         if (*(P+1) == 'x') {       // hex constant
           while (isalnum(*P)) P++; // a preliminary check!
           ntype = int_type = T_HEX;
-        } else 
+        } else
   	 if (isdigit(*(P+1))) {      // octal constant
          skip_digits();
          ntype = int_type = T_OCT;
@@ -896,7 +904,7 @@ do_it_again:
         ntype = T_DOUBLE;
      }
      if (*P == 'f' || *P == 'F')      { P++; ntype = T_FLOAT; }
-     // *fix 1.2.6 long integer constants ending with 'L' are now acceptable 
+     // *fix 1.2.6 long integer constants ending with 'L' are now acceptable
      else if (*P == 'l' || *P == 'L') { P++; ntype = T_INT;  }
      end_P = P;
      return ntype;
@@ -918,17 +926,17 @@ next_string:
              case '\'': ch = '\''; break;
              case '0':  { //..collecting OCTAL constant
                 char *start_oct = P;
-                skip_digits();  
+                skip_digits();
                 copy_str(obuff,start_oct,P);
                 ch = (char)convert_int(obuff,8);
                 P--;  // leave us on last digit
 		} break;
             // *fix 1.1.2 We were not letting non-escape sequences through...
-			 default: *p++ = '\\'; ch = *P; break; 
+			 default: *p++ = '\\'; ch = *P; break;
              } // switch
              *p++ = ch; P++;
          } else *p++ = *P++;
-     } 
+     }
      if (! *P) fatal_error(*this,"Unterminated string constant");
      P++;  // skip the endch
      *p = '\0';
@@ -938,12 +946,12 @@ next_string:
 	 if (endch=='\"') {
 	 if (m_C_str) {
            skip_whitespace();
-           if (*P == '\"') { 
+           if (*P == '\"') {
                P++;                         // will be concatenated!
 	       goto next_string;            // so go back & keep grabbing...
 	   }
          }
-       return  T_STRING; 
+       return  T_STRING;
      }
      else return T_CHAR;
   } else
@@ -956,7 +964,7 @@ next_string:
 int TokenStream::look_ahead(bool skip_wspace)
 //*OPT* Can inline this!
 {
-  if(skip_wspace) skip_whitespace(); 
+  if(skip_wspace) skip_whitespace();
   return *P;
 }
 
@@ -979,14 +987,14 @@ char *TokenStream::peek_next_token()
   char *start_p = ptr;
   if (ptr) {
     while (iscsym(*ptr)) ptr++;
-  } 
+  }
   copy_str(tbuff,start_p,ptr);
   return tbuff;
 }
 
 char *TokenStream::get_str(char *tok)
 {
- if (tok==NULL) tok = tbuff; 
+ if (tok==NULL) tok = tbuff;
  copy_str(tok,start_P,end_P);
  return tok;
 }
@@ -1004,7 +1012,7 @@ int TokenStream::get_int()
 {
  char buff[20];
  return convert_int(get_str(buff),int_type == T_INT ? 10 : 16);
-} 
+}
 
 double TokenStream::next_float()
 {
