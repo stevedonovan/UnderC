@@ -6,6 +6,7 @@
  * See LICENCE
  */
 #include "classlib.h"
+#include <string.h>
 #include <list>
 #include <memory.h>
 #include "stack.h"
@@ -55,7 +56,7 @@ void unpack_bitfield(int data, int& offs, int& bit_offs, int& bit_size);
 CEXPORT char *sh_fun();  // debug function
 
 // later in this file....
-int current_ip();  
+int current_ip();
 void  exec_message(char *msg, bool was_error, bool dont_unwind = false);
 bool get_curent_exec_pos(int& ip_offs, string& fname,  LineInfo& li);
 int get_current_exec_line();
@@ -138,13 +139,13 @@ CodeGenerator::end_code()
    NC = 0;
    mTotal = 0;  // *fix 1.1.2 Was not reset
    return pi;
- } 
+ }
  else return NULL;
 }
 
 // *add 1.2.3a Returns non-NULL ptr to instruction if this function
 // has exactly one instruction
-Instruction* 
+Instruction*
 CodeGenerator::has_one_instruction(Function* pf)
 {
   Instruction* ip = pf->fun_block()->pstart;
@@ -231,18 +232,18 @@ inline void pushf(float v) {
      *((float *)--mSP) = v;
 }
 
-inline float popf() { 
+inline float popf() {
     return *((float *)mSP++);
 }
 
 // quadword stack operations
 
 inline void push2(double fval) {
-    mSP -= 2; *((double *)mSP) = fval; 
+    mSP -= 2; *((double *)mSP) = fval;
 }
 
 inline double pop2() {
-	double tmp = *(double *)mSP; mSP += 2; return tmp;  
+	double tmp = *(double *)mSP; mSP += 2; return tmp;
 }
 
 inline double& tos2() {
@@ -262,7 +263,7 @@ void stack_report(std::ostream& os,int *base)
     if (base == mSP) { os << "(Empty)" << std::endl; return; }
     while (base != mSP-1) {
         os << *base++ << ' ';
-    } 
+    }
     os << '(' << *base << ')' << std::endl;
 }
 
@@ -300,20 +301,20 @@ PPClass& get_object_VMT(void* p)
    return *VMT(p);
 }
 
-inline void opop() 
-{ 
+inline void opop()
+{
   mOP = ostack.pop();
 }
 
 void chk_ods()
 {
-  if (ostack.depth() > OBJECT_STACKSIZE) 
+  if (ostack.depth() > OBJECT_STACKSIZE)
        ostack.clear();
 
 }
 
 inline void opush(void *data)
-{ 
+{
     if (ptr_check) Builtin::bad_ptr_check(data);
     ostack.push(mOP);
     mOP = (char *)data;
@@ -341,7 +342,7 @@ char **Engine::object_ptr_addr()
  return &mOP;
 }
 
-  
+
 //----------------------- THE ACTUAL ENGINE ---------------------------------
 Instruction *ppcode;
 FBlock *fb;
@@ -352,12 +353,12 @@ struct ExecutionState {
   FBlock* m_fb;
   int *m_baseSP;
   bool m_cntxt_pushed;
-  ArgBlock *m_xargs;  
+  ArgBlock *m_xargs;
 
   void save(Instruction *_ppcode, bool cpushed)
-  { 
+  {
       m_ppcode = _ppcode;
-      m_fb = fb; 
+      m_fb = fb;
       m_baseSP = baseSP;
       m_cntxt_pushed = cpushed;
   }
@@ -396,14 +397,14 @@ public:
     }
 
     T pop()
-    { 
+    {
       T val = m_vec.back();
       m_vec.pop_back();
       return val;
     }
 
     bool empty()
-    { 
+    {
       return m_vec.size() = 0;
     }
 
@@ -510,7 +511,7 @@ void do_unwind(void *p, ODStack& o_ds)
     if (!n) return; // ODS empty....
     for(int i = 0; i < n; i++)
     {
-      void* s_obj; 
+      void* s_obj;
       o_ds.fetch_object(i,pc,s_obj);
       if (s_obj == p) {
         found = true;
@@ -518,7 +519,7 @@ void do_unwind(void *p, ODStack& o_ds)
       }
     }
     if (! found)
-      return;    
+      return;
   }
 
   // the stack unwinding loop
@@ -527,7 +528,7 @@ void do_unwind(void *p, ODStack& o_ds)
   if (o_ds.depth() > 0)
   do {
    o_ds.pop_object(pc,obj);
-   mOP = (char *)obj;    
+   mOP = (char *)obj;
    Function *dfn;
    try {
      dfn = pc->destructor();
@@ -536,14 +537,14 @@ void do_unwind(void *p, ODStack& o_ds)
        break;
    }
    if (dfn != NULL) try {
-     if (Engine::execute(dfn->fun_block())==CRASHED) 
+     if (Engine::execute(dfn->fun_block())==CRASHED)
 	      destruct_error("destructor failed");
    } catch(...) {
      destruct_error("bad destructor");
      return;
    }
   } while (obj != p && o_ds.depth() > 0);
-  mOP = lastOP;    
+  mOP = lastOP;
   fb = old_fb;
  // check_fun_block(fb);
   ppcode = old_ppcode;
@@ -564,12 +565,12 @@ void check_ODS()
    void *obj;
    PFunction fn;
    int ofs;
-   
+
    mODS.fetch_object(i,pc,obj);
    bool fooked = false;
    if (pc->has_VMT()) try {
      PClass *vmt = *VMT(obj);
-     if (vmt != DEFER_MARKER) fooked = pc != *vmt;	 
+     if (vmt != DEFER_MARKER) fooked = pc != *vmt;
    }
    catch(...) { fooked = true; }
    if (fooked) {
@@ -579,7 +580,7 @@ void check_ODS()
 	        << name << '(' << ofs << ')' << "ptr " << obj << endl;
        exec_message("bad ODS entry ",true);
      break;
-   }  
+   }
  }
 }
 #define CHECK_ODS check_ODS()
@@ -596,7 +597,7 @@ int throw_exception(Type t, void *thrown_obj)
  static CatchHandler *curr_except = NULL;
  if (t == t_void) {
   // we are re-raising this exception! (see Parser::do_throw())
-   // we assume that the stack has already been unwound past the 
+   // we assume that the stack has already been unwound past the
    // try block marker we hit last...
    t = curr_except->thrown_type();
    thrown_obj = curr_except->thrown_object();
@@ -613,10 +614,10 @@ int throw_exception(Type t, void *thrown_obj)
      curr_except = (CatchHandler *) *(unsigned int *)obj;
      int ip = curr_except->match_thrown_object(t,thrown_obj);
      if (ip != -1) {
-        do_unwind(obj,mODS);  // unwind up to (&including) the try block marker  
+        do_unwind(obj,mODS);  // unwind up to (&including) the try block marker
         while (fb != curr_except->fun_block()) end_function();
         return ip;
-     }// if (...we matched a catch block...) 
+     }// if (...we matched a catch block...)
    } // if (...we hit a try block marker ...)
  } // for(...all entries in ODS .....
  } catch(...) {
@@ -652,7 +653,7 @@ int switch_jump(int *sb, int val)
 }
 
 void Engine::kill(int retcode)
-{ 
+{
   ppcode = (Instruction *)end_of_code;
 }
 
@@ -661,10 +662,10 @@ void reset_stacks()
  if (fs.depth() > 0) {
    cerr << "reseting stacks\n";
    reset_execution_stack();
-   fs.clear();   
+   fs.clear();
  }
  // *fix 1.2.8 reset_stacks() will ALWAYS clear out the resume state
- resume_state.m_fb = NULL;  // flag us as NOT paused    
+ resume_state.m_fb = NULL;  // flag us as NOT paused
 }
 
 // *change 1.2.4 separated out code for determining full function name
@@ -729,7 +730,7 @@ void start_function(FBlock *_fb)
   fs.push(fb);
   ppcode = _fb->pstart;
   fb = _fb;
-  fs.push(baseSP);  
+  fs.push(baseSP);
   if (ppcode == NULL) { // *add 1.2.4 report full function name
       static string tmps = fname_from_fblock(_fb) + " is not defined yet";
       throw Exception(tmps.c_str());   // shd be cool for a _static_ string...
@@ -772,7 +773,7 @@ void end_function()
  }
  baseSP = (int *)fs.pop();
  fb = (FBlock *)fs.pop();
- ppcode = (Instruction *)fs.pop();  
+ ppcode = (Instruction *)fs.pop();
 }
 
 void *fs_ptr(int offs)
@@ -804,15 +805,15 @@ int stack_frame_depth()
 // *change 1.2.8 write out full name of function....
 // the report is now in a more parser-friendly format.
 void dump_fun_frame(int i, const ExecutionState& xs)
-{  
+{
 	LineInfo li;
     FBlock *this_fb = xs.m_fb;
     if (this_fb == START_FB) cmsg << i << " <DLL> 0 <function>" << std::endl;
     else {
       FunctionContext *fcxt = (FunctionContext *)this_fb->context;
       li.ip_offset = (xs.m_ppcode - this_fb->pstart)/sizeof(Instruction);
-      if (fcxt && fcxt->ip_to_line(li)) 
-          ;           
+      if (fcxt && fcxt->ip_to_line(li))
+          ;
       else {
           li.file = "<none>";
           li.line = -2;
@@ -860,7 +861,7 @@ void Engine::set_frame(int i, bool verbose)
     ExecutionState xs;
     LineInfo li;
     Parser::state.pop_context();
-    get_stack_frame(i, xs);    
+    get_stack_frame(i, xs);
     Parser::state.push_context(xs.m_fb->context);
     resume_state.m_baseSP = xs.m_baseSP;
 	if (verbose) dump_fun_frame(i,xs);
@@ -889,7 +890,7 @@ const int STEP_PROFILE = 5;
 unsigned long* set_instruction_counter(bool do_profiling)
 {
    s_stepping = do_profiling ? STEP_PROFILE : 0;
-   return &instr_count;  
+   return &instr_count;
 }
 
 
@@ -944,7 +945,7 @@ top:
     if (rmode) {
       rdata = ppcode->data;
       if (rmode == DIRECT) data = mDataSeg + rdata; else
-      if (rmode == SREL)   data = baseSP + rdata;    
+      if (rmode == SREL)   data = baseSP + rdata;
       else data = mOP + rdata;
     }
 
@@ -957,13 +958,13 @@ top:
     case PUSHC: push(REF(char,data));   break;
     case PUSHW: push(REF(short,data));  break;
     case PUSHI: push(REF(int,data));    break;
-    case PUSHF: push2(REF(float,data));     break; // push as qword 
-    case PUSHD: push2(REF(double,data));    break; 
+    case PUSHF: push2(REF(float,data));     break; // push as qword
+    case PUSHD: push2(REF(double,data));    break;
     case PUSHS: pushf(REF(float,data));     break; // push as dword
-    
+
     //....popping off the exec stack into a variable.............
     case POPC:  REF(char,data) = pop(); break;
-    case POPW:  REF(short,data) = pop();    break;  
+    case POPW:  REF(short,data) = pop();    break;
     case POPI:  REF(int,data) = pop();  break;
     case POPF:  REF(float,data) = pop2();   break;
     case POPD:  REF(double,data) = pop2();  break;
@@ -982,7 +983,7 @@ top:
     case DROP2:  drop2();           break;  // *add 1.2.3b missing opcode!
     case DUP:    push(tos());       break;
     case DUP2:   push2(tos2());     break;  // *fix 1.2.4 was taken out by mistake in 1.2.3b!
-    case SWAP: //....swap top two dwords on stack.... 
+    case SWAP: //....swap top two dwords on stack....
           val = pop();
           tmp = tos();
           tos() = val;
@@ -1004,7 +1005,7 @@ top:
     case AND:    val=pop();  tos() &= val;  break;  // binary and
     case OR:     val=pop();  tos() |= val;  break;  // binary or
     case XOR:    val=pop();  tos() ^= val;  break;
-    case SHL:    val=pop();  tos() <<= val; break;  
+    case SHL:    val=pop();  tos() <<= val; break;
     case SHR:    val=pop();  tos() >>= val; break;
     case NOT:    tos() = ! tos();           break;
     case BNOT:   tos() = ~ tos();           break;
@@ -1018,19 +1019,19 @@ top:
 
     //....floating-point arithmetric
     case FNEG:   tos2() = -tos2();          break;
-    case FADD: 
+    case FADD:
         fval=pop2();
         tos2() += fval;
         break;
-    case FSUB:   fval=pop2(); tos2() -= fval;  break;       
-    case FMUL:   fval=pop2(); tos2() *= fval;   break;      
+    case FSUB:   fval=pop2(); tos2() -= fval;  break;
+    case FMUL:   fval=pop2(); tos2() *= fval;   break;
     case FDIV:   fval=pop2(); tos2() /= fval;   break;
     case FEQ:    fval=pop2(); push(pop2() == fval); break;
     case FNEQ:    fval=pop2(); push(pop2() != fval);    break;
     case FLESS:  fval=pop2(); push(pop2() < fval);  break;
-    case FGREAT: fval=pop2(); push(pop2() > fval);  break;   
+    case FGREAT: fval=pop2(); push(pop2() > fval);  break;
     case FLE:  fval=pop2(); push(pop2() <= fval);   break;
-    case FGE: fval=pop2(); push(pop2() >= fval);  break;     
+    case FGE: fval=pop2(); push(pop2() >= fval);  break;
 
 
     //...array operations
@@ -1043,7 +1044,7 @@ top:
     case ADDPI:  val=pop();  push(REF(int,data) + sizeof(int)*val);     break;
     case ADDPD:  val=pop();  push(REF(int,data) + sizeof(double)*val);  break;
     // ADDSC is ADD!
-    case ADDSW:  val=pop();  push(val + sizeof(short)*pop());           break;  
+    case ADDSW:  val=pop();  push(val + sizeof(short)*pop());           break;
     case ADDSI:  val=pop();  push(val + sizeof(int)*pop());             break;
     case ADDSD:  val=pop();  push(val + sizeof(double)*pop());          break;
     case ADDSN:  val=pop();  push(val + pop()*pop());                   break;
@@ -1059,7 +1060,7 @@ top:
         *VMT(mOP) = PFBlock(data)->class_ptr->get_VMT();
         // and fall through....
 call_the_function:
-    case CALL:  
+    case CALL:
         start_function(PFBlock(data));
         continue;
     case VCALL: //....lookup the proc in the VMT table....
@@ -1083,7 +1084,7 @@ call_the_function:
         PPClass vtable = pcb->get_VMT();
 		PClass pc = pcb->class_ptr();
         int num;
-        if (pcb->dynamic()) { // i.e new[] has generated a ptr for us; 
+        if (pcb->dynamic()) { // i.e new[] has generated a ptr for us;
            char *ptr = mOP - sizeof(void *);
            num = Builtin::alloc_size(ptr);
         } else num = pcb->num();
@@ -1091,14 +1092,14 @@ call_the_function:
         for(int i = 0, sz = pcb->size(); i < num; i++) {
           if (vtable != NULL) { // patch VMT, if needed
                 if (! pc->has_true_VMT()) pc->attach_VMT(vtable);
-                else *VMT(mOP) = vtable;             
+                else *VMT(mOP) = vtable;
           }
           // push  ODS, if needed
           // *add 1.2.3 static objects get their own ODS
-          // *change 1.2.9 static objects are handled at compile-time w/ the ODL 
+          // *change 1.2.9 static objects are handled at compile-time w/ the ODL
           // (see LoadedModuleList in program.cpp)
-		  if (pcb->load_ODS()) 
-              mODS.push_object(pc, mOP);     
+		  if (pcb->load_ODS())
+              mODS.push_object(pc, mOP);
           if (Engine::execute(pcb->fblock())==CRASHED)
             throw Exception("Construction failed");
           mOP += sz;
@@ -1119,14 +1120,14 @@ call_the_function:
     case JMP:    ppcode = fb->pstart + ppcode->data; goto top;              break;
     case JZ:     if(!pop()) goto JMP_case; break;
     case JNZ:    if(pop())  goto JMP_case; break;
-    case JZND:   if(!tos()) goto JMP_case; else drop(); break; 
+    case JZND:   if(!tos()) goto JMP_case; else drop(); break;
     case JNZND:  if(tos())  goto JMP_case; else drop(); break;
-    case JSWITCH: ppcode = fb->pstart + switch_jump((int *)data,pop()); goto top; 
-    case RET:   
+    case JSWITCH: ppcode = fb->pstart + switch_jump((int *)data,pop()); goto top;
+    case RET:
           mSP = baseSP;
           mSP += fb->nargs;
           end_function();
-          break;    
+          break;
     case RETI: //......returning dword..........
           val = pop();      // pop the return value
           mSP = baseSP;     // restore stack frame
@@ -1149,16 +1150,16 @@ call_the_function:
 		  if (tp==1) val = pop();
 		  else if (tp==2) fval = pop2();
 		  mSP += sz;
-          if (tp==1) push(val); 
+          if (tp==1) push(val);
 		  else if (tp==2) push2(fval);
 		}
 		break;
     case UNWIND:
          {
-         int* old_sp = mSP;  
+         int* old_sp = mSP;
          char *old_op = mOP;
          do_unwind((char *)data, mODS);
-         if (old_sp != mSP || old_op != mOP) 
+         if (old_sp != mSP || old_op != mOP)
             cerr << "SP/OP changed!\n";
          #ifdef TRACK_ODS
          cout << "unwind " << data << ' ' << current_ip() << ' ' << sh_fun() <<endl;
@@ -1207,10 +1208,10 @@ call_the_function:
     case DECSC:   REFS(char)--;     break;
     case DECSW:   REFS(short)--;        break;
     case DECSI:   REFS(int)--;      break;
-  
+
     //...conversions...............................................
     case D2I:   push((int)pop2());          break;
-    case I2D:   push2((double)pop());       break;  
+    case I2D:   push2((double)pop());       break;
     case F2D:   push2((double)popf());      break;
     case D2F:   pushf((float)pop2());       break;
     case I2F:   pushf((float)pop());        break;
@@ -1225,9 +1226,9 @@ call_the_function:
     case LOSS:
         opush((void *)pop());
         break;
-    case DOS: 
-        opop(); 
-        break;  
+    case DOS:
+        opop();
+        break;
     case TOSX:
         push((int)mOP);
         opop();
@@ -1272,9 +1273,9 @@ call_the_function:
         // *add 1.2.4 if the thrown type is derived from Exception,
         // then pass on the message! (Warning: this depends on Exception defined in <uc_except.h>
         // having precisely this layout, w/ a char pointer as the first field)
-            if (match(Parser::mEException->type,et) != NO_MATCH) 
+            if (match(Parser::mEException->type,et) != NO_MATCH)
               throw Exception(*(char **)obj);
-            else 
+            else
               throw Exception("uncaught exception");
         } // otherwise, can continue excuting at the given catch block address...
         else { ppcode = fb->pstart + ip; continue; }
@@ -1284,7 +1285,7 @@ call_the_function:
       push((int)(*(PClass *)(data))->check_object_pointer((char *)pop()));
       break;
 
-    case VTABLE_PATCH:	   
+    case VTABLE_PATCH:
        // *fix 1.2.8 in classes derived indirectly from imported classes,
 	  // Class::update_vtable() was _not_ being called for the specific
       // class in question!
@@ -1303,15 +1304,15 @@ call_the_function:
 		   val >>= bit_offs;
 		   push(val & mask);
         } else {
-		   unsigned word = *(unsigned *)data;	 
+		   unsigned word = *(unsigned *)data;
            val = pop();
-		   mask <<= bit_offs; 
+		   mask <<= bit_offs;
 		   mask = ~ mask;
 		   word &= mask;
 		   val <<= bit_offs;
 		   word |= val;
 		   *(unsigned *)data = word;
-        } 
+        }
 	 } break;
 
     //...Miscelaneous (not likely to remain forever!)
@@ -1323,7 +1324,7 @@ call_the_function:
         if (opcode==SHOWI) {
             t = *(Type *)data; ve = NULL;
             te = t;
-        } else { 
+        } else {
             t = t_void;  ve = *(PEntry *)data;
             te = ve->type;
         }
@@ -1337,23 +1338,23 @@ call_the_function:
 	    if (ppcode->data < MAX_BREAKPOINTS) {
           if (Breakpoint::from_id(ppcode->data)->execute()) return false;
           continue; // don't move to next instruction!
-         } 
+         }
 		 break;
     case SHOWD:  std::cout << "(double) " << (rmode ? *(double *)data : pop2()) << std::endl; break;
     } // switch(opcode)
-    ppcode++;   
+    ppcode++;
     CHECK_ODS;
     if (s_stepping) {
 	 // *add 1.2.4 Profiling support
-     if (s_stepping == STEP_PROFILE) { instr_count++; continue; }	 
+     if (s_stepping == STEP_PROFILE) { instr_count++; continue; }
      if (ppcode == end_of_code) return true; // finished...
-    // *add 1.2.7 working single-stepping 
+    // *add 1.2.7 working single-stepping
     // while in this state, we're just looking for the current function block fb
     // to switch back to the initial fb
      if (s_stepping==STEPPING_OVER) {
       if (s_initial_fb == fb) {
         s_stepping = 0;
-        s_current_exec_line = get_current_exec_line();        
+        s_current_exec_line = get_current_exec_line();
         if (s_current_exec_line != -1 && s_current_exec_line != s_old_exec_line) return false;
         // it's possible we're back in the original fn, but at its end. So keep going.
         else s_stepping = STEPPING;
@@ -1386,36 +1387,36 @@ call_the_function:
       }
      } else if (s_stepping == STEP_WAIT) {
 		  s_current_exec_line = get_current_exec_line();
-		  s_stepping = STEPPING;    
-     } 
+		  s_stepping = STEPPING;
+     }
     }
   } // while(true)
   return true;  // cool, everything ok.
-} 
+}
 
 bool Engine::set_single_stepping(bool single_step)
 {
-   Function* mfn = Function::lookup("main"); 
+   Function* mfn = Function::lookup("main");
    s_main_fb = mfn->fun_block();
   // check to see if we are already halted at a breakpoint....
    if (paused() && s_brk != NULL) {
-       s_stepping = STEPPING; //STEP_WAIT; 
+       s_stepping = STEPPING; //STEP_WAIT;
    	   s_current_exec_line = get_current_exec_line();
-   } else s_stepping = STEPPING; 
+   } else s_stepping = STEPPING;
    s_initial_stack_depth = stack_frame_depth();
    if (single_step) s_initial_fb = NULL;
-   else if (paused()) s_initial_fb = resume_state.m_fb;    
+   else if (paused()) s_initial_fb = resume_state.m_fb;
    else { // we're starting afresh w/ main
        s_initial_fb = s_main_fb;
        s_stepping = STEPPING_OVER;
-   }	  
+   }
   return true;
 }
 
 //*fix 1.2.8 must explicitly reset single stepping
 void Engine::reset_single_stepping()
 {
-	s_stepping = 0; 
+	s_stepping = 0;
 }
 
 FBlock *mStartFB;
@@ -1432,19 +1433,19 @@ FBlock *immediate_code_block();
 void dissemble(PFBlock fb); // in DISSEM
 
 bool Engine::paused()   { return resume_state.m_fb != NULL; }
-bool Engine::running()  { return fb != START_FB;          } 
+bool Engine::running()  { return fb != START_FB;          }
 
 bool get_current_exec_pos(int& ip_offs, string& fname,  LineInfo& li)
 {
    FunctionContext *fcxt = NULL;
    if (fb) {
-     fcxt = (FunctionContext *)fb->context;      
+     fcxt = (FunctionContext *)fb->context;
      fname = fname_from_fblock(fb);  // *change 1.2.4
    }
    ip_offs = current_ip();
    if (! fcxt) return false;
    li.ip_offset = ip_offs;
-   return fcxt->ip_to_line(li); 
+   return fcxt->ip_to_line(li);
 }
 
 
@@ -1461,7 +1462,7 @@ bool function_is_in_std(LocalContext* lc)
 
 // add 1.2.7 when single-stepping, we can avoid going
 // into any function w/in the std namespace.
-// *NOTE* 
+// *NOTE*
 // 1. wd it apply to methods of classes w/in std?
 // 2. shd be a Function method - need it elsewhere.
 int get_current_exec_line()
@@ -1470,7 +1471,7 @@ int get_current_exec_line()
 	int ip_offs;
 	string fname;
 	bool ret = get_current_exec_pos(ip_offs,fname,li);
-    if (ret && !(Parser::debug.no_trace_std 
+    if (ret && !(Parser::debug.no_trace_std
         && function_is_in_std((LocalContext*)li.cntxt))) return li.line;
 	else return -1;
 }
@@ -1487,9 +1488,9 @@ void  exec_message(char *msg, bool was_error, bool dont_unwind_error)
  bool trace_function = Parser::debug.function_trace;
  bool tracing_lines = true; // !trace_function;
  bool back_trace = false;
- 
+
  if (trace_function && Parser::debug.verbose) {
-  cerr << "*CRASH " << (void *)mOP << ' ' << (void *)mSP 
+  cerr << "*CRASH " << (void *)mOP << ' ' << (void *)mSP
        << ' ' << (void *)baseSP << std::endl;
   }
   // set the error state!
@@ -1508,20 +1509,20 @@ void  exec_message(char *msg, bool was_error, bool dont_unwind_error)
           }
         } else
         if(tracing_lines && have_info) {
-            if (!was_error || dont_unwind_error) { 
+            if (!was_error || dont_unwind_error) {
                 // *fix 1.2.8 set the local context _before_ we tell the IDE it's a break....
-                Parser::state.push_context(li.cntxt);                          
+                Parser::state.push_context(li.cntxt);
                 resume_state.save(ppcode,true);
                 old_immediate_code = Parser::immediate_code_ptr();
-                Errors::set_halt_state(msg,fname,li.file,li.line, was_error); 
-                return;             
+                Errors::set_halt_state(msg,fname,li.file,li.line, was_error);
+                return;
             }
-            Errors::set_halt_state(msg,fname,li.file,li.line, was_error);           
+            Errors::set_halt_state(msg,fname,li.file,li.line, was_error);
             // Halted at breakpoint - prepare to resume, set up context
             // *add 1.2.8 or an error, but we want to preserve the context...
             // *add 0.9.2 Can stop as soon as we have a line no, unless we're tracing...
             mODS.clear();
-            if (! trace_function) { reset_stacks(); return; } 
+            if (! trace_function) { reset_stacks(); return; }
             else {
                cerr << "in " << fname << ":\n";
                back_trace = true;
@@ -1534,12 +1535,12 @@ void  exec_message(char *msg, bool was_error, bool dont_unwind_error)
      reset_stacks();
      // *fix 1.2.4 Dump out final error message if we haven't found a line number...
      if (! tracing_lines || ! back_trace)
-         Errors::set_halt_state(msg,fname,"",ip_offs,true);   
+         Errors::set_halt_state(msg,fname,"",ip_offs,true);
  } catch(...) {
   cerr << "Unknown crash" << std::endl;
- // *add 0.9.4 Must restore execution stack, esp. for stack overflow errors 
+ // *add 0.9.4 Must restore execution stack, esp. for stack overflow errors
    reset_stacks();
- }  
+ }
 }
 
 // *change 1.2.9 the 'static ODS' has been retired.
@@ -1563,7 +1564,7 @@ int __STDCALL Engine::stub_execute(FBlock* _fb, int flags, ArgBlock *xargs)
          if (! Program::in_main_thread()) {
              Program::pause_thread();
              flags = RESUME;
-         } 
+         }
          else ret = OK;
      }
     } while (ret == HALTED);
@@ -1583,19 +1584,19 @@ resume_execution:
    if (flags & ARGS_PASSED) {              // only if execute() is called from outside UC
      xargs->flags = flags;                   // *fix 1.1.1 save flags and arg block so we can resume properly!
 	 resume_state.m_xargs = xargs;
-     if (flags & METHOD_CALL) opush(xargs->OPtr);  // the 'this' pointer 
+     if (flags & METHOD_CALL) opush(xargs->OPtr);  // the 'this' pointer
      for(int i=0,n = xargs->no; i < n; i++)  // these are set by the native stub!!
          push(xargs->values[i]);
    }
-   if (flags & RESUME) {     
+   if (flags & RESUME) {
 	 bool context_pushed;
 	 set_frame(0,false);                                 // *fix 1.1.1 ensure we're in proper frame!
      resume_state.restore(context_pushed,xargs);
 	 if (xargs) flags = xargs->flags;                 // *fix 1.1.1 restore flags and arg block as well!
 	 if (context_pushed) Parser::state.pop_context(); // i.e, we were halted by a breakpoint, which pushed the context..
-     resume_state.m_fb = NULL;                          // flag us as NOT paused    
+     resume_state.m_fb = NULL;                          // flag us as NOT paused
      Parser::immediate_code_ptr(old_immediate_code);  // and restore immediate execution context!
-   } else { 
+   } else {
     mStartFB = _fb;
     // *fix 1.2.8 we only push START_FB if execute() is called from
     // w/in UCW; its only purpose is to give a 'false bottom' to
@@ -1621,14 +1622,14 @@ resume_execution:
           old_fb = (FBlock*)fs.pop();
           old_ppcode = (Instruction*)fs.pop();
         }
-        fb = old_fb;		
-        ppcode = old_ppcode;        
+        fb = old_fb;
+        ppcode = old_ppcode;
         if (flags & ARGS_PASSED) {
            if (flags & METHOD_CALL) opop();
            if (flags & RETURN_32) xargs->ret1 = pop(); else
            if (flags & RETURN_64) xargs->ret2 = pop2();
         } else mSP = old_mSP;
-        return OK; 
+        return OK;
      }
    }
   }
@@ -1662,7 +1663,7 @@ resume_execution:
          exec_message(except_msg,true,break_on_error);
          return break_on_error ? HALTED : CRASHED;
    } else { // force execution to resume in catch block...!
-     // *fix 0.9.4 Point is that throw_exception() will have dropped us 
+     // *fix 0.9.4 Point is that throw_exception() will have dropped us
      // into the right function context...
      // *fix 1.1.0 In this case we are _not_ pushing the local context!
       resume_state.save(fb->pstart+ip,false);
@@ -1682,7 +1683,7 @@ int handle_exception(PEntry epe, char *msg)
          cerr << "Disturbed....\n";   return CRASHED;
        }
     } else { // force execution to resume in catch block...!
-     // *fix 0.9.4 Point is that throw_exception() will have dropped us 
+     // *fix 0.9.4 Point is that throw_exception() will have dropped us
      // into the right function context...
      // *fix 1.1.0 In this case we are _not_ pushing the local context!
       resume_state.save(fb->pstart+ip,false);
@@ -1708,7 +1709,7 @@ int CatchHandler::match_thrown_object(Type t, void *obj)
 {
   CatchBlockList::iterator cbli;
   FORALL(cbli,m_catch_blocks) {
-    Type ct = (*cbli)->type; 
+    Type ct = (*cbli)->type;
  // *fix 0.9.5. Catch-block must match any derived class..
     if (ct == t || ct == t_void || t.inherits_from(ct)) {
       m_thrown_object = obj;
