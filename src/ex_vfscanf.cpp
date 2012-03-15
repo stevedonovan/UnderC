@@ -52,7 +52,10 @@ int con_fprintf(FILE *out, char *fmt, ...)
 char *con_fgets(char *buff, int sz, FILE *in)
 {
  if(in==_str_in) str_gets(buff); 
- else fgets(buff,sz,in);
+ else {
+     if (! fgets(buff,sz,in))
+         return NULL;
+ }
  return buff;
 }
 

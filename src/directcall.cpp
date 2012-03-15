@@ -1022,7 +1022,7 @@ int convert_ordinal(char *buf)
   if (s_lookup_is_ordinal)
     return atoi(buf);
   else {
-    unsigned long l;
+    unsigned int l;
     sscanf(buf,"%x",&l);
     return (int)l;
   }

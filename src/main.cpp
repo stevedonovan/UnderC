@@ -253,7 +253,7 @@ static char *TMPFILE = "_tmp010_u.txt";
 void uc_system(char *cmd)
 {
 #ifndef _WCON
-  system(cmd);
+  (void)system(cmd);
 #else
   int exec(char *msg, int cshow, bool do_wait);
   const int BUFFSIZE = 200;

@@ -161,14 +161,15 @@ char *
 Utils::get_curr_dir()
 {
    static char buff[PATHSIZE];
-   getcwd(buff,PATHSIZE);
+   if (! getcwd(buff,PATHSIZE)) 
+       return NULL;
    return buff;
 }
 
 void
 Utils::change_dir(char *dir)
 {
-   chdir((const char *)dir);  // GCC requires the cast...
+   (void)chdir((const char *)dir);  // GCC requires the cast...
 }
 
 bool

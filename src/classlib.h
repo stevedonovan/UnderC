@@ -25,7 +25,7 @@ extern std::ostream* _cerr_out;
 #  define cerr str_cerr
 #  undef cout
 #  define cout cmsg
-   extern std::ostrstream str_cmsg, str_cerr;
+   extern std::ostringstream str_cmsg, str_cerr;
 # endif
 
 

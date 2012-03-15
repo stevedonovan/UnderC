@@ -928,6 +928,8 @@ int current_ip()
   return ((int)ppcode - (int)fb->pstart)/4;
 }
 
+extern int global_last_signal;
+
 bool start_exec()
 //---------------------------
 {
@@ -937,7 +939,7 @@ bool start_exec()
   static void *data;
   static int buff[TMP_BUFF_SIZE];
   NFBlock *pfb; // *fix 1.2.4 Must _not_ be static!
-
+    
   while (ppcode != end_of_code) {
 top:
     opcode = (Opcodes)ppcode->opcode;
@@ -1579,6 +1581,7 @@ int __STDCALL Engine::execute(FBlock *_fb, int flags, ArgBlock *xargs)
   int *old_mSP = mSP;
   PEntry epe;
   char *except_msg;
+
 resume_execution:
   try {
    if (flags & ARGS_PASSED) {              // only if execute() is called from outside UC

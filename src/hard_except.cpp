@@ -88,10 +88,13 @@ void throw_range_error(char* msg)
 #ifndef _WIN32
  #include <setjmp.h>
  jmp_buf here_in_execute;
+int global_last_signal = 0;
 
  void handler(int signl)
  {
    longjmp(here_in_execute,signl);
+   //  global_last_signal = signl;
+   //  signal(signl,SIG_IGN);
  }
 #else
  void handler(int signl)
