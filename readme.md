@@ -18,12 +18,25 @@ compiled C++ shared libraries to be used, but rapid changes and differences in
 the ABI between the supported compilers (MSVC and GCC) make this a hard
 target, especially for a portable version.)
 
-UnderC supports two extensions to the old standard, `typeof` and `__declare`.
-`typeof` has been in GCC for a long time, and roughly corresponds to the new `decltype` keyword; `__declare` is equivalent to the new `auto`.
+UnderC supports two extensions to the old standard, `typeof` and `auto`.
+`typeof` has been in GCC for a long time, and roughly corresponds to the new `decltype` keyword;
+`auto` is compatible with C++11.
+
+On the Downloads page there are 32-bit binaries for Linux and Windows; these do not have any
+extra dependencies (the Linux version merely requires libstdc++ 6). Extract them anywhere.
+You may copy the ucc(.exe) executable to your path (or make a link) but it is important
+to set the `UC_HOME` environment variable to point to the original directory so that UnderC
+knows where to find its include and library files.
+
+	$ export UC_HOME=/home/me/UnderC
+	d:\> set UC_HOME=c:\path\to\UnderC
+
+UnderC uses the excellent [linenoise](https://github.com/antirez/linenoise) library for
+command history editing, which is statically linked in.
 
 ## Building from Source
 
-You will only need g++ and readline-dev to build UnderC; bison is only needed if you 
+You will only need g++ to build UnderC; bison is only needed if you 
 need to modify `parser.y`. The incantation should be familiar - go to the `src`
 directory and:
 
