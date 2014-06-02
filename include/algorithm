@@ -84,16 +84,17 @@ template <class In, class Out, class Fn>
 
  
  template<class In, class Out, class Pr>
-  void remove_copy_if(In i1, In i2, Out o, Pr fn)
+  Out remove_copy_if(In i1, In i2, Out o, Pr fn)
   {
    while (i1 != i2) {
      if (! fn(*i1)) { *o = *i1; ++o; }
      ++i1;
    }
+   return o;
   }
 
  template<class In, class Pr>
-  void remove_if(In i1, In i2, Pr fn)
+  In remove_if(In i1, In i2, Pr fn)
   {
     i1 = find_if(i1,i2,fn);
     if (i1==i2) return i1;
@@ -158,6 +159,15 @@ template <class In, class T>
  {
    while (i1 != i2) {
      if (*i1 == v1) *i1 = v2;
+     ++i1;
+   }
+ }
+ 
+template <class In, class Pr, class T>
+ void replace_if(In i1, In i2, Pr fn, T v2)
+ {
+   while (i1 != i2) {
+     if (fn(*i1)) *i1 = v2;
      ++i1;
    }
  }
