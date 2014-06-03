@@ -1,0 +1,9 @@
+#ifndef _STD_CTIME
+#define _STD_CTIME
+
+namespace std
+{
+  #include <time.h>
+};
+
+#endif
