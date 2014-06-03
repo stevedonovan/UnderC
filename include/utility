@@ -109,9 +109,9 @@ namespace std {
     inline
     pair< Type1, Type2 > make_pair( const Type1 &x, const Type2 &y )
     {   //This implementation is incorrect
-	      Type1 i1 = x;
-	      Type2 i2 = y;
-	      pair< Type1, Type2 > pair_them(x, y);
+	Type1 i1 = x;
+	Type2 i2 = y;
+	pair< Type1, Type2 > pair_them(x, y);
         return( pair_them );
     }
     
