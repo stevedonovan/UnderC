@@ -1,1 +1,9 @@
+#ifndef _STD_CSTRING
+#define _STD_CSTRING
 
+namespace std
+{
+  #include <string.h>
+};
+
+#endif
