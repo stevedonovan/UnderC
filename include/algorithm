@@ -220,14 +220,14 @@ template <class C>
   }
 
  // note: we don't have the iterator_traits mechanism,
- // so I've used the (experimental and non-standard) typeof operator.
+ // so I've used the (experimental and non-standard) decltype operator.
  // These versions are of course only intended for numerical types.
 
  template <class In, class Out>
   Out partial_sum(In i1, In i2, Out j)
   {
      if (i1 == i2) return j;
-     typeof(*i1) sum = 0;
+     decltype(*i1) sum = 0;
      while (i1 != i2) {
         sum += *i1;
         *j = sum;
@@ -240,7 +240,7 @@ template <class C>
   Out adjacent_difference(In i1, In i2, Out j)
   {
       if (i1 == i2) return j;
-      typeof(*i1) sum = 0;
+      decltype(*i1) sum = 0;
       while (i1 != i2) {
         *j = *i1 - sum;
         sum += *i1;
