@@ -1,6 +1,6 @@
 #ifndef _STD_CASSERT
 #define _STD_CASSERT
-namespace std {
-  #include <assert.h>
-}
+
+#include <assert.h>
+
 #endif
