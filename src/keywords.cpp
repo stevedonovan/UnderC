@@ -89,7 +89,7 @@ void init()
  add("extern",EXTERN);
  add("explicit",EXPLICIT);
  add("friend",FRIEND);
- add("typeof",TYPEOF);
+ add("decltype",TYPEOF);
  add("__stdcall",STDCALL);
  add("__API",API);
  add("__lambda",LAMBDA);

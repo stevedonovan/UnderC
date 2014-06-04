@@ -1,1 +1,9 @@
+#ifndef _STD_CMATH
+#define _STD_CMATH
 
+namespace std
+{
+  #include <math.h>
+};
+
+#endif

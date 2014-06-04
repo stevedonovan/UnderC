@@ -18,7 +18,7 @@ template <class C, class T>
      void next() { ++m_it; }
    };
 
-#define FOR_EACH(v,c) for(_ForEach<typeof(c),typeof(v)> _fe(c,v); \
+#define FOR_EACH(v,c) for(_ForEach<decltype(c),decltype(v)> _fe(c,v); \
                           _fe.get();  _fe.next())
 
 #endif
