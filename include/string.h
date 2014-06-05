@@ -1,6 +1,7 @@
 #ifndef _STRING_H
 #define _STRING_H
 #include <_shared_lib.h>
+#include <stddef.h>
 /* From Appendix B3, String Functions, of K&R2 */
 /* Commented functions are implemented as built-ins */
 extern "C" {
