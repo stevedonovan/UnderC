@@ -34,12 +34,21 @@ template <class IT, class P>
  }
 
 template <class In, class Out>
-  void copy(In i1, In i2, Out j) 
+  Out copy(In i1, In i2, Out j) 
   {
     while (i1 != i2) {
       *j = *i1;
       ++j; ++i1;
     }
+    return j;
+  }
+  
+template<class BI1, class BI2>
+  BI2 copy_backward(BI1 i1, BI1 i2, BI2 j)
+  {
+    while (i1 != i2)
+      *(--j) = *(--i2);
+    return j;
   }
 
 template <class In, class Fn>
