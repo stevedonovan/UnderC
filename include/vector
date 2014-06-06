@@ -6,6 +6,8 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
+#include <stddef.h>
+
 #ifndef NULL
 #define NULL 0
 #endif
@@ -23,28 +25,29 @@ template <class T>
  {
    T *m_begin;
    T *m_end;
-   int m_size;
-   int m_cap;
+   unsigned int m_size;
+   unsigned int m_cap;
  public:
    typedef T *       iterator;
    typedef const T * const_iterator; 
    typedef T         value_type;
+   typedef size_t    size_type;
 
    iterator begin() const { return m_begin; }
    iterator end()   const { return m_end;   }
-   int size()       const { return m_size; }
-   int capacity()   const { return m_cap;  }
+   size_type size()       const { return m_size; }
+   size_type capacity()   const { return m_cap;  }
 
-   T& operator[] (int i)  {
+   T& operator[] (size_type i)  {
         _RC(m_size,i);
         return m_begin[i];
    }
 
-   void raw_copy(T *tmp, T *old_ptr, int sz) {
-     for(int i = 0; i < sz; i++) tmp[i] = old_ptr[i]; 
+   void raw_copy(T *tmp, T *old_ptr, size_type sz) {
+     for(size_type i = 0; i < sz; i++) tmp[i] = old_ptr[i]; 
    }
 
-   void alloc(int new_sz,T *old_ptr) {
+   void alloc(size_type new_sz, T *old_ptr) {
      T *tmp = new T[new_sz];
   // reallocating case
      if (m_size && old_ptr==NULL && m_begin != NULL) {  
@@ -70,17 +73,17 @@ template <class T>
       m_end = m_begin + m_size;
     }
   
-   void resize(int sz) {
+   void resize(size_type sz) {
       alloc(sz,NULL);
       m_cap = m_size = sz;  
    }
 
-   void reserve(int sz) {
+   void reserve(size_type sz) {
      alloc(sz,NULL);
      m_cap = sz;
    }      
       
-   vector(int sz = 0) { 
+   vector(size_type sz = 0) { 
       m_begin = NULL;
       m_size = sz;
       grow();
@@ -116,7 +119,7 @@ template <class T>
 
    ~vector() { clear(); }
 
-   void push_back(T t)  { 
+   void push_back(const value_type& t)  { 
       if (m_size+1 > m_cap) grow();
       m_size++;
       *m_end++ = t;
