@@ -12,19 +12,48 @@ int max(int a, int b) { return a > b ? a : b; }
 double min(double a, double b) { return a > b ? b : a; }
 double max(double a, double b) { return a > b ? a : b; }
 
+template <class In, class Pr>
+ bool all_of(In i1, In i2, Pr pred)
+ {
+   while (i1 != i2) {
+     if (!pred(*i1)) return false;
+	 ++i1;
+   }
+   return true;
+ }
+ 
+template <class In, class Pr>
+ bool any_of(In i1, In i2, Pr pred)
+ {
+   while (i1 != i2) {
+     if (pred(*i1)) return true;
+	 ++i1;
+   }
+   return false;
+ }
+ 
+template <class In, class Pr>
+ bool none_of(In i1, In i2, Pr pred)
+ {
+   while (i1 != i2) {
+     if (pred(*i1)) return false;
+	 ++i1;
+   }
+   return true;
+ }
 
 template <class IT, class T>
- IT find(IT start, IT finis, T val)
+ IT find(IT start, IT finish, T val)
  {
-   while (start != finis) {
+   while (start != finish) {
      if (*start == val) return start;
      ++start;
    }
-   return finis;
+   return finish;
  }
 
-template <class IT, class P>
- IT find_if(IT i1, IT i2, P pred)
+template <class IT, class Pr>
+ IT find_if(IT i1, IT i2, Pr pred)
  {
    while (i1 != i2) {
      if (pred(*i1)) return i1;
@@ -80,8 +109,8 @@ template <class In, class Out, class Fn>
      return res;
    }
 
- template <class In, class P>
-   int count_if(In i1, In i2, P pred) 
+ template <class In, class Pr>
+   int count_if(In i1, In i2, Pr pred) 
    {
      int res = 0;
      while (i1 != i2) {
@@ -90,8 +119,27 @@ template <class In, class Out, class Fn>
      }
      return res;
    }
+   
+ template <class In1, class In2>
+  bool equal(In1 s1, In1 e1, In2 s2)
+  {
+    while (s1 != e1) {
+	  if (*s1 != *s2) return false;
+	  ++s1; ++s2;
+	}
+	return true;
+  }
 
- 
+ template <class In1, class In2, class BPr>
+  bool equal(In1 s1, In1 e1, In2 s2, BPr pred)
+  {
+    while (s1 != e1) {
+	  if (!pred(*s1,*s2)) return false;
+	  ++s1; ++s2;
+	}
+	return true;
+  }
+
  template<class In, class Out, class Pr>
   Out remove_copy_if(In i1, In i2, Out o, Pr fn)
   {
