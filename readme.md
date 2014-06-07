@@ -18,8 +18,8 @@ compiled C++ shared libraries to be used, but rapid changes and differences in
 the ABI between the supported compilers (MSVC and GCC) make this a hard
 target, especially for a portable version.)
 
-UnderC supports two extensions to the old standard, `typeof` and `auto`.
-`typeof` has been in GCC for a long time, and roughly corresponds to the new `decltype` keyword;
+UnderC supports two extensions to the old standard, `decltype` and `auto`.
+`decltype` roughly corresponds to the new `decltype` keyword;
 `auto` is compatible with C++11.
 
 On the Downloads page there are 32-bit binaries for Linux and Windows; these do not have any
