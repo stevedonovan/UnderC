@@ -1,1 +1,6 @@
-#define FILE int
+#ifndef _STD_CSTDIO
+#define _STD_CSTDIO
+
+#include <stdio.h>
+
+#endif
