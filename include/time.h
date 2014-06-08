@@ -7,7 +7,11 @@
 typedef long time_t;             /* time value */
 typedef long clock_t;
 typedef unsigned long _fsize_t;
-#define CLOCKS_PER_SEC 1000000
+#ifdef __win32__
+  #define CLOCKS_PER_SEC 1000
+#else
+  #define CLOCKS_PER_SEC 1000000
+#endif
 #define _TIME_T_DEFINED          /* avoid multiple def's of time_t */
 #endif
 
