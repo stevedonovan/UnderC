@@ -24,7 +24,7 @@ extern "C" {
   void memmove(char *, const char *, size_t);
   int memcmp(const char *, const char *, size_t);
   void *memchr(const char *, int, size_t);
-  void memset(char *, int, size_t);
+  void memset(void *, int, size_t);
 }
 #lib
 #endif
