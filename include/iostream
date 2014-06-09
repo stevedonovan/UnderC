@@ -237,6 +237,9 @@ std::ostream& operator<< (std::ostream& os, void *val)
 std::ostream& operator<< (std::ostream& os, char ch)
 { fprintf(os.hand,"%c",ch);  return os; }
 
+std::ostream& operator<< (std::ostream& os, unsigned char ch)
+{ fprintf(os.hand,"%c",ch);  return os; }
+
 std::istream& operator>> (std::istream& is, int& val)
 { 
 if (is.m_redirect) wcon_fscanf(is.hand,"%d",&val);
