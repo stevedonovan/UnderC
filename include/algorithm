@@ -7,10 +7,23 @@ namespace std {
 
 // until our template function resolution is a little more
 // sophisticated, we just use specialized versions.
-int min(int a, int b) { return a > b ? b : a; }
-int max(int a, int b) { return a > b ? a : b; }
-double min(double a, double b) { return a > b ? b : a; }
-double max(double a, double b) { return a > b ? a : b; }
+template <class T>
+ const T& min(const T& a, const T& b) {
+    return !(b<a)?a:b;
+  }
+template <class T>
+ const T& max(const T& a, const T& b) {
+    return (a<b)?b:a;
+  }
+// version 2
+template <class T, class BPr>
+ const T& min(const T& a, const T& b, BPr comp) {
+    return !comp(b,a)?a:b;
+  }
+template <class T, class BPr>
+ const T& max(const T& a, const T& b, BPr comp) {
+    return comp(a,b)?b:a;
+  }
 
 template <class In, class Pr>
  bool all_of(In i1, In i2, Pr pred)
