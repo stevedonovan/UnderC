@@ -50,7 +50,7 @@ template <class T>
 
    void alloc(size_type new_sz, T *old_ptr) {
      T *tmp = new T[new_sz];
-  // reallocating case
+     // reallocating case
      if (m_size && old_ptr==NULL && m_begin != NULL) {  
         raw_copy(tmp, m_begin, m_size);
         delete[] m_begin;
@@ -75,14 +75,17 @@ template <class T>
     }
   
    void resize(size_type sz) {
-      alloc(sz, NULL);
+      T *tmp = new T[sz];
+      for (size_type i = 0; i < sz && i < m_size; ++i)
+         tmp[i] = m_begin[i];
+      alloc(sz, tmp);
       m_cap = m_size = sz;  
    }
    
    void resize(size_type sz, const value_type& t) {
       T *tmp = new T[sz];
       for (size_type i = 0; i < sz; ++i)
-         tmp[i] = t;
+         tmp[i] = (i >= m_size) ? m_begin[i] : t;
       alloc(sz, tmp);
       m_cap = m_size = sz;  
    }
