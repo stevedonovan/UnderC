@@ -154,6 +154,32 @@ template <class T>
       m_size++;
       *m_end++ = t;
    }
+   
+   iterator erase(iterator pos)
+   {
+      iterator it(pos);
+      while (pos + 1 != m_end)
+      {
+         *pos = *(pos + 1);
+         ++pos;
+      }
+      m_end--;  m_size--;
+      return it;
+   }
+   
+   iterator erase(iterator i1, iterator i2)
+   {
+      iterator it(i1);
+      int removed = i2 - i1;
+      while (i2 != m_end)
+      {
+         *i1 = *i2;
+         ++i1; ++i2;
+      }
+      m_end  -= removed;
+      m_size -= removed;
+      return it;
+   }
 
    template <class It>
      void assign(It start, It end) {
