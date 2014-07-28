@@ -16,7 +16,7 @@
 #else
  #include <stdio.h>
  #include <string.h> 
- typedef FILE *FHandle;	
+ typedef FILE *FHandle;
  #define wcon_fscanf fscanf
 #endif
 
@@ -24,21 +24,26 @@ const int MAX_LINE = 512;
 
 namespace std {
 
-namespace ios {
-  enum { in=1,out=2,binary=4,app=8,ate=16,trunc=32,
-         beg=0,end=2,cur=1
+class ios_base {
+public:
+  enum open_mode{ 
+      in = 1, out = 2, binary = 4, app = 8, ate = 16, trunc = 32
   };
-}
+  enum seek_dir{
+      beg = 0, cur = 1, end = 2
+  };
+  enum { skipws = 1 };
+};
 
 typedef unsigned long streampos;
 
-class base_stream {
+class ios: public ios_base {
 public:
 // these fields need to be public until friendship is sorted out!
   FHandle hand;
   bool m_redirect;
 
-  bool open_file(const char *file, int access=ios::in)
+  bool open_file(const char *file, int access = ios::in)
   {
    if (file) {
       char mode[5],ch;
@@ -55,11 +60,17 @@ public:
       }
       if (access & ios::binary) mode[i++] = 'b';
       mode[i] = '\0';
-      hand = fopen(file,mode);
+      hand = fopen(file, mode);
       m_redirect = false;
    } else hand = 0;
    return hand ? true : false;
   }
+  
+  virtual bool good()
+  { return hand ? true : false;  }
+  
+  bool bad()
+  { return ! good(); }
 
   void close()
    { 
@@ -73,44 +84,25 @@ public:
   { fflush(hand); }
 };
 
-class ostream: public base_stream { 
+class ostream: public ios { 
 public:
   ostream(FHandle h=0)
   { hand = h; }  
 
   ostream& write(char *buff, int sz) {
-    fwrite(buff,1,sz,hand);
+    fwrite(buff, 1, sz, hand);
     return *this;
   }
-  
-  bool good()
-  { return hand ? true : false;  }
-  
-  bool bad()
-  { return ! good(); }
 
-  ostream& seekp(streampos pos, int which=ios::beg)
-  { fseek(hand,pos,which); return *this; }
+  ostream& seekp(streampos pos, int which = ios::beg)
+  { fseek(hand, pos, which); return *this; }
 
   streampos tellp()
   { return ftell(hand); }
 
 };
 
-class ofstream: public ostream {
-public:
- bool open(const char *file, int access=0) {
-   return open_file(file,access | ios::out);
- }
-
- ofstream(const char *file=0, int access=0)
- { open(file,access); }
-
- ~ofstream()
- { close(); }
-};
-
-class istream: public base_stream {
+class istream: public ios {
 private:
   int m_no_read;
 public:
@@ -118,14 +110,14 @@ public:
   istream(FHandle h=0)
   { hand = h; m_redirect = USES_WCON; }
 
-  istream& getline(char *buff,int sz)
-  { char *s = fgets(buff,sz,hand);
+  istream& getline(char *buff, int sz)
+  { char *s = fgets(buff, sz, hand);
     if (! m_redirect && s) s[strlen(s)-1] = '\0'; // remove \n!
     return *this;
   }
 
   istream& read(char *buff, int sz) {
-    m_no_read = fread(buff,1,sz,hand);
+    m_no_read = fread(buff, 1, sz, hand);
     return *this;
   }
 
@@ -137,12 +129,12 @@ public:
   int gcount() { return m_no_read; }
 
   istream& write(char *buff, int sz) { // have to say ios::out as well!
-    fwrite(buff,1,sz,hand);
+    fwrite(buff, 1, sz, hand);
     return *this;
   }
 
-  istream& seekg(streampos pos, int which=ios::beg)
-  { fseek(hand,pos,which); return *this; }
+  istream& seekg(streampos pos, int which = ios::beg)
+  { fseek(hand, pos, which); return *this; }
 
   streampos tellg()
   { return ftell(hand); }
@@ -153,30 +145,11 @@ public:
   bool good()
   { return hand ? (! eof()) : false;  }
 
-  bool bad()
-  { return ! good(); }
-
   bool operator! ()
   { return ! good(); }
 
   operator int () { return good(); }
 }; 
-
-
-class ifstream: public istream {
-public:
-  bool open(const char *str, int access=0) {
-   return open_file(str,access | ios::in);
-  }
-
- ifstream(const char *file=0, int access=0)
- {
-   open(file,access);
- }
-
- ~ifstream()
- { close();    }
-};
 
 struct _Endl_ 
 { int t;  };
