@@ -123,6 +123,11 @@ public:
     hand = h;
   }
 
+  ostream& put(char c) {
+    fputc(c, hand);
+    return *this;
+  }
+
   ostream& write(char *buff, int sz) {
     fwrite(buff, 1, sz, hand);
     return *this;
@@ -144,9 +149,21 @@ private:
   int m_no_read;
 public:
 
-  istream(FHandle h=0) {
+  istream(FHandle h = 0) {
     hand = h;
     m_redirect = USES_WCON;
+  }
+
+  int get() {
+    return fgetc(hand);
+  }
+
+  istream& get(char& c) {
+    if (eof()) {}
+    else {
+      c = fgetc(hand);
+    }
+    return *this;
   }
 
   istream& getline(char *buff, int sz) {
@@ -255,14 +272,14 @@ std::ostream& operator<< (std::ostream& os, bool val) {
 }
 
 std::ostream& operator<< (std::ostream& os, double val) {
-  fprintf(os.hand,"%lf",val);
+  fprintf(os.hand,"%g",val);
   return os;
 }
 
 //*SJD* Curious that printf() is expecting a float as a double...
 
 std::ostream& operator<< (std::ostream& os, float val) {
-  fprintf(os.hand,"%lf",(double)val);
+  fprintf(os.hand,"%g",val);
   return os;
 }
 
@@ -277,7 +294,7 @@ std::ostream& operator << (std::ostream& os, std::_Endl_& e) {
   return os;
 }
 
-std::ostream& operator<< (std::ostream& os, void *val) {
+std::ostream& operator<< (std::ostream& os, const void *val) {
   fprintf(os.hand,"0x%x",val);
   return os;
 }
