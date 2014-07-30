@@ -12,7 +12,10 @@
 #pragma dlink libc.so.6
 #endif
 
-typedef unsigned long size_t;
+#ifndef _SIZE_T_DEF
+#define _SIZE_T_DEF
+typedef unsigned int size_t;
+#endif
 
 // really aren't interested in all the other fields...
 struct regex_t {
