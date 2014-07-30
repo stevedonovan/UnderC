@@ -1,0 +1,6 @@
+#ifndef _STD_CASSERT
+#define _STD_CASSERT
+
+#include <limits.h>
+
+#endif
