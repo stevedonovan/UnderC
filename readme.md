@@ -191,7 +191,7 @@ If the expression fails to compile, or has a run-time error, `uc_exec()` will re
 
 ### Regular Expressions with rx++
 
-rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using Tom Lord and John Maddock's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers currently have a standard way of using them since C++11 
+rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using Tom Lord and John Maddock's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers currently have a standard way of using them since C++11 using `regex` header, while ours offer you a bunch of easy functions that you will grasp quickly.
 
     ;> #include <rx++.h>
     ;> Regexp rx("dog");
