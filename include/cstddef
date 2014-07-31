@@ -1,0 +1,10 @@
+#ifndef _STD_CSTDDEF
+#define _STD_CSTDDEF
+
+#include <stddef.h>
+
+namespace std {
+using size_t;
+}
+
+#endif
