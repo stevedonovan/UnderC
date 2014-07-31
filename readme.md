@@ -191,7 +191,7 @@ If the expression fails to compile, or has a run-time error, `uc_exec()` will re
 
 ### Regular Expressions with rx++
 
-rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using John Lord's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers do not currently have a standard way of using them (although the next iteration of the standard library promises to rectify this, probably by using the BOOST libraries)
+rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using Tom Lord and John Maddock's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers currently have a standard way of using them since C++11 
 
     ;> #include <rx++.h>
     ;> Regexp rx("dog");
@@ -217,6 +217,7 @@ powerful way to extract formated data such as dates.  Anything inside escaped pa
 (\(, \)) is a group, which can be extracted from the matched string using a one-based index to the Regexp::matched() method:
 
     ;> Regexp rdat("\([0-9]*\)/\([0-9]*\)/\([0-9]*\)");
+    ;> std::string dates("10/09/2003");
     ;> rdat.match(dates);
     (bool) true
     ;> rdat.matched();     // the whole matched expression
