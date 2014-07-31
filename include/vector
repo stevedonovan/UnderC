@@ -6,11 +6,7 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
-#include <stddef.h>
-
-#ifndef NULL
-#define NULL 0
-#endif
+#include <cstddef>
 
 #ifdef _RANGE_CHECK
 #define _RC(sz,i) _range_check(sz,i)
