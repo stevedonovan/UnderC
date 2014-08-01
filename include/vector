@@ -6,9 +6,7 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
-#ifndef NULL
-#define NULL 0
-#endif
+#include <cstddef>
 
 #ifdef _RANGE_CHECK
 #define _RC(sz,i) _range_check(sz,i)
@@ -23,37 +21,39 @@ template <class T>
  {
    T *m_begin;
    T *m_end;
-   int m_size;
-   int m_cap;
+   unsigned int m_size;
+   unsigned int m_cap;
  public:
    typedef T *       iterator;
    typedef const T * const_iterator; 
    typedef T         value_type;
+   typedef size_t    size_type;
 
    iterator begin() const { return m_begin; }
    iterator end()   const { return m_end;   }
-   int size()       const { return m_size; }
-   int capacity()   const { return m_cap;  }
+   size_type size()       const { return m_size; }
+   size_type capacity()   const { return m_cap;  }
+   bool     empty() const { return m_size == 0; }
 
-   T& operator[] (int i)  {
+   T& operator[] (size_type i)  {
         _RC(m_size,i);
         return m_begin[i];
    }
 
-   void raw_copy(T *tmp, T *old_ptr, int sz) {
-     for(int i = 0; i < sz; i++) tmp[i] = old_ptr[i]; 
+   void raw_copy(T *tmp, T *old_ptr, size_type sz) {
+     for(size_type i = 0; i < sz; i++) tmp[i] = old_ptr[i]; 
    }
 
-   void alloc(int new_sz,T *old_ptr) {
+   void alloc(size_type new_sz, T *old_ptr) {
      T *tmp = new T[new_sz];
-  // reallocating case
+     // reallocating case
      if (m_size && old_ptr==NULL && m_begin != NULL) {  
-        raw_copy(tmp,m_begin,m_size);
+        raw_copy(tmp, m_begin, m_size);
         delete[] m_begin;
      }
     // copying case
      else if (old_ptr != NULL)
-       raw_copy(tmp,old_ptr,new_sz);
+       raw_copy(tmp, old_ptr, new_sz);
      m_begin = tmp;
      m_end = m_begin + new_sz;
    }
@@ -64,26 +64,55 @@ template <class T>
      alloc(v.m_size, v.m_begin);
     }
 
-   void grow() {
+   void grow(T *data = NULL) {
       m_cap = m_size + 10;
-      alloc(m_cap,NULL);
+      alloc(m_cap, data);
       m_end = m_begin + m_size;
     }
   
-   void resize(int sz) {
-      alloc(sz,NULL);
+   void resize(size_type sz) {
+      T *tmp = new T[sz];
+      for (size_type i = 0; i < sz && i < m_size; ++i)
+         tmp[i] = m_begin[i];
+      alloc(sz, tmp);
+      m_cap = m_size = sz;  
+   }
+   
+   void resize(size_type sz, const value_type& t) {
+      T *tmp = new T[sz];
+      for (size_type i = 0; i < sz; ++i)
+         tmp[i] = (i >= m_size) ? m_begin[i] : t;
+      alloc(sz, tmp);
       m_cap = m_size = sz;  
    }
 
-   void reserve(int sz) {
-     alloc(sz,NULL);
-     m_cap = sz;
-   }      
+   void reserve(size_type sz) {
+     if (sz > m_cap)
+     {
+        alloc(sz, m_begin);
+        m_cap = sz;
+     }
+   }
       
-   vector(int sz = 0) { 
+   vector() { 
+      m_begin = NULL;
+      m_size = 0;
+      grow();
+   }
+      
+   explicit vector(size_type sz) { 
       m_begin = NULL;
       m_size = sz;
       grow();
+   }
+
+   vector(size_type sz, const value_type& t) { 
+      m_begin = NULL;
+      m_size = sz;
+      T *tmp = new T[sz];
+      for (size_type i = 0; i < sz; ++i)
+         tmp[i] = t;
+      grow(tmp);
    }
 
    vector(const vector& v) {
@@ -101,7 +130,7 @@ template <class T>
      if (m_size != v.m_size) return false;
      bool equal = true;
      T *op = v.m_begin;
-     for(int i = 0; i < m_size; i++)
+     for(size_type i = 0; i < m_size; i++)
        equal = equal && m_begin[i]==op[i];
      return equal;
    }
@@ -116,10 +145,36 @@ template <class T>
 
    ~vector() { clear(); }
 
-   void push_back(T t)  { 
+   void push_back(const value_type& t)  { 
       if (m_size+1 > m_cap) grow();
       m_size++;
       *m_end++ = t;
+   }
+   
+   iterator erase(iterator pos)
+   {
+      iterator it(pos);
+      while (pos + 1 != m_end)
+      {
+         *pos = *(pos + 1);
+         ++pos;
+      }
+      m_end--;  m_size--;
+      return it;
+   }
+   
+   iterator erase(iterator i1, iterator i2)
+   {
+      iterator it(i1);
+      int removed = i2 - i1;
+      while (i2 != m_end)
+      {
+         *i1 = *i2;
+         ++i1; ++i2;
+      }
+      m_end  -= removed;
+      m_size -= removed;
+      return it;
    }
 
    template <class It>
@@ -130,8 +185,9 @@ template <class T>
      }
 
    void pop_back()   { m_end--;  m_size--; }
-   T back() const    { return *(m_end-1); }
-   T front() const   { return *m_begin; }
+   T& back()         { return *(m_end-1); }
+   T& front()        { return *m_begin; }
+   T * data()        { return m_begin; }
    void bonzo() { }
 
  };

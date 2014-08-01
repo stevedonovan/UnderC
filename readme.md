@@ -18,8 +18,8 @@ compiled C++ shared libraries to be used, but rapid changes and differences in
 the ABI between the supported compilers (MSVC and GCC) make this a hard
 target, especially for a portable version.)
 
-UnderC supports two extensions to the old standard, `typeof` and `auto`.
-`typeof` has been in GCC for a long time, and roughly corresponds to the new `decltype` keyword;
+UnderC supports two extensions to the old standard, `decltype` and `auto`.
+`decltype` roughly corresponds to the new `decltype` keyword;
 `auto` is compatible with C++11.
 
 On the Downloads page there are 32-bit binaries for Linux and Windows; these do not have any
@@ -191,7 +191,7 @@ If the expression fails to compile, or has a run-time error, `uc_exec()` will re
 
 ### Regular Expressions with rx++
 
-rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using John Lord's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers do not currently have a standard way of using them (although the next iteration of the standard library promises to rectify this, probably by using the BOOST libraries)
+rx++ is a simple class wrapper around the standard POSIX regular expression calls; for UnderC we're using Tom Lord and John Maddock's RX library under Windows, and the libc implementation under Linux. Although sometimes tricky to set up, regular expressions are a powerful means of searching and processing text, which AWK and Perl programmers have used very effectively. C++ programmers currently have a standard way of using them since C++11 using `regex` header, while ours offer you a bunch of easy functions that you will grasp quickly.
 
     ;> #include <rx++.h>
     ;> Regexp rx("dog");
@@ -217,6 +217,7 @@ powerful way to extract formated data such as dates.  Anything inside escaped pa
 (\(, \)) is a group, which can be extracted from the matched string using a one-based index to the Regexp::matched() method:
 
     ;> Regexp rdat("\([0-9]*\)/\([0-9]*\)/\([0-9]*\)");
+    ;> std::string dates("10/09/2003");
     ;> rdat.match(dates);
     (bool) true
     ;> rdat.matched();     // the whole matched expression

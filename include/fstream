@@ -1,3 +1,42 @@
-// no separate header for 'pocket' iostreams...
+// FSTREAM
+// 'fake' or 'pocket' iostreams...
+// UnderC Development Project, 2001.
+
+#ifndef _FSTREAM_H
+#define _FSTREAM_H
 #include <iostream>
 
+namespace std {
+
+class ofstream: public ostream {
+public:
+ bool open(const char *file, int access = 0) {
+   return open_file(file, access | ios::out);
+ }
+
+ ofstream(const char *file=0, int access = 0)
+ { open(file, access); }
+
+ ~ofstream()
+ { close(); }
+};
+
+
+class ifstream: public istream {
+public:
+  bool open(const char *str, int access = 0) {
+   return open_file(str, access | ios::in);
+  }
+
+ ifstream(const char *file = 0, int access = 0)
+ {
+   open(file, access);
+ }
+
+ ~ifstream()
+ { close();    }
+};
+
+} // namespace std
+
+#endif

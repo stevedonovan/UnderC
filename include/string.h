@@ -1,6 +1,7 @@
 #ifndef _STRING_H
 #define _STRING_H
 #include <_shared_lib.h>
+#include <stddef.h>
 /* From Appendix B3, String Functions, of K&R2 */
 /* Commented functions are implemented as built-ins */
 extern "C" {
@@ -23,7 +24,7 @@ extern "C" {
   void memmove(char *, const char *, size_t);
   int memcmp(const char *, const char *, size_t);
   void *memchr(const char *, int, size_t);
-  void memset(char *, int, size_t);
+  void memset(void *, int, size_t);
 }
 #lib
 #endif
