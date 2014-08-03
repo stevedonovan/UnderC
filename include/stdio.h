@@ -15,7 +15,8 @@ extern "C" {
        int fputs(const char *s, FILE *stream);
        int putc(int c, FILE *stream);
        int putchar(int c);
-  //       int puts(const char *s);
+       //int puts(const char *s);
+       int scanf(const char * format, ...);
 }
 #lib
 #endif
