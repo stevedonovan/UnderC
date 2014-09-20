@@ -279,7 +279,7 @@ std::ostream& operator<< (std::ostream& os, double val) {
 //*SJD* Curious that printf() is expecting a float as a double...
 
 std::ostream& operator<< (std::ostream& os, float val) {
-  fprintf(os.hand,"%g",val);
+  fprintf(os.hand,"%g",(double)val);
   return os;
 }
 
