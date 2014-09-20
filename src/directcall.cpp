@@ -544,7 +544,7 @@ void init()
  add(Sig(t_double) << t_ccp,"atof",(CALLFN)&atof);
  add(Sig(t_long) << t_ccp,"atoi",(CALLFN)&atoi);
  add(Sig(t_char_ptr) << t_int << t_char_ptr << t_int, "itoa", (CALLFN)&itoa);
- add(Sig(t_long),"rand",(CALLFN)&rand);
+ //add(Sig(t_long),"rand",(CALLFN)&rand); (disabled because srand is not built-in)
 
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp,"strcpy",(CALLFN)&strcpy);
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp << t_int,"strncpy",(CALLFN)&strncpy);
