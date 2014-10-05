@@ -68,6 +68,15 @@ public:
     copy(v);
   }
 
+  bool operator== (const stack& v) const {
+    if (m_size != v.m_size) return false;
+    bool equal = true;
+    T *op = v.m_begin;
+    for(size_type i = 0; i < m_size; i++)
+      equal = equal && m_begin[i]==op[i];
+    return equal;
+  }
+
   ~stack() {
     if (m_size > 0) {
       delete[] m_begin;

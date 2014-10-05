@@ -4,13 +4,6 @@
 #ifndef __STRING_
 #define __STRING_
 
-#ifndef NEW_STRING
-#ifdef __UNDERC__
-#include <old-string>
-#else
-#include "old-string"
-#endif	
-#else
 #include <iostream>
 #ifndef NULL
 #define NULL 0
@@ -118,13 +111,5 @@ std::istream& getline(std::istream& is, std::string& s)
    s = buff;
    return is;
  }
+
 #endif
-#endif
-
- 
-
-
-
-
-
-
