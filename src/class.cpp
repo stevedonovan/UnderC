@@ -248,7 +248,7 @@ PEntry Class::add(const string& name)
 // do this
 void Class::list_entries(EntryList &el, int flags)
 {
-    if (flags & DO_PARENT && base_class() != NULL) base_class()->list_entries(el,flags);
+    if ((flags & DO_PARENT) && base_class() != NULL) base_class()->list_entries(el,flags);
     EntryList::iterator eli;
     for(eli = m_entries.begin(); eli != m_entries.end(); ++eli)
         if (check_entry(*eli,flags)) el.push_back(*eli);
@@ -384,7 +384,7 @@ void Class::compile_methods()
             line = pm->get_function_line(mb->pf);
             try {
                 success = uc_eval(s.c_str(),false,true,file.c_str(),line) == 0;
-            } catch(string msg) {
+            } catch(const string& msg) {
                 success = false;
             }
             if (! success) {
@@ -469,7 +469,7 @@ bool Class::make_available()
         if(! ti->instantiated()) {
             try {
                 ti->get_template()->instantiate(ti);
-            } catch(string msg) {
+            } catch(const string& msg) {
                 error(msg);
                 return false;
             }
@@ -648,7 +648,7 @@ void Class::set_imported()
     }
 }
 
-void Class::update_vtable(char *obj)
+void Class::update_vtable(void *obj)
 {
 // This implements VTABLE_PATCH, which is found in the ctors of imported classes w/ vtables
     if (m_vtable_slots.size() == 0) return;   // no modifications!
@@ -672,8 +672,8 @@ void Class::update_vtable(char *obj)
     }
 }
 
-char *
-Class::check_object_pointer(char *p)
+void *
+Class::check_object_pointer(void *p)
 {
 // Given a imported C++ object, ensure that it's got a proper UC VMT
 // We are given the base class - have to hunt to find the exact derived class!

@@ -570,7 +570,7 @@ PExpr initialize_op(PEntry pe, PExpr er, PExprList pel, int ctype)
       bool succeeded = true;
       try {
          val = Parser::const_int_expr(er);
-      } catch(string msg) {
+      } catch(const string& msg) {
        // it wasn't a simple constant expression; pass through 
        // force it to be zero, however, so it will cause a clean error if
        // if used to declare an array.

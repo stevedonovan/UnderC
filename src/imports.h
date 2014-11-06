@@ -47,8 +47,8 @@ public:
  virtual VTable    clone_vtable();
  virtual void      vtable_write_slot(int i, CALLFN pf);
  virtual CALLFN    vtable_read_slot(int i);
- virtual void      vtable_write(char *obj);
- virtual VTable    vtable_read(char *obj);
+ virtual void      vtable_write(void *obj);
+ virtual VTable    vtable_read(void *obj);
  virtual bool      vtable_at_begining() { return true; }
  VMTArray hunt_for_matching_VMT(VMTArray vmt, Class *pc);
 };

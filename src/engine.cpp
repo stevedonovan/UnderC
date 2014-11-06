@@ -58,12 +58,7 @@ CEXPORT char *sh_fun();  // debug function
 // later in this file....
 int current_ip();
 void  exec_message(char *msg, bool was_error, bool dont_unwind = false);
-bool get_curent_exec_pos(int& ip_offs, string& fname,  LineInfo& li);
 int get_current_exec_line();
-
-namespace Builtin {
-  PClass imported_class_from_function(void *pfn);
-}
 
 // useful macro for tracing...
 #define OUT(v) cout << #v " = " << v << endl
@@ -183,7 +178,6 @@ x_copy_code(Instruction *iptr)
 const int FUNCTION_STACK_DEPTH = 3*MAX_FUNCTION_DEPTH;
 static Stack<void *,FUNCTION_STACK_DEPTH> fs;
 char *mDataSeg;
-static char *mDataPtr = mDataSeg;
 
 void Engine::set_data_seg(void *ptr)
 { mDataSeg = (char *)ptr; }
@@ -197,7 +191,6 @@ void Engine::set_data_seg(void *ptr)
 static bool ptr_check;
 static int _stack_[EXEC_STACKSIZE];
 static int *mSP = _stack_ + EXEC_STACKSIZE - 1;
-static int *mEndStack = _stack_;
 
 void reset_execution_stack()
 { // currently only called after stack overflow....
@@ -812,9 +805,8 @@ void dump_fun_frame(int i, const ExecutionState& xs)
     else {
       FunctionContext *fcxt = (FunctionContext *)this_fb->context;
       li.ip_offset = (xs.m_ppcode - this_fb->pstart)/sizeof(Instruction);
-      if (fcxt && fcxt->ip_to_line(li))
-          ;
-      else {
+      if (fcxt && fcxt->ip_to_line(li)) {
+      } else {
           li.file = "<none>";
           li.line = -2;
       }
@@ -927,8 +919,6 @@ int current_ip()
 {
   return ((int)ppcode - (int)fb->pstart)/4;
 }
-
-extern int global_last_signal;
 
 bool start_exec()
 //---------------------------
@@ -1078,7 +1068,9 @@ call_the_function:
         callfn(pfb->pfn,mSP-1,nargs,mOP,pfb->flags,buff);
         mSP += nargs;
         if (pfb->flags & DC_QWORD) push2(*(double *)buff); else
-        if (pfb->flags & DC_NOWORD) ;
+        if (pfb->flags & DC_NOWORD) {
+
+        }
         else push(*buff);
         break;
     case CCALLV: {// vector constructor/destructor call
@@ -1423,16 +1415,12 @@ void Engine::reset_single_stepping()
 
 FBlock *mStartFB;
 
-extern FBlock mCodeBlock;
 Instruction *old_immediate_code;
 
 namespace Parser {
 Instruction *immediate_code_ptr();
 void immediate_code_ptr(Instruction *pi);
-FBlock *immediate_code_block();
 };
-
-void dissemble(PFBlock fb); // in DISSEM
 
 bool Engine::paused()   { return resume_state.m_fb != NULL; }
 bool Engine::running()  { return fb != START_FB;          }
