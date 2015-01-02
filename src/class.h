@@ -95,8 +95,8 @@ public:
   int   vtable_size();
   bool  derived_from_import();
   void  set_imported();
-  void  update_vtable(char *obj);
-  char *check_object_pointer(char *p);
+  void  update_vtable(void *obj);
+  void *check_object_pointer(void *p);
 
   // generating the lists of _non-static members_
   bool build_obj_list();

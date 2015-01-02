@@ -39,7 +39,6 @@ Function* gLastFunction;  //*DEBUG
 void* gObjectReturnPtr;
 
 void next_statement();  // in uc_tokens.cpp
-void skip_function_body(int brace_count=1); // *TEMP* in templates.cpp
 
 // these are temporary places for stuff that must go in headers!
 void dissemble(PFBlock fb); // in DISSEM
@@ -277,7 +276,7 @@ TType make_array(TType t, Expression psz)
         try {
             sz = const_int_expr(psz);
         }
-        catch(string msg) {
+        catch(const string& msg) {
             error(msg);
             return t;
         }
@@ -659,7 +658,7 @@ void ParserState::init_block(int type)
 
 bool ParserState::context_generated()
 {
-    return block_stack.depth() == 0 || block_stack.TOS() & CONTEXT_PUSHED;
+    return block_stack.depth() == 0 || (block_stack.TOS() & CONTEXT_PUSHED);
 }
 
 void ParserState::check_context(int mode)
@@ -977,7 +976,7 @@ void do_goto(char* label_name)
         }
         // and do the jump!
         code().jump(JMP,label);
-    } catch(string s) {
+    } catch(const string& s) {
         error(s);
     }
 }
@@ -994,7 +993,7 @@ void goto_label_existing(PEntry pe)
         Label* l = check_goto_label(pe);
         l->here();
         if (l->context() == &state.context()) l->patch_with_NOP();
-    } catch(string s) {
+    } catch(const string& s) {
         error(s);
     }
 }
@@ -1122,7 +1121,7 @@ Type ParserState::add_class(int s_or_c, const string& pname, int deriv_access, T
 
         }
         return pe->type;
-    } catch(string msg) {
+    } catch(const string& msg) {
         error(msg);
     }
     return t_void;
@@ -1548,7 +1547,7 @@ Function *ParserState::declare_function(Type t,const string& name, PExpr poss_in
                     cerr << "cannot link to " + quotes(name) << endl;
             }
         }
-    } catch(string msg) {
+    } catch(const string& msg) {
         error(msg);
     }
 // NB to reset state!!
@@ -1657,7 +1656,7 @@ Function *ParserState::start_function(Type t, const string& name,bool init_conte
             by_val_list.clear();
         }
 
-    } catch(string msg) {
+    } catch(const string& msg) {
         error(msg);
     }
     class_dcl = t_void;  // just in case...
@@ -1897,7 +1896,7 @@ rest_of_init:
             else if (t.is_reference() && (mode != ARG && !in_typedef))
                 fail("uninitialized reference");
         }
-    } catch(string msg) {
+    } catch(const string& msg) {
         error(msg);
     }
     reset_array_size();
@@ -2084,7 +2083,7 @@ Type ParserState::do_enum(string name)
         gEnum = enum_obj;
 
         return pe->type;
-    } catch(string msg) {
+    } catch(const string& msg) {
         error(msg);
     }
     return t_void;
@@ -2104,7 +2103,7 @@ void ParserState::add_enum(Type et, string name, PExpr init)
         *(int *)create_const_entry(t_int, pe_entry) = gVal++;
         entry = add_variable(et,name,Expressions::entry_op(pe_entry),ENUM_INIT);
         gEnum->add_entry(entry);
-    } catch(string msg)
+    } catch(const string& msg)
     {
         error(msg);
     }
@@ -2260,7 +2259,7 @@ default_case:
         } else // ensure that this statement expression does not leave stack droppings!
             code().compile(e,DROP_VALUE);
     }
-    catch(string msg) {
+    catch(const string& msg) {
         error(msg);
     }
     catch(...) {

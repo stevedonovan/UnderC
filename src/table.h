@@ -19,7 +19,7 @@ protected:
  int m_move_to_next;
 public:
   Allocator(void *buff=NULL, int sz=0);
-  ~Allocator();
+  virtual ~Allocator();
 
   static int dword_align(int sz);
   static int qword_align(int sz);

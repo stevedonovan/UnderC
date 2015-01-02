@@ -203,28 +203,28 @@ bool Table::check_entry(PEntry pe, int flags)
          // *fix 1.2.3 Template function entries are often empty
          if (pfe->size() == 0) return false;
          Function *pf = pfe->back() ;
-		 if (flags & NON_STATIC && ! pf->is_method())   return false;
-		 if (flags & VIRTUALS   && ! pf->is_virtual())  return false;
-		 if (flags & BUILTINS   && ! pf->builtin())     return false;
-		 if (flags & CTORS      && ! pf->is_constructor()) return false;
-		 if (flags & DTORS      && ! pf->is_destructor())  return false;  
-         if (flags & CONSTS     && ! pf->is_const())       return false;
-         if (flags & IMPORTS    && ! pf->import_scheme())  return false;
-         if (flags & UNDEFINED  && ! pf->undefined())      return false;
+		 if ((flags & NON_STATIC) && ! pf->is_method())   return false;
+		 if ((flags & VIRTUALS)   && ! pf->is_virtual())  return false;
+		 if ((flags & BUILTINS)   && ! pf->builtin())     return false;
+		 if ((flags & CTORS)      && ! pf->is_constructor()) return false;
+		 if ((flags & DTORS)      && ! pf->is_destructor())  return false;
+         if ((flags & CONSTS)     && ! pf->is_const())       return false;
+         if ((flags & IMPORTS)    && ! pf->import_scheme())  return false;
+         if ((flags & UNDEFINED)  && ! pf->undefined())      return false;
 		 return true;  // plain ordinary function...
      } else { 
 		 if (flags & FUNCTIONS)  return false; // this isn't a function!
 		 if (pe->is_typename()) {
-		   if (flags & TYPEDEFS   && pe->is_typedef())   return true;
-		   if (flags & NAMESPACES && pe->is_namespace()) return true;
-		   if (flags & CLASSES    && pe->is_class())     return true;
+		   if ((flags & TYPEDEFS)   && pe->is_typedef())   return true;
+		   if ((flags & NAMESPACES) && pe->is_namespace()) return true;
+		   if ((flags & CLASSES)    && pe->is_class())     return true;
 		   return false;
 		 }
-		 else if (flags & NON_STATIC && pe->is_direct()) return false;
+		 else if ((flags & NON_STATIC) && pe->is_direct()) return false;
 		 else {
           if (! (flags & FIELDS)) return false;
-	      if (flags & TEMPS  && pe->name[0] != '$')  return false;
-	      if (flags & CONSTS && ! t.is_const())      return false;
+	      if ((flags & TEMPS)  && pe->name[0] != '$')  return false;
+	      if ((flags & CONSTS) && ! t.is_const())      return false;
 		  return true;
          }
      } 	 
@@ -314,7 +314,7 @@ PEntry Table::search_entries(TableSearcher *search,EntryList* el,int flags)
 {
   PEntry pe;  
   // look in the parent context if requested
-  if (flags & DO_PARENT && m_parent != NULL) {
+  if ((flags & DO_PARENT) && m_parent != NULL) {
 	  pe = m_parent->search_entries(search,el,flags);
 	  if (pe && ! el) return pe;
   }  

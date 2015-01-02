@@ -19,10 +19,6 @@
 #include <algorithm>
 #include <cstring>
 
-// found in directcall.cpp - these are used to allocate and deallocate C++ objects in the DLL
-void *_new_ex(int sz);
-void _delete_ex(char *ptr,int sz); 
-void *_new_vect_ex(int n,int sz);
 
 ImportScheme::ImportScheme()
  : m_vmt_ofs(0),m_patched(false),m_vtable(NULL),m_vtable_size(0),m_ghost_classes(NULL)
@@ -55,13 +51,13 @@ ImportScheme::vtable_read_slot(int id)
 }
 
 void
-ImportScheme::vtable_write(char *obj)
+ImportScheme::vtable_write(void *obj)
 {
   ((VTable *)obj)[m_vmt_ofs] = m_vtable; 
 }
 
 VTable
-ImportScheme::vtable_read(char *obj)
+ImportScheme::vtable_read(void *obj)
 {
    m_vtable = ((VTable *)obj)[m_vmt_ofs];
    return m_vtable;
