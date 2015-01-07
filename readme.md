@@ -20,7 +20,8 @@ target, especially for a portable version.)
 
 UnderC supports two extensions to the old standard, `decltype` and `auto`.
 `decltype` roughly corresponds to the new `decltype` keyword;
-`auto` is compatible with C++11.
+`auto` is compatible with C++11. The simplest form of raw string literal 
+`R"(string)"` is also supported. For example, `R"("/\")"` is equivalent to `"\"/\\\""`. 
 
 On the Downloads page there are 32-bit binaries for Linux and Windows; these do not have any
 extra dependencies (the Linux version merely requires libstdc++ 6). Extract them anywhere.
