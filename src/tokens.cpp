@@ -923,7 +923,7 @@ int TokenStream::next() {
   try {  // *fix 1.01 fatal_error() will throw a string!
 do_it_again:
     if (! skip_whitespace()) {
-      return 0;  // means: finis, end of file, bail out.
+      return T_END;  // means: finis, end of file, bail out.
     }
     if (iscsymf(*P)) { //--------------------- TOKENS --------------
       start_P = P;
