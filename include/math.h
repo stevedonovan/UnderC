@@ -36,7 +36,3 @@ extern "C" {
 }
 #lib
 #endif
-
-
-
-
