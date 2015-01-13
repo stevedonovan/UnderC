@@ -34,7 +34,8 @@ struct FileStruct {
   char  *save_P;
   string cwd;
 
-  FileStruct () {
+  FileStruct ()
+  {
     filename  = "";
     fin       = NULL;
     lineno    = 0;
@@ -42,7 +43,8 @@ struct FileStruct {
   }
 
   FileStruct (const FileStruct& fs)
-    : filename(fs.filename) {
+    : filename(fs.filename)
+  {
     fin = fs.fin;
     lineno = fs.lineno;
     save_buff = fs.save_buff;
@@ -113,7 +115,8 @@ public:
   double next_float();
 
   // overrideables
-  virtual bool user_cmd(string ppd) {
+  virtual bool user_cmd(string ppd)
+  {
     return true;
   }
   virtual void do_prompt()          {}
@@ -124,74 +127,91 @@ public:
   virtual void on_clear(const string& filename, int line) {}
   virtual void on_add_macro(char *name, PMEntry pme) { }
   virtual void on_error(const char *msg, bool is_error);
-  virtual int  eval_const_expr(const char* msg) {
+  virtual int  eval_const_expr(const char* msg)
+  {
     return 0;
   }
-  virtual	bool is_interactive_mode() {
+  virtual	bool is_interactive_mode()
+  {
     return false;
   }
 
   // inlines....
 
-  void set_prompt(PromptFn prompt) {
+  void set_prompt(PromptFn prompt)
+  {
     m_prompter = prompt;
   }
-  bool is_in_comment() {
+  bool is_in_comment()
+  {
     return in_comment;
   }
-  void need_line_feed(bool yes) {
+  void need_line_feed(bool yes)
+  {
     m_line_feed = yes;
   }
-  void c_string_mode(bool yes) {
+  void c_string_mode(bool yes)
+  {
     m_C_str = yes;
   }
   // *add 1.2.5 Support for defined() within #if expressions
-  void expecting_defined(bool yes) {
+  void expecting_defined(bool yes)
+  {
     m_expecting_defined = yes;
   }
 
   // used for bookmarking stream position...
   // be careful - only works w/in same line!
-  char *current()        {
+  char *current()
+  {
     return P;
   }
-  void  current(char *p) {
+  void  current(char *p)
+  {
     P = p;
   }
 
 
-  char getch() {
+  char getch()
+  {
     if (*P == 0 && !skip_whitespace()) {
-        return 0;
+      return 0;
     }
     return *P++;
   }
 
-  int lineno() {
+  int lineno()
+  {
     return line;
   }
 
-  string& file() {
+  string& file()
+  {
     return filename;
   }
 
-  void set_skip(uchar do_skip) {
+  void set_skip(uchar do_skip)
+  {
     m_skip = do_skip;
   }
 
-  uchar get_skip() {
+  uchar get_skip()
+  {
     return m_skip;
   }
 
-  void pop_skip() {
+  void pop_skip()
+  {
     m_skip = sstack.pop();
   }
 
-  void push_skip() {
+  void push_skip()
+  {
     sstack.push(m_skip);
   }
 
-  bool skip_stack_empty() {
+  bool skip_stack_empty()
+  {
     return sstack.empty();
   }
 };

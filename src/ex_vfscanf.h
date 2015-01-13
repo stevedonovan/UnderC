@@ -15,9 +15,9 @@ int ex_vfscanf(BUFFGETTER getter, char *fmt, va_list va);
 
 int con_fprintf(FILE *out, char *fmt, ...);
 char *con_fgets(char *buff, int sz, FILE *in);
-int con_fscanf(FILE *in, char *fmt,...);
+int con_fscanf(FILE *in, char *fmt, ...);
 
-int str_vprintf(char *fmt,va_list args);
+int str_vprintf(char *fmt, va_list args);
 char *skip_ws(char *s);
 char *str_getter(char *p);
 void str_gets(char *buff);

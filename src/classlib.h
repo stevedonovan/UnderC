@@ -11,22 +11,22 @@
 #include <iostream>
 
 
-# ifdef _CONSOLE
-// *add 1.2.4 Redirection of cmsg and cerr is by redefining them to be pointer references
-// (see errors.cpp for the implementation)
-extern std::ostream* _cmsg_out;
-extern std::ostream* _cerr_out;
-#   define cmsg *_cmsg_out
-#   define  cerr *_cerr_out
-# else
-// this is how the DLL redirects output...
-#  define cmsg str_cmsg
-#  undef cerr
-#  define cerr str_cerr
-#  undef cout
-#  define cout cmsg
-   extern std::ostringstream str_cmsg, str_cerr;
-# endif
+#ifdef _CONSOLE
+  // *add 1.2.4 Redirection of cmsg and cerr is by redefining them to be pointer references
+  // (see errors.cpp for the implementation)
+  extern std::ostream* _cmsg_out;
+  extern std::ostream* _cerr_out;
+  #define cmsg *_cmsg_out
+  #define  cerr *_cerr_out
+#else
+  // this is how the DLL redirects output...
+  #define cmsg str_cmsg
+  #undef cerr
+  #define cerr str_cerr
+  #undef cout
+  #define cout cmsg
+  extern std::ostringstream str_cmsg, str_cerr;
+#endif
 
 
 // disable warnings about template names being too long for the debugger..
@@ -39,22 +39,22 @@ extern std::ostream* _cerr_out;
 
 // *ch 1.2.9 patch
 #ifndef _WIN32
-// iscsym() and iscsymf() are useful <cctype> extensions found only on Windows
-#define iscsym(x)  (isalnum(x) || (x) == '_')
-#define iscsymf(x) (isalpha(x) || (x) == '_')
-// ditto for itoa()
-char *itoa(int, char *,int);
-#define __STDCALL
+  // iscsym() and iscsymf() are useful <cctype> extensions found only on Windows
+  #define iscsym(x)  (isalnum(x) || (x) == '_')
+  #define iscsymf(x) (isalpha(x) || (x) == '_')
+  // ditto for itoa()
+  char *itoa(int, char *, int);
+  #define __STDCALL
 #else
-#define __STDCALL __stdcall
+  #define __STDCALL __stdcall
 #endif
 
 // *fix 1.2.7 The GCC 3.2 <iostream> library is more uptodate, and doesn't
 // have nocreate.  However, for earlier versions we do need it explicitly!
 #if  __GNUC__ == 3
-#define IOS_IN_FLAGS ios::in 
+  #define IOS_IN_FLAGS ios::in
 #else
-#define IOS_IN_FLAGS ios::nocreate
+  #define IOS_IN_FLAGS ios::nocreate
 #endif
 
 #endif

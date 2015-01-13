@@ -56,16 +56,19 @@ static char abuff[STRSIZE];
 
 typedef TokenStream& TS;
 
-char *last_line() {
+char *last_line()
+{
   return lbuff;
 }
 
 // note: cmsg is defined in classlib.h as being cout for plain ol console.
-void warning(TS tok, string msg, bool is_error = false) {
+void warning(TS tok, string msg, bool is_error = false)
+{
   tok.on_error(msg.c_str(), is_error);
 }
 
-void fatal_error(TS tok, string msg) {
+void fatal_error(TS tok, string msg)
+{
   warning(tok, msg, true);
 }
 
@@ -75,25 +78,29 @@ typedef std::map<string, PMEntry> MacroTable;
 
 static MacroTable mMacroTable;
 
-void macro_cleanup() {
+void macro_cleanup()
+{
   mMacroTable.clear();
 }
 
-static PMEntry macro_lookup(char *name) {
+static PMEntry macro_lookup(char *name)
+{
   static string nm = "-------------------------------------------";
   nm = name;
   MacroTable::iterator imt = mMacroTable.find(nm);
   return (imt != mMacroTable.end()) ? imt->second : NULL;
 }
 
-static PMEntry macro_new(const char *name) {
+static PMEntry macro_new(const char *name)
+{
   PMEntry pme = new MEntry;
   mMacroTable[name] = pme;
   pme->is_alias = false;  // by default
   return pme;
 }
 
-bool TokenStream::macro_delete(const char *name) {
+bool TokenStream::macro_delete(const char *name)
+{
   PMEntry pme = mMacroTable[name];
   if (!pme) {
     return false;  // wasn't there in the first place!
@@ -103,27 +110,31 @@ bool TokenStream::macro_delete(const char *name) {
   return true;
 }
 
-void TokenStream::macro_builtin(const char *name, int id) {
+void TokenStream::macro_builtin(const char *name, int id)
+{
   PMEntry pme = macro_new(name);
   pme->subst = NULL;
   pme->nargs = id;
 }
 
-void TokenStream::macro_subst(const char *name, const char *subst) {
+void TokenStream::macro_subst(const char *name, const char *subst)
+{
   PMEntry pme = macro_new(name);
   pme->subst = (char *)subst;
   pme->nargs = 0;
 }
 
 
-void TokenStream::quote_str(char *dest, const char *src) {
+void TokenStream::quote_str(char *dest, const char *src)
+{
   strcpy(dest, "\"");
   strcat(dest, src);
   strcat(dest, "\"");
 }
 //-----------------TokenStream class------------------------
 
-TokenStream::TokenStream(const char *fname, UserCommand cmd) {
+TokenStream::TokenStream(const char *fname, UserCommand cmd)
+{
   inf = NULL;
   filename = "DUD";
   m_C_str = true;
@@ -140,23 +151,27 @@ TokenStream::TokenStream(const char *fname, UserCommand cmd) {
 
 static char mPromptBuffer[MAX_PROMPT_SIZE];
 
-char* TokenStream::get_prompt_buffer() {
+char* TokenStream::get_prompt_buffer()
+{
   return mPromptBuffer;
 }
 
-void TokenStream::on_error(const char *msg, bool is_error) {
+void TokenStream::on_error(const char *msg, bool is_error)
+{
   cerr << file() << '(' << lineno() << ") " << msg << std::endl;
   if (is_error) {
     exit(-1);
   }
 }
 
-void TokenStream::set_str(char *str) {
+void TokenStream::set_str(char *str)
+{
   *str = 0;  // just in case...
   start = P = start_P = str;
 }
 
-TokenStream::~TokenStream() {
+TokenStream::~TokenStream()
+{
   close();
 }
 
@@ -168,7 +183,8 @@ TokenStream::~TokenStream() {
 #endif
 
 // *add 1.2.6 exported as uc_include_path
-int _uc_include_path(const char *fname, char* buff, int sz) {
+int _uc_include_path(const char *fname, char* buff, int sz)
+{
   int knt = 0;
   string path = fname;
   while(! Utils::can_access(path)) {
@@ -185,7 +201,8 @@ int _uc_include_path(const char *fname, char* buff, int sz) {
 // Now supports multiple include paths!
 // Normal include will now also check these paths...
 
-bool TokenStream::open(const char *fname, bool system_include) {
+bool TokenStream::open(const char *fname, bool system_include)
+{
 //..try to allocate and open a file stream
   std::istream* is = NULL;
   string path, new_cwd, dir;
@@ -247,7 +264,8 @@ bool TokenStream::open(const char *fname, bool system_include) {
 
 static Stack <int, MAX_FILE_DEPTH> mOldSkip;
 
-bool TokenStream::close() {
+bool TokenStream::close()
+{
   if (inf) {
     if (inf != con_in) {
       delete inf;
@@ -280,7 +298,8 @@ bool TokenStream::close() {
   return inf != NULL;
 }
 
-void TokenStream::clear() {
+void TokenStream::clear()
+{
   mOldSkip.clear();
   sstack.clear();
   set_skip(false);
@@ -294,7 +313,8 @@ void TokenStream::clear() {
   set_str(buff); // and clear buffer!
 }
 
-bool TokenStream::insert_stream(std::istream *is, const char *name, int start_line, const string& new_cwd) {
+bool TokenStream::insert_stream(std::istream *is, const char *name, int start_line, const string& new_cwd)
+{
   if (! is || !(*is) || is->eof()) {
     return false;
   }
@@ -326,11 +346,13 @@ bool TokenStream::insert_stream(std::istream *is, const char *name, int start_li
   return true;
 }
 
-bool TokenStream::is_interactive() {
+bool TokenStream::is_interactive()
+{
   return inf == con_in;   // *change 1.0.0 Should be more efficient
 }
 
-int grab_macro_args(TokenStream& tok, char **args) {
+int grab_macro_args(TokenStream& tok, char **args)
+{
   int nargs = 0;
   char ch = tok.next();
   if (ch != '(') {
@@ -352,7 +374,8 @@ int grab_macro_args(TokenStream& tok, char **args) {
   return nargs;
 }
 
-int grab_actual_args(TokenStream& tok, char **args) {
+int grab_actual_args(TokenStream& tok, char **args)
+{
   // *fix 1.2.2b (Eric) 1: quoted macro arguments are grabbed verbatim; 2: code cleanup
   char ch, *q = tbuff;
   bool in_quote = false;
@@ -411,11 +434,13 @@ int grab_actual_args(TokenStream& tok, char **args) {
 
 
 
-void expecting_macro_name(TS tok) {
+void expecting_macro_name(TS tok)
+{
   fatal_error(tok, "expecting macro name");
 }
 
-void expecting_string(TS tok) {
+void expecting_string(TS tok)
+{
   fatal_error(tok, "expecting string");
 }
 
@@ -423,7 +448,8 @@ void expecting_string(TS tok) {
 struct Restore {
   TokenStream& tok;
   Restore(TokenStream& t) : tok(t) { }
-  ~Restore() {
+  ~Restore()
+  {
     tok.on_hash_cmd();
   }
 };
@@ -433,7 +459,8 @@ const uchar NO_SKIP = 0,     // prepro is not skipping statements
             BLOCK_SKIP = 2,  // finished with a #if/elsif/../endif
             NESTED_SKIP = 3; // we are within a block which is skipping
 
-static uchar do_else(TokenStream& tok) {
+static uchar do_else(TokenStream& tok)
+{
   if (tok.skip_stack_empty()) {
     fatal_error(tok, "misplaced #else/#elif");
   }
@@ -445,7 +472,8 @@ static uchar do_else(TokenStream& tok) {
   return tok.get_skip();
 }
 
-bool do_prepro_directive(TokenStream& tok) {
+bool do_prepro_directive(TokenStream& tok)
+{
   Restore after(tok);
   string ppd, path;
   // *add 1.2.6 null directive - also ignores shell script (e.g. #!/bin/ucc -f....)
@@ -586,13 +614,15 @@ bool do_prepro_directive(TokenStream& tok) {
   return true;
 }
 
-void TokenStream::grab_next() {
+void TokenStream::grab_next()
+{
 // *hack 1.1.4 a cheap & nasty way of looking ahead in the stream....
   inf->getline(lbuff, LINESIZE);
   strcat(buff, lbuff);
 }
 
-bool TokenStream::look_ahead_more(char ch) {
+bool TokenStream::look_ahead_more(char ch)
+{
   char *p = P;
   while (true) {
     while (*p && isspace(*p)) {
@@ -605,7 +635,8 @@ bool TokenStream::look_ahead_more(char ch) {
   }
 }
 
-bool TokenStream::fetch_line() {
+bool TokenStream::fetch_line()
+{
   int len;
   bool continuation = true;
   *buff = '\0';
@@ -726,7 +757,8 @@ char *TokenStream::get_upto(char ch, bool discard_ch)
   }
 }
 
-void TokenStream::discard_line() {
+void TokenStream::discard_line()
+{
   *P = 0;
   skip_whitespace();
 }
@@ -735,7 +767,8 @@ void TokenStream::discard_line() {
 //  up the template line number diagnostics.  But it's still
 //  giving grief - need to handle the case where there's something
 //  still in the input buffer (as is usually the case)
-void TokenStream::grab_line(char *buff) {
+void TokenStream::grab_line(char *buff)
+{
   skip_whitespace();
   start_P = P;
   P += strlen(P);
@@ -760,7 +793,8 @@ void TokenStream::insert_string(char *str)
 
 bool no_new_line = false;
 
-bool TokenStream::skip_whitespace() {
+bool TokenStream::skip_whitespace()
+{
 top:
   while(*P && isspace(*P)) {
     P++;
@@ -793,7 +827,8 @@ top:
   return true;
 }
 
-int grab_alias_args(char *ptr, char **args) {
+int grab_alias_args(char *ptr, char **args)
+{
   int nargs = 0;
   char *tok = strtok(ptr, " "); //Utils::quote_strtok(ptr);
   while (tok != NULL) {
@@ -804,7 +839,8 @@ int grab_alias_args(char *ptr, char **args) {
   return nargs;
 }
 
-void separate_alias_commands(TokenStream& tok) {
+void separate_alias_commands(TokenStream& tok)
+{
 // approved way to fetch the whole line
   char *line = strdup(tok.get_upto(0, true));
   char *cmds[10], buff[80];
@@ -832,13 +868,15 @@ void separate_alias_commands(TokenStream& tok) {
   }
 }
 
-void TokenStream::skip_digits() {
+void TokenStream::skip_digits()
+{
   while(isdigit(*P)) {
     P++;
   }
 }
 
-static bool first_token_in(char *buff, char *P) {
+static bool first_token_in(char *buff, char *P)
+{
   if (P == buff) {
     return true;
   }
@@ -852,7 +890,8 @@ static bool first_token_in(char *buff, char *P) {
 // *change 1.2.2 I've separated out the macro substitution code from next()
 // and broken it into the two cases, C macros and aliases, explicitly.
 
-bool TokenStream::macro_attempt_process(char*& p, char *out, char *tok) {
+bool TokenStream::macro_attempt_process(char*& p, char *out, char *tok)
+{
   PMEntry pme = macro_lookup(tok);
   *out = '\0';
   if (! pme || pme->is_alias) {
@@ -867,7 +906,8 @@ bool TokenStream::macro_attempt_process(char*& p, char *out, char *tok) {
   return true;
 }
 
-void TokenStream::macro_process(PMEntry pme, char *out) {
+void TokenStream::macro_process(PMEntry pme, char *out)
+{
   char *args[MAX_MACRO_ARGS];
   char temp_buff[TT_BUFFSIZE];
   int nargs;
@@ -895,7 +935,8 @@ void TokenStream::macro_process(PMEntry pme, char *out) {
   }
 }
 
-void TokenStream::alias_process(PMEntry pme) {
+void TokenStream::alias_process(PMEntry pme)
+{
   char *args[MAX_MACRO_ARGS];
   char temp_buff[TT_BUFFSIZE];
   int nargs;
@@ -919,7 +960,8 @@ void TokenStream::alias_process(PMEntry pme) {
   }
 }
 
-int TokenStream::next() {
+int TokenStream::next()
+{
   try {  // *fix 1.01 fatal_error() will throw a string!
 do_it_again:
     if (! skip_whitespace()) {
@@ -1137,15 +1179,18 @@ int TokenStream::look_ahead(bool skip_wspace)
   return *P;
 }
 
-int TokenStream::peek_ahead(int count) {
+int TokenStream::peek_ahead(int count)
+{
   return *(P + count);
 }
 
-char *TokenStream::get_string() {
+char *TokenStream::get_string()
+{
   return sbuff;
 }
 
-char *TokenStream::peek_next_token() {
+char *TokenStream::peek_next_token()
+{
 // This is a hack and only use it if you are slowly going mad with frustration.
 // It will return an empty buffer if there's no more tokens on the current line.
   char *ptr = P;
@@ -1162,7 +1207,8 @@ char *TokenStream::peek_next_token() {
   return tbuff;
 }
 
-char *TokenStream::get_str(char *tok) {
+char *TokenStream::get_str(char *tok)
+{
   if (tok == NULL) {
     tok = tbuff;
   }
@@ -1170,21 +1216,25 @@ char *TokenStream::get_str(char *tok) {
   return tok;
 }
 
-char *TokenStream::get_token() {
+char *TokenStream::get_token()
+{
   return tbuff;
 }
 
-double TokenStream::get_float() {
+double TokenStream::get_float()
+{
   char buff[20];
   return atof(get_str(buff));
 }
 
-int TokenStream::get_int() {
+int TokenStream::get_int()
+{
   char buff[20];
   return convert_int(get_str(buff), int_type == T_INT ? 10 : 16);
 }
 
-double TokenStream::next_float() {
+double TokenStream::next_float()
+{
   int t;
   do {
     t = next();
@@ -1195,7 +1245,8 @@ double TokenStream::next_float() {
   return 0.0;
 }
 
-void TokenStream::set_include_dir(const char *s) {
+void TokenStream::set_include_dir(const char *s)
+{
 // *fix 1.2.2 Check for too many include paths
   if (mNoIncludePaths + 1 >= MAX_INCLUDE_PATHS) {
     cerr << "Out of room for include paths!" << std::endl;

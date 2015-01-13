@@ -56,7 +56,8 @@ typedef Instruction *PInstruction;
 class Class;
 typedef Class **PPClass;
 
-inline PPClass *VMT(void *p) {
+inline PPClass *VMT(void *p)
+{
   return (PPClass *)( (char *)p - 4 );
 }
 
@@ -107,16 +108,20 @@ public:
   void add_catch_block(Type t, int ip_offs);
   int match_thrown_object(Type t, void *obj);
 
-  Label *label()      {
+  Label *label()
+  {
     return m_end_label;
   }
-  FBlock *fun_block() {
+  FBlock *fun_block()
+  {
     return m_fb;
   }
-  void *thrown_object() {
+  void *thrown_object()
+  {
     return m_thrown_object;
   }
-  Type  thrown_type()   {
+  Type  thrown_type()
+  {
     return m_thrown_type;
   }
 

@@ -19,7 +19,7 @@ long get_file_time(const char *file)
   FILETIME at; // hahmm
   OFSTRUCT ofs;
   void *hFile = (void *)OpenFile(file, &ofs, OF_READ);
-  GetFileTime(hFile,NULL,NULL,&at);
+  GetFileTime(hFile, NULL, NULL, &at);
   CloseHandle(hFile);
   __int64 *f = (__int64 *)&at;
   (*f) /= 100000;
@@ -30,7 +30,9 @@ long get_file_time(const char *file)
 Handle load_library(const char *name)
 {
 // *add 1.2.0 Support for $caller under Win32
-  if (name==NULL) return get_process_handle();
+  if (name == NULL) {
+    return get_process_handle();
+  }
   return (Handle) LoadLibrary(name);
 }
 
@@ -41,19 +43,22 @@ void free_library(Handle h)
 
 void *get_proc_address(Handle h, const char *name)
 {
- // *add 1.2.0 if there's a supplied .imp file, we use that
- // *add 1.2.2 (Eric) if it's not in the imp file, try the DLL...
- // *add 1.2.5 imp file may contain _absolute_ addresses
-    if (Builtin::using_ordinal_lookup()) {
-        int ordn = Builtin::lookup_ordinal(name);
-        if (ordn!=0) {
-          if (Builtin::lookup_is_ordinal())
-	         name = (const char *)ordn;
-  // and pass through
-	      else return (void *)ordn;
-	}
+// *add 1.2.0 if there's a supplied .imp file, we use that
+// *add 1.2.2 (Eric) if it's not in the imp file, try the DLL...
+// *add 1.2.5 imp file may contain _absolute_ addresses
+  if (Builtin::using_ordinal_lookup()) {
+    int ordn = Builtin::lookup_ordinal(name);
+    if (ordn != 0) {
+      if (Builtin::lookup_is_ordinal()) {
+        name = (const char *)ordn;
+      }
+      // and pass through
+      else {
+        return (void *)ordn;
+      }
     }
-    return (void*)GetProcAddress((HINSTANCE)h,name);
+  }
+  return (void*)GetProcAddress((HINSTANCE)h, name);
 }
 
 Handle get_process_handle()
@@ -70,15 +75,15 @@ Handle get_process_handle()
 
 char *itoa(int val, char *buff, int)
 {
-  sprintf(buff,"%d",val);
+  sprintf(buff, "%d", val);
   return buff;
 }
 
 long get_file_time(const char *filename)
 {
- struct stat st;
- stat(filename,&st);
- return st.st_mtime;
+  struct stat st;
+  stat(filename, &st);
+  return st.st_mtime;
 }
 
 // *ch 1.2.9 patch
@@ -91,59 +96,62 @@ long get_file_time(const char *filename)
 
 Handle get_process_handle()
 {
- image_info ii;
- int32 cookie = 0;
- while (get_next_image_info(0, &cookie, &ii) >= B_OK) {
-  if (ii.type == B_APP_IMAGE)
-   return (Handle) ii.id;
- }
- return (Handle) 0;
+  image_info ii;
+  int32 cookie = 0;
+  while (get_next_image_info(0, &cookie, &ii) >= B_OK) {
+    if (ii.type == B_APP_IMAGE) {
+      return (Handle) ii.id;
+    }
+  }
+  return (Handle) 0;
 }
 
 Handle load_library(const char *name)
 {
- image_info ii;
- int32 cookie = 0;
- /* XXX: needs a better euristic */
- while (get_next_image_info(0, &cookie, &ii) >= B_OK) {
-  printf("img: %s\n", ii.name);
-  if (strstr(ii.name, name)) {
-   puts("match");
-   return (Handle)ii.id;
+  image_info ii;
+  int32 cookie = 0;
+  /* XXX: needs a better euristic */
+  while (get_next_image_info(0, &cookie, &ii) >= B_OK) {
+    printf("img: %s\n", ii.name);
+    if (strstr(ii.name, name)) {
+      puts("match");
+      return (Handle)ii.id;
+    }
   }
- }
- printf("dlopen(%s)\n", name);
- /* not yet loaded: load it ourselves */
- return dlopen(name, RTLD_LAZY);
+  printf("dlopen(%s)\n", name);
+  /* not yet loaded: load it ourselves */
+  return dlopen(name, RTLD_LAZY);
 }
 
 void free_library(Handle h)
 {
- image_info ii;
- image_id img = (image_id)h;
- printf("free_library(%08lx)\n", h); /* XXX:DBG */
- if (get_image_info(img, &ii) == B_OK) {
-  if (ii.type == B_ADD_ON_IMAGE)
-   unload_add_on(img);
- }
+  image_info ii;
+  image_id img = (image_id)h;
+  printf("free_library(%08lx)\n", h); /* XXX:DBG */
+  if (get_image_info(img, &ii) == B_OK) {
+    if (ii.type == B_ADD_ON_IMAGE) {
+      unload_add_on(img);
+    }
+  }
 }
 
 void *get_proc_address(Handle h, const char *name)
 {
- void *sym;
- image_id img = (image_id)h;
- printf("get_proc_address(%08lx, %s)\n", h, name); /* XXX:DBG */
+  void *sym;
+  image_id img = (image_id)h;
+  printf("get_proc_address(%08lx, %s)\n", h, name); /* XXX:DBG */
   // *add 1.2.4 In the case of Linux, the .IMP file actually contains
   // absolute addresses.
- if (Builtin::using_ordinal_lookup()) {
-   int ordn = Builtin::lookup_ordinal(name);
-   if (ordn!=0) {
-    return (void *)ordn;
-   }
- }
- if (get_image_symbol(img, name, B_SYMBOL_TYPE_ANY, &sym) < B_OK)
-  return NULL;
- return sym;
+  if (Builtin::using_ordinal_lookup()) {
+    int ordn = Builtin::lookup_ordinal(name);
+    if (ordn != 0) {
+      return (void *)ordn;
+    }
+  }
+  if (get_image_symbol(img, name, B_SYMBOL_TYPE_ANY, &sym) < B_OK) {
+    return NULL;
+  }
+  return sym;
 }
 
 #else /* __BEOS__ */
@@ -151,16 +159,16 @@ void *get_proc_address(Handle h, const char *name)
 
 Handle get_process_handle()
 {
-   return NULL;
+  return NULL;
 }
 
 Handle load_library(const char *name)
 {
-  Handle h = dlopen(*name!=0 ? name : NULL,RTLD_LAZY);
-    if (h == NULL) {
-        puts(dlerror());
-    }
-    return h;
+  Handle h = dlopen(*name != 0 ? name : NULL, RTLD_LAZY);
+  if (h == NULL) {
+    puts(dlerror());
+  }
+  return h;
 }
 
 void free_library(Handle h)
@@ -172,13 +180,13 @@ void *get_proc_address(Handle h, const char *name)
 {
   // *add 1.2.4 In the case of Linux, the .IMP file actually contains
   // absolute addresses.
- if (Builtin::using_ordinal_lookup()) {
-   int ordn = Builtin::lookup_ordinal(name);
-   if (ordn!=0) {
-     return (void *)ordn;
-   }
+  if (Builtin::using_ordinal_lookup()) {
+    int ordn = Builtin::lookup_ordinal(name);
+    if (ordn != 0) {
+      return (void *)ordn;
+    }
   }
- return dlsym(h,name);
+  return dlsym(h, name);
 }
 
 #endif /* __BEOS__ */

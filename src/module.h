@@ -17,15 +17,33 @@ public:
 
   bool contains(int l)
   {
-     return l >= m_start && l <= m_end;
+    return l >= m_start && l <= m_end;
   }
 
-  void  *    object()     { return m_pf; }
-  Class *    as_class()   { return (Class *)m_pf; }
-  Function * function()   { return (Function *)m_pf; }
-  int type()   { return m_type;  }
-  int lstart() { return m_start; }
-  int lend()   { return m_end;   }
+  void  *    object()
+  {
+    return m_pf;
+  }
+  Class *    as_class()
+  {
+    return (Class *)m_pf;
+  }
+  Function * function()
+  {
+    return (Function *)m_pf;
+  }
+  int type()
+  {
+    return m_type;
+  }
+  int lstart()
+  {
+    return m_start;
+  }
+  int lend()
+  {
+    return m_end;
+  }
 };
 class Module;
 typedef  std::list<ModuleEntry> ModuleEntryList;
@@ -42,19 +60,31 @@ private:
   EntryList m_typenames;
   StringList m_macros;
 public:
-    enum { FUNS = 1, DEPEND = 2, ALL = 3 };
+  enum { FUNS = 1, DEPEND = 2, ALL = 3 };
   typedef ModuleEntryList::iterator entry_iterator;
   Module(const string& name, int id);
   Function *function_at(int lineno);
-  string name() { return m_name; }
-  int    id()   { return m_id;   }
-  int    inc_refcount() { return m_rc++; }
-  int    refcount()     { return m_rc;   }
+  string name()
+  {
+    return m_name;
+  }
+  int    id()
+  {
+    return m_id;
+  }
+  int    inc_refcount()
+  {
+    return m_rc++;
+  }
+  int    refcount()
+  {
+    return m_rc;
+  }
 
   static Function *function_from_file(const string& file, int lineno);
   static int       file_from_function(Function *pf, string& file);
   static Module *create(const string& file);
-  static Module *current(); 
+  static Module *current();
   static void remove(Module *pm);
   static Module *from_id(int id);
   static Module *from_name(const string& file);
@@ -70,16 +100,25 @@ public:
   void reset_flags();
   void dump(std::ostream& os, int flags);
 
-  entry_iterator  entry_begin() { return m_entry_list.begin(); }
-  entry_iterator  entry_end() { return m_entry_list.end(); }  
+  entry_iterator  entry_begin()
+  {
+    return m_entry_list.begin();
+  }
+  entry_iterator  entry_end()
+  {
+    return m_entry_list.end();
+  }
   entry_iterator  find(void *pf);
 
   void add_entry(ModuleEntry& me);
   void add_function(Function *pf, int l1, int l2);
   void add_class(Class *pf, int l1, int l2);
   void add_typename(PEntry pe);
-  void add_macro(const string& s)  { m_macros.push_back(s);     } 
-  int  get_function_line(Function* pf); 
+  void add_macro(const string& s)
+  {
+    m_macros.push_back(s);
+  }
+  int  get_function_line(Function* pf);
   void clean_macros_and_typedefs();
   bool is_inside(Function *pf, int l);
   bool is_modified();

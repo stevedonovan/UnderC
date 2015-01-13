@@ -7,12 +7,12 @@
  */
 
 namespace Main {
- void initialize();
- bool process_command_line(int& argc, char**& argv);
- void banner();
- void finalize();
- int interactive_loop();
- char *uc_exec_name();
- string uc_lib_dir();
+void initialize();
+bool process_command_line(int& argc, char**& argv);
+void banner();
+void finalize();
+int interactive_loop();
+char *uc_exec_name();
+string uc_lib_dir();
 };
 

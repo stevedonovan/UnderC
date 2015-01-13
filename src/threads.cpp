@@ -13,22 +13,25 @@ static DWORD WINAPI ThreadFunction(LPVOID parm);
 
 int KernelObject::wait()
 {
- DWORD dw = WaitForSingleObject(m_handle, INFINITE);
- if (dw == WAIT_OBJECT_0) { // Mutex became signalled!
+  DWORD dw = WaitForSingleObject(m_handle, INFINITE);
+  if (dw == WAIT_OBJECT_0) { // Mutex became signalled!
     return 1;
- }
- else throw("abandoned mutex???"); 
- return 0;
+  } else {
+    throw("abandoned mutex???");
+  }
+  return 0;
 }
 
 void *KernelObject::handle()
 {
- return (void *)m_handle;
+  return (void *)m_handle;
 }
 
 KernelObject::~KernelObject()
 {
-    if (m_own) CloseHandle(m_handle);
+  if (m_own) {
+    CloseHandle(m_handle);
+  }
 }
 
 Thread::Thread(bool owner)
@@ -36,10 +39,11 @@ Thread::Thread(bool owner)
   DWORD thread_id;
   m_own = owner;
   if (m_own) {
-    m_handle = CreateThread(NULL,0,ThreadFunction,
-                  this,CREATE_SUSPENDED,&thread_id);
-  } else
+    m_handle = CreateThread(NULL, 0, ThreadFunction,
+                            this, CREATE_SUSPENDED, &thread_id);
+  } else {
     m_handle = GetCurrentThread();
+  }
 }
 
 
@@ -70,7 +74,7 @@ void Thread::suspend()
 
 void Thread::sleep(int msec)
 {
- Sleep(msec);
+  Sleep(msec);
 }
 
 static long gTime;
@@ -88,91 +92,100 @@ long Thread::elapsed_time()
 __declspec(thread) bool mtLocal = true;
 
 ulong Thread::local()
-{ return mtLocal; }
+{
+  return mtLocal;
+}
 
 void Thread::local(ulong n)
-{ mtLocal = n ? true : false; }
+{
+  mtLocal = n ? true : false;
+}
 
 
 void Thread::kill()
 {
-  TerminateThread(m_handle,0);
+  TerminateThread(m_handle, 0);
 }
 
 int Thread::execute()
 {
- return 1;
+  return 1;
 }
 
 static DWORD WINAPI ThreadFunction(LPVOID parm)
 {
- PThread(parm)->execute(); 
- return 1;
+  PThread(parm)->execute();
+  return 1;
 }
 
 //----------------------------- Mutex ---------------------------
 Mutex::Mutex(char *name)
 {
-  m_handle = CreateMutex(NULL,FALSE,name);
+  m_handle = CreateMutex(NULL, FALSE, name);
   m_own = true;
 }
 
 int Mutex::release()
 {
- ReleaseMutex(m_handle);
- return 1;
+  ReleaseMutex(m_handle);
+  return 1;
 }
 
 Lock::Lock()
 {
- m_data = new CRITICAL_SECTION;
- InitializeCriticalSection((LPCRITICAL_SECTION)m_data);
+  m_data = new CRITICAL_SECTION;
+  InitializeCriticalSection((LPCRITICAL_SECTION)m_data);
 }
 
 Lock::~Lock()
 {
- DeleteCriticalSection((LPCRITICAL_SECTION)m_data); 
- delete (LPCRITICAL_SECTION)m_data;
+  DeleteCriticalSection((LPCRITICAL_SECTION)m_data);
+  delete (LPCRITICAL_SECTION)m_data;
 }
 
 int tick_count()
-{ return GetCurrentTime(); }
+{
+  return GetCurrentTime();
+}
 
 int win_exec(char *prog)
 {
- int res = WinExec(prog, SW_SHOW);
- if (res > 1) return 1; 
- else return 0;
+  int res = WinExec(prog, SW_SHOW);
+  if (res > 1) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 void kill_process(int retcode)
 {
   ExitProcess(retcode);
-}  
+}
 
 // *add 1.2.4
 
 Event::Event(char *name)
 {
-    m_handle = CreateEvent(NULL,FALSE,FALSE,name);
-    reset();
-    m_own = true;
+  m_handle = CreateEvent(NULL, FALSE, FALSE, name);
+  reset();
+  m_own = true;
 }
 
 void Event::reset()
 {
-    ResetEvent(m_handle);
-    m_set = false;
+  ResetEvent(m_handle);
+  m_set = false;
 }
 
 void Event::set()
 {
-    SetEvent(m_handle);
-    m_set = true;
+  SetEvent(m_handle);
+  m_set = true;
 }
 
 bool Event::is_set()
 {
-    return m_set;
+  return m_set;
 }
 

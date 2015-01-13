@@ -10,7 +10,9 @@ bool add_unique(std::list<T>& ls, T t)
 // useful little routine for keeping lists unique
   typename std::list<T>::iterator is;
   for(is = ls.begin(); is != ls.end(); ++is)
-     if (*is == t) return false;  // already there
+    if (*is == t) {
+      return false;  // already there
+    }
   ls.push_back(t);
   return true;
 }
@@ -20,8 +22,10 @@ T list_item(std::list<T>& ls, int i)
 {
   typename std::list<T>::iterator is;
   int ii = 0;
-  for(is = ls.begin(); is != ls.end(); ++is,++ii)
-    if (ii == i) return *is;
+  for(is = ls.begin(); is != ls.end(); ++is, ++ii)
+    if (ii == i) {
+      return *is;
+    }
   return 0;
 }
 
@@ -30,9 +34,11 @@ bool find(std::list<T>& ls, T t)
 {
   typename std::list<T>::iterator is;
   for(is = ls.begin(); is != ls.end(); ++is)
-    if (*is == t) return true;
+    if (*is == t) {
+      return true;
+    }
   return false;
 }
 
-} 
+}
 #endif

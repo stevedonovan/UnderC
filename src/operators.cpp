@@ -36,7 +36,8 @@ NameMap name_map;
 
 namespace Operators {
 
-void init() {
+void init()
+{
   init_lookup();
   add("<", LESS_THAN, "<<", LSHIFT, "<=", LEQ,
       "<<=", SHL_A, 0);
@@ -62,11 +63,13 @@ void init() {
 //*Note shd pass through!!
 }
 
-void init_lookup() {
+void init_lookup()
+{
   memset(ch_lookup, 0, sizeof(void *) * 128);
 }
 
-void add(char *first, int id, ...) {
+void add(char *first, int id, ...)
+{
   char *str;
   va_list ap;
   va_start(ap, id);
@@ -104,7 +107,8 @@ void add(char *first, int id, ...) {
 }
 
 
-int lookup(int ch, TokenStream& ts) {
+int lookup(int ch, TokenStream& ts)
+{
   LookupStruct *ls = ch_lookup[ch];
   if (!ls) {
     return ch;  // pass through
@@ -126,7 +130,8 @@ int lookup(int ch, TokenStream& ts) {
   return ls->op;
 }
 
-string name_from_id(int id) {
+string name_from_id(int id)
+{
   NameMap::iterator nmi = name_map.find(id);
   if (nmi != name_map.end()) {
     return nmi->second;  // "operator" + string(nmi->second);

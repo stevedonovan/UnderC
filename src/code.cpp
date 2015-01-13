@@ -19,17 +19,20 @@ std::map<int, int> equiv_op, float_equiv;
 
 typedef unsigned char uchar;
 
-int make_word(uchar c1, uchar c2) {
+int make_word(uchar c1, uchar c2)
+{
   return c1 + (c2 << 8);
 }
 
 int builtin_conversion(Type t, Type te);
 
-void UCContext::jump(int op, Label *lbl) {
+void UCContext::jump(int op, Label *lbl)
+{
   emit(op, NONE, lbl->addr());
 }
 
-void UCContext::emit(int opcode, PExpr e) {
+void UCContext::emit(int opcode, PExpr e)
+{
   if (!e) {
     emit(opcode, NONE, 0);
   } else {
@@ -43,34 +46,41 @@ void UCContext::emit(int opcode, PExpr e) {
   }
 }
 
-void UCContext::emit(int opcode, int rm, int data) {
+void UCContext::emit(int opcode, int rm, int data)
+{
   emitc(opcode, (RMode)rm, data);
 }
 
-void UCContext::emit_data_instruction(int opcode, unsigned long data) {
+void UCContext::emit_data_instruction(int opcode, unsigned long data)
+{
 // The operand for a number of instructions is a 20bit offset to an allocated 32-bit word.
   emit(opcode, DIRECT, Parser::global().alloc_int(data));
 }
 
 typedef unsigned long ulong;
 
-void UCContext::emit_push_int(int sz) {
+void UCContext::emit_push_int(int sz)
+{
   emit_data_instruction(PUSHI, (ulong) sz);
 }
 
-void UCContext::emit_type_instr(int opcode, Type t) {
+void UCContext::emit_type_instr(int opcode, Type t)
+{
   emit_data_instruction(opcode, Parser::AsTType(t));
 }
 
-void UCContext::emit_except_throw(Type t) {
+void UCContext::emit_except_throw(Type t)
+{
   emit_type_instr(THROW_EX, t);
 }
 
-void UCContext::emit_dynamic_cast(Type t) {
+void UCContext::emit_dynamic_cast(Type t)
+{
   emit_type_instr(DCAST, t);
 }
 
-void UCContext::init() {
+void UCContext::init()
+{
   static int equivalents[] = {STAR, MUL, DIVIDE, DIV, PLUS, ADD, MINUS, SUB,
                               MODULO, MOD, LSHIFT, SHL, RSHIFT, SHR, BIN_AND, AND, BIN_OR, OR,
                               BIN_XOR, XOR, EQUAL, EQ, NOT_EQUAL, NEQ, LESS_THAN, LESS, GREATER, GREAT,
@@ -91,11 +101,13 @@ void UCContext::init() {
 }
 
 // *fix 0.9.3 Replaced naive is_double check in builtin conversions and stack droppings
-bool is_double_number(const Type& t) {
+bool is_double_number(const Type& t)
+{
   return t.is_double() && !t.is_pointer() /*!t.is_ref_or_ptr()*/ ;
 }
 
-int UCContext::builtin_conversion(Type t, Type te) {
+int UCContext::builtin_conversion(Type t, Type te)
+{
 // *fix 1.1.4 We could not do a simple float to int conversion!
 // note: returning 0 means no operation!
   if (t.is_int()) {
@@ -139,7 +151,8 @@ int UCContext::builtin_conversion(Type t, Type te) {
 }
 
 ///------------------Label class and management functions-----------------------------
-void Label::here(int offs) {
+void Label::here(int offs)
+{
   m_offset =   m_code->ip_offset() + offs;
   if (m_refs.size() > 0)
     for(LI p = m_refs.begin(); p != m_refs.end(); ++p) {
@@ -147,7 +160,8 @@ void Label::here(int offs) {
     }
 }
 
-int Label::addr() {
+int Label::addr()
+{
   if(m_offset >= 0) {
     return m_offset;
   }
@@ -155,12 +169,14 @@ int Label::addr() {
   return 0;
 }
 
-void Label::remove(Instruction *pi) {
+void Label::remove(Instruction *pi)
+{
   m_refs.remove(pi);
 }
 
 // *add 1.2.5 A specialized operation: patch the instruction before the first reference with a NOP
-void Label::patch_with_NOP() {
+void Label::patch_with_NOP()
+{
   Instruction* ii = m_refs.front();
   ii--;
   ii->opcode = HALT;
@@ -169,20 +185,24 @@ void Label::patch_with_NOP() {
 }
 
 ///---------- Switch block generation
-SwitchBlock::SwitchBlock(UCContext *code) : m_code(code), m_default_jmp(0) {
+SwitchBlock::SwitchBlock(UCContext *code) : m_code(code), m_default_jmp(0)
+{
   m_start = code->current_pi();
 }
 
-void SwitchBlock::add_jump(int val) {
+void SwitchBlock::add_jump(int val)
+{
   m_list.push_back(val);
   m_list.push_back(m_code->ip_offset());
 }
 
-void SwitchBlock::add_default() {
+void SwitchBlock::add_default()
+{
   m_default_jmp = m_code->ip_offset();
 }
 
-SwitchBlock *SwitchBlock::construct() {
+SwitchBlock *SwitchBlock::construct()
+{
   if(!m_default_jmp) {
     m_default_jmp = m_code->ip_offset();
   }
@@ -200,7 +220,8 @@ SwitchBlock *SwitchBlock::construct() {
   return this;
 }
 
-void UCContext::emit_stack_op(int op, Type t) {
+void UCContext::emit_stack_op(int op, Type t)
+{
 // the stack operations DUP & DROP come in single and double varieties.
   if (is_double_number(t)) {
     emit(op + 1);
@@ -211,7 +232,8 @@ void UCContext::emit_stack_op(int op, Type t) {
 
 // a var encodes in three distinct ways
 // a NULL reference means that this is relative to TOS!
-void UCContext::emit_reference(PExpr ex, int flags, int tcode) {
+void UCContext::emit_reference(PExpr ex, int flags, int tcode)
+{
   if (ex) {
     PEntry pe = ex->entry();
     Type t = ex->type();
@@ -239,7 +261,8 @@ void UCContext::emit_reference(PExpr ex, int flags, int tcode) {
 }
 
 #include <stdarg.h>
-int choose(int val, ...) {
+int choose(int val, ...)
+{
   int key, value;
   va_list ap;
   va_start(ap, val);
@@ -256,7 +279,8 @@ int choose(int val, ...) {
 
 enum { CHAR_SZ, SHORT_SZ, POINTER_SZ, DOUBLE_SZ };
 
-int size_code(Type t) {
+int size_code(Type t)
+{
   if (t.is_pointer()) {
     return POINTER_SZ;
   }
@@ -273,7 +297,8 @@ int size_code(Type t) {
   }
 }
 
-bool passthrough_conversion(Type t, PExpr ex) {
+bool passthrough_conversion(Type t, PExpr ex)
+{
   if (ex == NULL) {
     return false;
   }
@@ -287,7 +312,8 @@ bool passthrough_conversion(Type t, PExpr ex) {
 //  bool dynamic()       { return flags & 2; }
 //  bool load_ODS()      { return flags & 1; }
 
-int ConstructBlock::make(PExpr er, int sz, bool is_dynamic, FBlock *pfb) {
+int ConstructBlock::make(PExpr er, int sz, bool is_dynamic, FBlock *pfb)
+{
   using Parser::global;
   int icb = global().alloc(sizeof(ConstructBlock), NULL);
   ConstructBlock *pcb = (ConstructBlock *)global().addr(icb);
@@ -311,7 +337,8 @@ int ConstructBlock::make(PExpr er, int sz, bool is_dynamic, FBlock *pfb) {
   return icb;
 }
 
-void push_object_ptr(UCContext *cntxt, PExpr e) {
+void push_object_ptr(UCContext *cntxt, PExpr e)
+{
   // push expression on the Object Stack
 //   if (Parser::state.in_method()) cntxt->pushed_op(true);
   if (e && e->is_entry() && e->entry()->type.is_object()) {
@@ -324,15 +351,18 @@ void push_object_ptr(UCContext *cntxt, PExpr e) {
   }
 }
 
-int offset_to_fun_block(Function *pf) {
+int offset_to_fun_block(Function *pf)
+{
   return Parser::global().offset(pf->fun_block());
 }
 
-static bool dont_use_map(Function *pf) {
+static bool dont_use_map(Function *pf)
+{
   return pf->class_context()->has_true_VMT();
 }
 
-void compile_function_call(UCContext* code, int op, int flags, PExpr ex, bool use_obj = false, PExpr obj = NULL, int icb = 0, bool is_dynamic = false) {
+void compile_function_call(UCContext* code, int op, int flags, PExpr ex, bool use_obj = false, PExpr obj = NULL, int icb = 0, bool is_dynamic = false)
+{
 // *fix 0.9.6 The DCALL function type _forces_ a function to be directly called, virtual or not
   PExprList args = ex->arg_list();
   Type ret_type;
@@ -424,7 +454,8 @@ void compile_function_call(UCContext* code, int op, int flags, PExpr ex, bool us
   }
 }
 
-void UCContext::emit_return(Type rt) {
+void UCContext::emit_return(Type rt)
+{
 // *fix 0.9.3 double& was being returned w/ RETD!
   int op;
   if (rt.is_double() && ! rt.is_ref_or_ptr()) {
@@ -437,7 +468,8 @@ void UCContext::emit_return(Type rt) {
   emit(op);
 }
 
-void UCContext::emit_native_function_call(Function *pfn, CALLFN fn) {
+void UCContext::emit_native_function_call(Function *pfn, CALLFN fn)
+{
   Type rt = pfn->return_type();
 // *change 1.2.0 Moved from compile_function_call()
 // for cdecl-style method imports,
@@ -473,7 +505,8 @@ void UCContext::emit_native_function_call(Function *pfn, CALLFN fn) {
 
 }
 
-void UCContext::compile(PExpr ex, int flags) {
+void UCContext::compile(PExpr ex, int flags)
+{
   static Label l1(this), l2(this);
   int tcode, ttype, opcode, op = ex->op();
   PExpr e1 = ex->arg1(), e2 = ex->arg2();

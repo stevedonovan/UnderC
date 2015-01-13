@@ -19,11 +19,13 @@
 #include "program.h"
 #include "loaded_module_list.h"
 
-int lo_byte(int data) {
+int lo_byte(int data)
+{
   return data & 0xFF;
 }
 
-int hi_byte(int data) {
+int hi_byte(int data)
+{
   return (data & 0xFF00) >> 8;
 }
 
@@ -34,7 +36,8 @@ int hi_byte(int data) {
 extern int gDebugBreak;
 extern FBlock* gFunBlock;
 void __break(int);
-void check_fun_block(FBlock* fb) {
+void check_fun_block(FBlock* fb)
+{
   if (gFunBlock == fb) {
     __break(3);
   }
@@ -68,7 +71,8 @@ const int EXEC_STACKSIZE = 100000, OBJECT_STACKSIZE = 9000;
 #define START_FB (FBlock *)0x0a
 
 void
-CodeGenerator::out(Instruction *is) {
+CodeGenerator::out(Instruction *is)
+{
   *pcode = *is;
   pcode++;
   NC++;
@@ -88,33 +92,39 @@ CodeGenerator::emitc(int opc, RMode rm, int data)
 }
 
 int
-CodeGenerator::total_instructions() {
+CodeGenerator::total_instructions()
+{
   return mTotal;
 }
 
 int
-CodeGenerator::ip_offset() {
+CodeGenerator::ip_offset()
+{
   return NC;  // *because it counts instructions!*
 }
 
 Instruction *
-CodeGenerator::current_pi() {
+CodeGenerator::current_pi()
+{
   return pcode;
 }
 
 
 Instruction *
-CodeGenerator::last_pi() {
+CodeGenerator::last_pi()
+{
   return pcode - 1;
 }
 
 void
-CodeGenerator::begin_code() {
+CodeGenerator::begin_code()
+{
   NC = 0;
 }
 
 void
-CodeGenerator::backspace() {
+CodeGenerator::backspace()
+{
   pcode--;
   NC--;
   mTotal--;
@@ -142,7 +152,8 @@ CodeGenerator::end_code()
 // *add 1.2.3a Returns non-NULL ptr to instruction if this function
 // has exactly one instruction
 Instruction*
-CodeGenerator::has_one_instruction(Function* pf) {
+CodeGenerator::has_one_instruction(Function* pf)
+{
   Instruction* ip = pf->fun_block()->pstart;
   // look past the RETx instruction to see the end-of-code marker
   if (ip && (ip + 2)->opcode == 0) {
@@ -153,7 +164,8 @@ CodeGenerator::has_one_instruction(Function* pf) {
 }
 
 Instruction *
-CodeGenerator::instruction_with_pointer(int opcode, void *ptr) {
+CodeGenerator::instruction_with_pointer(int opcode, void *ptr)
+{
   typedef void *pvoid;
   Instruction *pi = new Instruction();
   pi->opcode = opcode;
@@ -166,7 +178,8 @@ CodeGenerator::instruction_with_pointer(int opcode, void *ptr) {
 
 
 Instruction *
-x_copy_code(Instruction *iptr) {
+x_copy_code(Instruction *iptr)
+{
   Instruction *pi = iptr;
   while (pi->opcode != 0) {
     pi++;
@@ -182,7 +195,8 @@ const int FUNCTION_STACK_DEPTH = 3 * MAX_FUNCTION_DEPTH;
 static Stack<void *, FUNCTION_STACK_DEPTH> fs;
 char *mDataSeg;
 
-void Engine::set_data_seg(void *ptr) {
+void Engine::set_data_seg(void *ptr)
+{
   mDataSeg = (char *)ptr;
 }
 
@@ -196,22 +210,26 @@ static bool ptr_check;
 static int _stack_[EXEC_STACKSIZE];
 static int *mSP = _stack_ + EXEC_STACKSIZE - 1;
 
-void reset_execution_stack() {
+void reset_execution_stack()
+{
   // currently only called after stack overflow....
   mSP = _stack_ + EXEC_STACKSIZE - 1;
 }
 
 // double-word stack operations
 
-inline void push(int val) {
+inline void push(int val)
+{
   *(--mSP) = val;
 }
 
-inline int  pop() {
+inline int  pop()
+{
   return *(mSP++);
 }
 
-int popp() { // specialized pointer-checking pop!
+int popp()   // specialized pointer-checking pop!
+{
   int p = pop();
   if (ptr_check) {
     Builtin::bad_ptr_check((void *)p);
@@ -219,48 +237,58 @@ int popp() { // specialized pointer-checking pop!
   return p;
 }
 
-inline int& tos() {
+inline int& tos()
+{
   return *mSP;
 }
 
-inline void drop() {
+inline void drop()
+{
   ++mSP;
 }
 
-inline void pushf(float v) {
+inline void pushf(float v)
+{
   *((float *)--mSP) = v;
 }
 
-inline float popf() {
+inline float popf()
+{
   return *((float *)mSP++);
 }
 
 // quadword stack operations
 
-inline void push2(double fval) {
+inline void push2(double fval)
+{
   mSP -= 2;
   *((double *)mSP) = fval;
 }
 
-inline double pop2() {
+inline double pop2()
+{
   double tmp = *(double *)mSP;
   mSP += 2;
   return tmp;
 }
 
-inline double& tos2() {
+inline double& tos2()
+{
   return *(double *)mSP;
 }
 
-inline void   drop2() {
+inline void   drop2()
+{
   mSP += 2;
 }
 
-int stack_depth() {
+int stack_depth()
+{
   return  (int)_stack_ - (int)mSP;
 }
 
-void stack_report(std::ostream& os, int *base) {
+void stack_report(std::ostream& os, int *base)
+{
   os << "STACK: ";
   if (base == NULL) {
     base = _stack_;
@@ -275,7 +303,8 @@ void stack_report(std::ostream& os, int *base) {
   os << '(' << *base << ')' << std::endl;
 }
 
-int Engine::retval() {
+int Engine::retval()
+{
   return tos();
 }
 
@@ -285,16 +314,19 @@ static char *mOP;
 
 // these functions define the Virtual Method Table structure of UC
 
-inline PFBlock virtual_method_lookup(int slot) {
+inline PFBlock virtual_method_lookup(int slot)
+{
   return PFBlock( (*VMT(mOP))[slot] );
 }
 
-PFBlock virtual_method_imported_lookup(int slot) {
+PFBlock virtual_method_imported_lookup(int slot)
+{
 // *add 1.2.0 Imported objects may have associated VMTs!
   return PFBlock( (Class::find_VMT(mOP))[slot] );
 }
 
-PClass get_class_object(void *p) {
+PClass get_class_object(void *p)
+{
 // *change 1.2.0 In general, dynamic casts need to look in the VMT map
 // because objects may have been imported without a VMT in the usual position
   PPClass pc = Class::find_VMT(p);
@@ -305,22 +337,26 @@ PClass get_class_object(void *p) {
   }
 }
 
-PPClass& get_object_VMT(void* p) {
+PPClass& get_object_VMT(void* p)
+{
   return *VMT(p);
 }
 
-inline void opop() {
+inline void opop()
+{
   mOP = ostack.pop();
 }
 
-void chk_ods() {
+void chk_ods()
+{
   if (ostack.depth() > OBJECT_STACKSIZE) {
     ostack.clear();
   }
 
 }
 
-inline void opush(void *data) {
+inline void opush(void *data)
+{
   if (ptr_check) {
     Builtin::bad_ptr_check(data);
   }
@@ -328,21 +364,25 @@ inline void opush(void *data) {
   mOP = (char *)data;
 }
 
-inline char *otos() {
+inline char *otos()
+{
   return ostack.TOS();
 }
 
-void Engine::object_ptr(void *data) {
+void Engine::object_ptr(void *data)
+{
   mOP = (char *)data;
 }
 
-void *Engine::object_ptr() {
+void *Engine::object_ptr()
+{
   return mOP;
 }
 
 // potentially quite dubious - at the mo., only used so we can use JINC to move mOP
 // for object array construction.
-char **Engine::object_ptr_addr() {
+char **Engine::object_ptr_addr()
+{
   return &mOP;
 }
 
@@ -359,14 +399,16 @@ struct ExecutionState {
   bool m_cntxt_pushed;
   ArgBlock *m_xargs;
 
-  void save(Instruction *_ppcode, bool cpushed) {
+  void save(Instruction *_ppcode, bool cpushed)
+  {
     m_ppcode = _ppcode;
     m_fb = fb;
     m_baseSP = baseSP;
     m_cntxt_pushed = cpushed;
   }
 
-  void restore(bool& cpushed, ArgBlock *&args) {
+  void restore(bool& cpushed, ArgBlock *&args)
+  {
     ppcode = m_ppcode;
     fb = m_fb;
     baseSP = m_baseSP;
@@ -390,34 +432,41 @@ class VStack {
 private:
   std::vector<T> m_vec;
 public:
-  VStack() {
+  VStack()
+  {
     m_vec.reserve(N);
     m_vec.resize(0);
   }
 
-  void push(const T& val) {
+  void push(const T& val)
+  {
     m_vec.push_back(val);
   }
 
-  T pop() {
+  T pop()
+  {
     T val = m_vec.back();
     m_vec.pop_back();
     return val;
   }
 
-  bool empty() {
+  bool empty()
+  {
     return m_vec.size() = 0;
   }
 
-  void clear() {
+  void clear()
+  {
     m_vec.resize(0);
   }
 
-  int depth() {
+  int depth()
+  {
     return m_vec.size();
   }
 
-  T& get(int i) {
+  T& get(int i)
+  {
     return m_vec[i];
   }
 };
@@ -436,7 +485,8 @@ private:
   ODS_Record orec;
 public:
 
-  void push_object(PClass pc, void* obj) {
+  void push_object(PClass pc, void* obj)
+  {
     orec.m_class = pc;
     orec.m_obj = obj;
 #ifdef DEBUG_ODS
@@ -450,13 +500,15 @@ public:
     push(orec);
   }
 
-  void pop_object(PClass& pc, void*& obj) {
+  void pop_object(PClass& pc, void*& obj)
+  {
     orec = pop();
     pc = orec.m_class;
     obj = orec.m_obj;
   }
 
-  void fetch_object(int idx, PClass& pc, void*& obj) {
+  void fetch_object(int idx, PClass& pc, void*& obj)
+  {
     orec = get(idx);
     //orec = *ref_to_TOS(-idx);
     pc = orec.m_class;
@@ -464,7 +516,8 @@ public:
   }
 
 #ifdef DEBUG_ODS
-  void current_context(PClass& pc, PFunction& fn, int& offs) {
+  void current_context(PClass& pc, PFunction& fn, int& offs)
+  {
     // assumes basically that either pop_object() or fetch_object() has been called...
     fn = orec.m_fn;
     offs = orec.m_offs;
@@ -479,7 +532,8 @@ static ODStack mODS;
 void end_function();  // forward...
 
 #ifdef DEBUG_ODS
-void destruct_error(char *msg) {
+void destruct_error(char *msg)
+{
   PFunction fn;
   int ofs;
   PClass pc;
@@ -490,12 +544,14 @@ void destruct_error(char *msg) {
   exec_message(msg, true);
 }
 #else
-void destruct_error(char *msg) {
+void destruct_error(char *msg)
+{
   exec_message(msg, true);
 }
 #endif
 
-void do_unwind(void *p, ODStack& o_ds) {
+void do_unwind(void *p, ODStack& o_ds)
+{
 // unwind the Object Destruction Stack (ODS)
   FBlock * old_fb = fb;
   Instruction *old_ppcode = ppcode;
@@ -557,7 +613,8 @@ void do_unwind(void *p, ODStack& o_ds) {
 #define DEFER_MARKER ((PClass *)(0x777))
 
 #ifdef DEBUG_ODS
-void check_ODS() {
+void check_ODS()
+{
   int n  = mODS.depth();
   if (!n) {
     return;
@@ -638,7 +695,8 @@ int throw_exception(Type t, void *thrown_obj)
   return -1; // nobody wanted to catch this type!!
 }
 
-void *ventry(int slot, int offs) {
+void *ventry(int slot, int offs)
+{
   return (*(void ***)(mOP + offs))[slot];
 }
 
@@ -668,11 +726,13 @@ int switch_jump(int *sb, int val)
   }
 }
 
-void Engine::kill(int retcode) {
+void Engine::kill(int retcode)
+{
   ppcode = (Instruction *)end_of_code;
 }
 
-void reset_stacks() {
+void reset_stacks()
+{
   if (fs.depth() > 0) {
     cerr << "reseting stacks\n";
     reset_execution_stack();
@@ -683,7 +743,8 @@ void reset_stacks() {
 }
 
 // *change 1.2.4 separated out code for determining full function name
-string fname_from_fblock(FBlock* fun_block) {
+string fname_from_fblock(FBlock* fun_block)
+{
   if (fun_block == Parser::temp_fun_block()) {
     return "<temp>";
   }
@@ -697,17 +758,20 @@ string fname_from_fblock(FBlock* fun_block) {
 XTrace::XTrace(bool on_exit)
   : m_on_entry(true), m_on_exit(on_exit) { }
 
-void XTrace::enter(XExecState* xs) {
+void XTrace::enter(XExecState* xs)
+{
   cerr << "*ENTER " << fname_from_fblock(xs->fb) << std::endl;
 }
 
-void XTrace::leave(XExecState* xs) {
+void XTrace::leave(XExecState* xs)
+{
   cerr << "*LEAVE " << fname_from_fblock(xs->fb) << std::endl;
 }
 
 void get_stack_frame(int fi, ExecutionState& xs);
 
-XExecState* get_exec_state() {
+XExecState* get_exec_state()
+{
   static XExecState xs;
   ExecutionState exs;
   get_stack_frame(1, exs);
@@ -725,11 +789,13 @@ XExecState* get_exec_state() {
 // *add 1.2.4 Can switch tracing on & off globally
 static bool gCanTrace = true;
 
-void engine_set_tracing(bool yesno) {
+void engine_set_tracing(bool yesno)
+{
   gCanTrace = yesno;
 }
 
-void start_function(FBlock *_fb) {
+void start_function(FBlock *_fb)
+{
 #ifdef _DEBUG
   if (gFunBlock == fb) {
     __break(3);
@@ -780,7 +846,8 @@ void start_function(FBlock *_fb) {
 }
 
 // *add 1.2.4 Can switch off default exit behaviour for trace
-void end_function() {
+void end_function()
+{
 #ifdef _DEBUG
   if (gFunBlock == fb) {
     __break(3);
@@ -796,13 +863,15 @@ void end_function() {
   ppcode = (Instruction *)fs.pop();
 }
 
-void *fs_ptr(int offs) {
+void *fs_ptr(int offs)
+{
   return *fs.ref_to_TOS(offs);
 }
 
 
 // *add 1.1.1 Dumping the stack frame after a breakpoint halt
-void get_stack_frame(int fi, ExecutionState& xs) {
+void get_stack_frame(int fi, ExecutionState& xs)
+{
   if (fi == 0) {
     xs.m_baseSP = baseSP;
     xs.m_fb = fb;
@@ -815,7 +884,8 @@ void get_stack_frame(int fi, ExecutionState& xs) {
   }
 }
 
-int stack_frame_depth() {
+int stack_frame_depth()
+{
   return fs.depth() / 3 - 1;  // i.e. not interested in <temp>!
 }
 
@@ -823,7 +893,8 @@ int stack_frame_depth() {
 
 // *change 1.2.8 write out full name of function....
 // the report is now in a more parser-friendly format.
-void dump_fun_frame(int i, const ExecutionState& xs) {
+void dump_fun_frame(int i, const ExecutionState& xs)
+{
   LineInfo li;
   FBlock *this_fb = xs.m_fb;
   if (this_fb == START_FB) {
@@ -841,7 +912,8 @@ void dump_fun_frame(int i, const ExecutionState& xs) {
   }
 }
 
-void dump_fun_stack() {
+void dump_fun_stack()
+{
   ExecutionState xs;
 
   for(int i = 0, n = stack_frame_depth(); i < n; i++) {
@@ -850,7 +922,8 @@ void dump_fun_stack() {
   }
 }
 
-int *find_main_baseSP(char *fct) {
+int *find_main_baseSP(char *fct)
+{
   ExecutionState xs;
 
   for(int i = 0, n = stack_frame_depth(); i < n; i++) {
@@ -864,14 +937,16 @@ int *find_main_baseSP(char *fct) {
   return NULL;
 }
 
-void Engine::attach_main_context(char *fct) {
+void Engine::attach_main_context(char *fct)
+{
   Table *cntxt = Function::lookup(fct)->context();
   Parser::state.push_context(cntxt);
   baseSP = find_main_baseSP(fct);
 }
 
 // *add 1.1.1 Selecting a stack frame while halted
-void Engine::set_frame(int i, bool verbose) {
+void Engine::set_frame(int i, bool verbose)
+{
   ExecutionState xs;
   LineInfo li;
   Parser::state.pop_context();
@@ -903,18 +978,21 @@ static int s_initial_stack_depth;
 unsigned long instr_count = 0;
 const int STEP_PROFILE = 5;
 
-unsigned long* set_instruction_counter(bool do_profiling) {
+unsigned long* set_instruction_counter(bool do_profiling)
+{
   s_stepping = do_profiling ? STEP_PROFILE : 0;
   return &instr_count;
 }
 
 
 #ifdef _DEBUG
-int sh_offs() {
+int sh_offs()
+{
   return (int)mSP - (int)_stack_;
 }
 
-CEXPORT char *sh_fun() {
+CEXPORT char *sh_fun()
+{
   static string tmp;
   try {
     tmp = fname_from_fblock(fb);  // *change 1.2.4
@@ -924,7 +1002,8 @@ CEXPORT char *sh_fun() {
   }
 }
 
-char *sh_var(char *sym) {
+char *sh_var(char *sym)
+{
   static char buff[40];
   PEntry pe = Parser::symbol_lookup(sym);
   if (pe) {
@@ -937,7 +1016,8 @@ char *sh_var(char *sym) {
 }
 #endif
 
-int current_ip() {
+int current_ip()
+{
   return ((int)ppcode - (int)fb->pstart) / 4;
 }
 
@@ -1726,7 +1806,8 @@ JMP_case:
   return true;  // cool, everything ok.
 }
 
-bool Engine::set_single_stepping(bool single_step) {
+bool Engine::set_single_stepping(bool single_step)
+{
   Function* mfn = Function::lookup("main");
   s_main_fb = mfn->fun_block();
   // check to see if we are already halted at a breakpoint....
@@ -1749,7 +1830,8 @@ bool Engine::set_single_stepping(bool single_step) {
 }
 
 //*fix 1.2.8 must explicitly reset single stepping
-void Engine::reset_single_stepping() {
+void Engine::reset_single_stepping()
+{
   s_stepping = 0;
 }
 
@@ -1762,14 +1844,17 @@ Instruction *immediate_code_ptr();
 void immediate_code_ptr(Instruction *pi);
 };
 
-bool Engine::paused()   {
+bool Engine::paused()
+{
   return resume_state.m_fb != NULL;
 }
-bool Engine::running()  {
+bool Engine::running()
+{
   return fb != START_FB;
 }
 
-bool get_current_exec_pos(int& ip_offs, string& fname,  LineInfo& li) {
+bool get_current_exec_pos(int& ip_offs, string& fname,  LineInfo& li)
+{
   FunctionContext *fcxt = NULL;
   if (fb) {
     fcxt = (FunctionContext *)fb->context;
@@ -1784,12 +1869,14 @@ bool get_current_exec_pos(int& ip_offs, string& fname,  LineInfo& li) {
 }
 
 
-Table* context_of_function(LocalContext* lc) {
+Table* context_of_function(LocalContext* lc)
+{
   FunctionEntry* pfe = lc->function()->fun_entry();
   return pfe->reference()->context;
 }
 
-bool function_is_in_std(LocalContext* lc) {
+bool function_is_in_std(LocalContext* lc)
+{
   return context_of_function(lc) == Parser::std_namespace();
 }
 
@@ -1798,7 +1885,8 @@ bool function_is_in_std(LocalContext* lc) {
 // *NOTE*
 // 1. wd it apply to methods of classes w/in std?
 // 2. shd be a Function method - need it elsewhere.
-int get_current_exec_line() {
+int get_current_exec_line()
+{
   LineInfo li;
   int ip_offs;
   string fname;
@@ -1811,7 +1899,8 @@ int get_current_exec_line() {
   }
 }
 
-void  exec_message(char *msg, bool was_error, bool dont_unwind_error) {
+void  exec_message(char *msg, bool was_error, bool dont_unwind_error)
+{
   if (fb == START_FB) {
     cerr << msg << std::endl << "poppped!!" << std::endl;
     return;
@@ -1885,7 +1974,8 @@ void  exec_message(char *msg, bool was_error, bool dont_unwind_error) {
 }
 
 // *change 1.2.9 the 'static ODS' has been retired.
-void Engine::global_unwind() {
+void Engine::global_unwind()
+{
   //do_unwind(NULL,mStaticODS);
   LoadedModuleList::run_global_finalization();
 }
@@ -2043,7 +2133,8 @@ resume_execution:
   }
 }
 
-int handle_exception(PEntry epe, char *msg) {
+int handle_exception(PEntry epe, char *msg)
+{
   int ip = -1;
   if (epe != NULL) {
     ip = throw_exception(epe->type, epe->global_ptr());
@@ -2066,18 +2157,21 @@ int handle_exception(PEntry epe, char *msg) {
 }
 
 CatchHandler::CatchHandler(FBlock *fb)
-  : m_fb(fb) {
+  : m_fb(fb)
+{
   m_end_label = new Label(&Parser::code());
 }
 
-void CatchHandler::add_catch_block(Type t, int ip_offs) {
+void CatchHandler::add_catch_block(Type t, int ip_offs)
+{
   CatchBlock *pcb = new CatchBlock;
   pcb->type = t;
   pcb->ip_offset = ip_offs;
   m_catch_blocks.push_back(pcb);
 }
 
-int CatchHandler::match_thrown_object(Type t, void *obj) {
+int CatchHandler::match_thrown_object(Type t, void *obj)
+{
   CatchBlockList::iterator cbli;
   FORALL(cbli, m_catch_blocks) {
     Type ct = (*cbli)->type;

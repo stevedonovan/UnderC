@@ -11,7 +11,7 @@
 #include "errors.h"
 #include "input.h"
 #ifdef _WCON
-#include "ide.h"
+  #include "ide.h"
 #endif
 
 #include "program.h"
@@ -30,21 +30,28 @@ static string current_err;
 int yyerror(const char *s)
 {
 // *hack 1.2.9 Interactive mode final error involving "DUD" appears harmless
- if (Input::filename() == "DUD") return 1;
- cerr << Input::filename() << ' ' << Input::lineno() << ':' << s << std::endl;
- next_statement();
- // *fix 1.2.8 Insist on only collecting errors w/in the same file
- string old_file = Parser::state.file;
- if (old_file == "" || old_file == Input::filename()) {
-   if (Errors::output_is_redirected() && current_err.length() > 0) current_err += "\n";
-   current_err += s;
-   Parser::state.file = Input::filename();
-   Parser::state.lineno = Input::lineno();
- }
- return 1;
+  if (Input::filename() == "DUD") {
+    return 1;
+  }
+  cerr << Input::filename() << ' ' << Input::lineno() << ':' << s << std::endl;
+  next_statement();
+// *fix 1.2.8 Insist on only collecting errors w/in the same file
+  string old_file = Parser::state.file;
+  if (old_file == "" || old_file == Input::filename()) {
+    if (Errors::output_is_redirected() && current_err.length() > 0) {
+      current_err += "\n";
+    }
+    current_err += s;
+    Parser::state.file = Input::filename();
+    Parser::state.lineno = Input::lineno();
+  }
+  return 1;
 }
 
-char *msg_buffer() { return msg_buff; }
+char *msg_buffer()
+{
+  return msg_buff;
+}
 
 // Redirection mechanism. Except for the console-only build, the standard error
 // and message streams can be redirected into another ostream. Of course, cmsg
@@ -55,8 +62,8 @@ char *msg_buffer() { return msg_buff; }
 
 #ifndef _WCON
 
-std::ostrstream str_cmsg(msg_buff,MSG_BUFF_SIZE),
-           str_cerr(err_buff,ERR_BUFF_SIZE);
+std::ostrstream str_cmsg(msg_buff, MSG_BUFF_SIZE),
+    str_cerr(err_buff, ERR_BUFF_SIZE);
 
 static bool mDllOutputRedirected = false;
 void reset_output();
@@ -64,7 +71,7 @@ void reset_output();
 
 bool cerr_is_redirected(std::ostream&)
 {
-	return mDllOutputRedirected;
+  return mDllOutputRedirected;
 }
 
 #endif
@@ -73,44 +80,44 @@ char *
 Errors::get_redirect_buffer(int which)
 {
   if (which == 1) {
-	return msg_buff;
-  }	else
-  if (which == 2) {
-     strcpy(err_buff,current_err.c_str()); //err_buff;
-     current_err = "";
-     return err_buff;
+    return msg_buff;
+  }	else if (which == 2) {
+    strcpy(err_buff, current_err.c_str()); //err_buff;
+    current_err = "";
+    return err_buff;
+  } else {
+    return NULL;
   }
-  else return NULL;
 }
 
 void
 Errors::redirect_output(bool to_buff, bool main_console)
 {
 #ifdef _WCON
-    if (to_buff) {
-       wcon_redirect_output(cmsg,new ostrstream(msg_buff,MSG_BUFF_SIZE),main_console);
-       wcon_redirect_output(cerr,new ostrstream(err_buff,ERR_BUFF_SIZE),main_console);
-    } else {
-       wcon_redirect_off(cmsg);
-       wcon_redirect_off(cerr);
-    }
+  if (to_buff) {
+    wcon_redirect_output(cmsg, new ostrstream(msg_buff, MSG_BUFF_SIZE), main_console);
+    wcon_redirect_output(cerr, new ostrstream(err_buff, ERR_BUFF_SIZE), main_console);
+  } else {
+    wcon_redirect_off(cmsg);
+    wcon_redirect_off(cerr);
+  }
 #else
-	if (to_buff) {
+  if (to_buff) {
 #ifdef _CONSOLE
-          _cmsg_out = &str_cmsg;
-          _cerr_out = &str_cerr;
+    _cmsg_out = &str_cmsg;
+    _cerr_out = &str_cerr;
 #endif
-	   mDllOutputRedirected = true;
-	   str_cmsg.seekp(0);
-	   str_cerr.seekp(0);
-    } else {
+    mDllOutputRedirected = true;
+    str_cmsg.seekp(0);
+    str_cerr.seekp(0);
+  } else {
 #ifdef _CONSOLE
-           reset_output();
+    reset_output();
 #endif
-	   mDllOutputRedirected = false;
-           str_cmsg << std::ends;
-	   str_cerr << std::ends;
-    }
+    mDllOutputRedirected = false;
+    str_cmsg << std::ends;
+    str_cerr << std::ends;
+  }
 #endif
 }
 
@@ -142,26 +149,31 @@ Errors::set_halt_state(string msg, string fname, string file, int lineno, bool w
   if (! was_ip) {  // we shd try to at least find the file otherwise...
     Parser::state.file = file;
     Parser::state.lineno = lineno;
+  } else {
+    Parser::state.lineno = lineno;  // *fix 1.1.1 to flag us as having crashed!
   }
-  else Parser::state.lineno = lineno;  // *fix 1.1.1 to flag us as having crashed!
 
   //* if (was_error || ! output_is_redirected()) {
-      // *add 1.2.8 don't bug the user if we've already complained to the debugger...
-      // but preserve true error messages for the meantime.
-      if (! Parser::debug.interactive_debugging || was_error) {
-        if (! was_ip) cerr  << file << ' ' << lineno << ": ";
-        else cerr << '(' << lineno << ") ";
-        cerr << msg << std::endl;
-      }
+  // *add 1.2.8 don't bug the user if we've already complained to the debugger...
+  // but preserve true error messages for the meantime.
+  if (! Parser::debug.interactive_debugging || was_error) {
+    if (! was_ip) {
+      cerr  << file << ' ' << lineno << ": ";
+    } else {
+      cerr << '(' << lineno << ") ";
+    }
+    cerr << msg << std::endl;
+  }
 #ifdef _WCON
 // *change 1.2.8 we do not bother the IDE if this event happened outside the program thread.
-      if (! Program::in_main_thread()) {
-       if (was_error) {
-		wcon_clear(0);  // clear WCON input buffer as a precaution...
-        IDE::error(); // inform the IDE....
-       } else
-	    IDE::breakpoint();
-      }
+  if (! Program::in_main_thread()) {
+    if (was_error) {
+      wcon_clear(0);  // clear WCON input buffer as a precaution...
+      IDE::error(); // inform the IDE....
+    } else {
+      IDE::breakpoint();
+    }
+  }
 #endif
   //* }
 }
@@ -177,18 +189,22 @@ Errors::reset_error_state()
 int
 Errors::check_output()
 {
-    if (output_is_redirected()) { redirect_output(false); return 1; }
-    else return 0;
+  if (output_is_redirected()) {
+    redirect_output(false);
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 // *add 1.2.4 We can redirect cmsg and cerr in console mode by setting
 // these pointers appropriately (cmsg is #def'd to be *_cmsg_out etc - see classlib.h)
 #if defined(_CONSOLE) || defined(_USRDLL)
-# ifndef _FAKE_IOSTREAM
-#   undef cerr
-# endif
-  std::ostream* _cmsg_out = &std::cout;
-  std::ostream* _cerr_out = &std::cout;
+#ifndef _FAKE_IOSTREAM
+  #undef cerr
+#endif
+std::ostream* _cmsg_out = &std::cout;
+std::ostream* _cerr_out = &std::cout;
 
 void reset_output()
 {

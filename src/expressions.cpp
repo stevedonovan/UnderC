@@ -32,12 +32,14 @@ IntMap assign_equiv_op, float_op;
 };
 
 bool
-Expr::is_function() {
+Expr::is_function()
+{
   return m_op == FUNCTION || m_op == METHOD_CALL || m_op == DCALL;
 }
 
 string
-Expr::name() {
+Expr::name()
+{
   if (is_entry()) {
     if (!entry()->is_constant()) {
       return entry()->name;
@@ -56,15 +58,18 @@ Expr::name() {
 }
 
 bool
-Expr::is_variable() {
+Expr::is_variable()
+{
   return is_entry() && type().is_reference() && ! entry()->type.is_reference();
 }
 
-bool   Expr::is_expr_list() {
+bool   Expr::is_expr_list()
+{
   return is_function() && function() == NULL;
 }
 
-bool  Expr::is_brace_list() {
+bool  Expr::is_brace_list()
+{
   return is_expr_list() && m_type == t_int;
 }
 
@@ -76,12 +81,14 @@ string mErrMatch;
 
 PExpr expr_error(string msg); // forward
 
-void set_function_error(FunctionEntry* pfe, string str) {
+void set_function_error(FunctionEntry* pfe, string str)
+{
   mErrPfe = pfe;
   mErrMatch = str;
 }
 
-PExpr function_error() {
+PExpr function_error()
+{
   if (mErrPfe) {
     cerr << "Candidates were\n";
     mErrPfe->dump(cerr);
@@ -92,12 +99,14 @@ PExpr function_error() {
   return e;
 }
 
-PExpr function_call(const char *name, PExprList pel) {
+PExpr function_call(const char *name, PExprList pel)
+{
   Function *fn = Function::lookup(name);
   return new Expr(FUNCTION, fn->return_type(), fn, pel);
 }
 
-PExpr bcast_op(Type t, PExpr e) {
+PExpr bcast_op(Type t, PExpr e)
+{
   if (t == e->type()) {
     return e;
   } else {
@@ -108,11 +117,13 @@ PExpr bcast_op(Type t, PExpr e) {
   }
 }
 
-bool is_lvalue(Type t) {
+bool is_lvalue(Type t)
+{
   return t.is_reference() && !t.is_const();
 }
 
-Type type_of(PExpr e) {
+Type type_of(PExpr e)
+{
 // this peculiar logic is the inverse of that in entry_op() below!
   if (e->is_entry()) {
     return e->entry()->type;
@@ -124,34 +135,41 @@ Type type_of(PExpr e) {
 // *add 0.9.3 The (non-standard) typeof operator is still experimental.
 // So far, I have to strip reference types to make __typeof(*p)
 // work properly.
-Type typeof_op(PExpr e) {
+Type typeof_op(PExpr e)
+{
   Type t = type_of(e);
   t.strip_reference();
   return t;
 }
 
-bool is_true_reference(PExpr e) {
+bool is_true_reference(PExpr e)
+{
   return type_of(e).is_reference();
 }
 
-PExpr nil() {
+PExpr nil()
+{
   return new Expr(NIL, t_void);
 }
 
-PExpr expr_error(string msg) {
+PExpr expr_error(string msg)
+{
   error(msg);
   return nil();
 }
 
-string quoted_op_name(int op) {
+string quoted_op_name(int op)
+{
   return Parser::quotes(Operators::name_from_id(op));
 }
 
-PExpr not_for_float(int op) {
+PExpr not_for_float(int op)
+{
   return expr_error(quoted_op_name(op) + " does not take floating point arguments");
 }
 
-PExprList expr_list(PExpr e1, PExpr e2) {
+PExprList expr_list(PExpr e1, PExpr e2)
+{
   PExprList pel = new ExprList;
   if (e1) {
     pel->push_back(e1);
@@ -164,7 +182,8 @@ PExprList expr_list(PExpr e1, PExpr e2) {
 
 const int NTYPES = 9;
 
-PExpr pointer_addition_op(int op, PExpr e1, PExpr e2) {
+PExpr pointer_addition_op(int op, PExpr e1, PExpr e2)
+{
   if (op == MINUS) {
     e2 = make_op(UMINUS, e2->type(), e2);
   }
@@ -172,7 +191,8 @@ PExpr pointer_addition_op(int op, PExpr e1, PExpr e2) {
 }
 
 // here are the functions which the parser uses to generate expressions
-PExpr arith_op(int op, PExpr e1, PExpr e2) {
+PExpr arith_op(int op, PExpr e1, PExpr e2)
+{
   static Type types[NTYPES]
     = {t_double, t_ulong, t_long, t_uint, t_int, t_ushort, t_short, t_uchar, t_char};
   Type t1 = e1->type(), t2 = e2->type();
@@ -227,11 +247,13 @@ PExpr arith_op(int op, PExpr e1, PExpr e2) {
   return bin_op(op, e1, e2);
 }
 
-PExpr dot_function_op(void *pfn, PExpr obj) {
+PExpr dot_function_op(void *pfn, PExpr obj)
+{
   return make_op(DOT, obj->type(), obj, entry_op((PEntry)pfn));
 }
 
-PExpr method_op(PEntry pef, PExpr obj, PExprList pel) {
+PExpr method_op(PEntry pef, PExpr obj, PExprList pel)
+{
 // *NOTE* are we having returning-object problems w/ this one?
 // used for bin_op() methods, also operator().
   return function_op(dot_function_op(pef, obj), pel);
@@ -242,7 +264,8 @@ PEntry add_temporary(Type t, PExpr e, bool always_construct, bool dont_do_dtor =
 void set_first_object(PExpr e1);  // forward;
 PExpr init_op(PExpr el, int arr_sz, PExpr er, PExprList pel, int ctype); // forward;
 
-void fn_return_object(Type rt, PExprList args) {
+void fn_return_object(Type rt, PExprList args)
+{
 // Functions returning objects are passed a temporary reference;
 // if it's an object requiring destruction, we also push the ODS!
   PExpr et = entry_op(add_temporary(rt, NULL, false));
@@ -253,7 +276,8 @@ void fn_return_object(Type rt, PExprList args) {
 }
 
 // *add 1.2.6 true return-by-value requires a different coding;
-PExpr fn_return_object_as_value(Type rt, PExpr er) {
+PExpr fn_return_object_as_value(Type rt, PExpr er)
+{
   PExpr et = entry_op(add_temporary(rt, NULL, false));
   PExpr ret_obj = Parser::get_object_return_expr();
   Type init_rt = rt;
@@ -283,20 +307,24 @@ PExpr method_call(PFunction fn, PExpr obj, PExprList pel)
 
 typedef bool (TypeCheck)(Type t);
 
-bool to_number(Type t)  {
+bool to_number(Type t)
+{
   return t.is_number() ;
 }
-bool to_pointer(Type t) {
+bool to_pointer(Type t)
+{
   return t.is_pointer();
 }
 
 static Type mType;
 
-bool to_specified_type(Type t) {
+bool to_specified_type(Type t)
+{
   return match(mType, t) != NO_MATCH;
 }
 
-PExpr try_convert(PExpr e, TypeCheck type_check) {
+PExpr try_convert(PExpr e, TypeCheck type_check)
+{
   if (!e) {
     return NULL;
   }
@@ -319,12 +347,14 @@ PExpr try_convert(PExpr e, TypeCheck type_check) {
   return NULL;
 }
 
-PExpr try_convert_to(PExpr e, Type t) {
+PExpr try_convert_to(PExpr e, Type t)
+{
   mType = t;
   return try_convert(e, to_specified_type);
 }
 
-bool is_assign_op(int op) { // note: dependent on these values being continguous.
+bool is_assign_op(int op)   // note: dependent on these values being continguous.
+{
   return op >= ASSIGN && op <= XOR_A;
 }
 
@@ -339,15 +369,18 @@ bool is_object(PExpr e)
   return t.is_class() && !t.is_pointer();
 }
 
-string type_as_str(PExpr e) {
+string type_as_str(PExpr e)
+{
   return as_str(e->type());
 }
 
-PExpr cannot_convert_error(PExpr e1, PExpr e2) {
+PExpr cannot_convert_error(PExpr e1, PExpr e2)
+{
   return expr_error("cannot convert " + type_as_str(e2) + " to " + type_as_str(e1));
 }
 
-PExpr bin_op(int op, PExpr e1, PExpr e2) {
+PExpr bin_op(int op, PExpr e1, PExpr e2)
+{
   string name = Operators::name_from_id(op);
   PEntry pe = NULL;
   bool class_args = is_object(e1) || is_object(e2);
@@ -422,18 +455,21 @@ PExpr bin_op(int op, PExpr e1, PExpr e2) {
   }
 }
 
-PExpr append_op(PExpr e1, PExpr e2, bool drop_values) {
+PExpr append_op(PExpr e1, PExpr e2, bool drop_values)
+{
   return make_op(drop_values ? COMMA : APPEND, e1->type(), e1, e2);
 }
 
-void set_first_object(PExpr e1) {
+void set_first_object(PExpr e1)
+{
   if (e1->is_entry() && e1->entry()->is_stack_relative()) {
     // *fix 1.0.0 The first object on an auto var frame is the first one put on the ODS...
     e1->entry()->context->first_obj(e1->entry());
   }
 }
 
-PExpr construct_context_op(PExpr e1, PExpr e2, int ctype) {
+PExpr construct_context_op(PExpr e1, PExpr e2, int ctype)
+{
   Type t;
 // default is a normal auto var, ctype==1 means a temporary
   if (ctype == 0) {
@@ -445,23 +481,27 @@ PExpr construct_context_op(PExpr e1, PExpr e2, int ctype) {
   return make_op(CCONTEXT, t, e2, e1); //*NOTE* order has switched for DOT compat!
 }
 
-PExpr dynamic_context_op(PExpr efn) {
+PExpr dynamic_context_op(PExpr efn)
+{
   return make_op(DCONTEXT, t_void, efn, NULL);
 }
 
-PExpr vector_context_op(PExpr efn, PExpr e = NULL) {
+PExpr vector_context_op(PExpr efn, PExpr e = NULL)
+{
   if (e) {
     set_first_object(e);
   }
   return make_op(VCONTEXT, t_void, e, efn);
 }
 
-PExpr add_const_op(Type t, int val, PExpr e) {
+PExpr add_const_op(Type t, int val, PExpr e)
+{
   PExpr ec = constant_op(t_int, val);
   return make_op(PLUS, t, e, ec);
 }
 
-PExpr delete_op(PExpr e1, bool is_arr) {
+PExpr delete_op(PExpr e1, bool is_arr)
+{
 // destructing the object, if necessary, and freeing the memory
 // the pointer includes the VMT entry, if any, which means subtracting
 // a word to get the actual alloc pointer.
@@ -496,7 +536,8 @@ PExpr delete_op(PExpr e1, bool is_arr) {
   return er;
 }
 
-PExpr construct_op(PClass pc, PExprList pel, bool check_abstract) {
+PExpr construct_op(PClass pc, PExprList pel, bool check_abstract)
+{
   if (pc->is_abstract() && check_abstract) {
     return expr_error("class contains abstract methods");
   }
@@ -508,12 +549,14 @@ PExpr construct_op(PClass pc, PExprList pel, bool check_abstract) {
   return function_op(entry_op(pec), pel);
 }
 
-PExpr init_ref_op(PExpr el, PExpr er) {
+PExpr init_ref_op(PExpr el, PExpr er)
+{
 // NOTE(4) we are fed a _reference entry expression_, which is (* e)
   return new Expr(INIT_REF, t_void, el->arg1(), er);
 }
 
-static PExpr array_init_op(PEntry pe, PExprList pel) {
+static PExpr array_init_op(PEntry pe, PExprList pel)
+{
   ExprList::iterator eli = pel->begin();
   PExpr arr_expr, assign_expr;
   int mem_unit = (pe->is_stack_relative()) ? sizeof(int) : 1; // stack-relative counts in words...
@@ -533,13 +576,15 @@ static PExpr array_init_op(PEntry pe, PExprList pel) {
   return arr_expr;
 }
 
-static PExpr dot_op(PExpr obj, PEntry pe) {
+static PExpr dot_op(PExpr obj, PEntry pe)
+{
   PExpr ef = entry_op(pe);
   return make_op(DOT, ef->type(), obj, ef);
 }
 
 
-static PExpr struct_init_op(PExpr obj, PClass pc, PExprList pel) {
+static PExpr struct_init_op(PExpr obj, PClass pc, PExprList pel)
+{
   // *add 1.1.1 Explicit initialization of structs.
   // *fix 1.1.2 Handling of array fields & simplification.
   EntryList fields;
@@ -565,7 +610,8 @@ static PExpr struct_init_op(PExpr obj, PClass pc, PExprList pel) {
 }
 
 
-PExpr init_op(PExpr el, int arr_sz, PExpr er, PExprList pel, int ctype) {
+PExpr init_op(PExpr el, int arr_sz, PExpr er, PExprList pel, int ctype)
+{
 // initializing an auto object, if necessary calling the constructor
 // Only one of er and pel is non-NULL!
   Type t = el->type();
@@ -641,7 +687,8 @@ PExpr init_op(PExpr el, int arr_sz, PExpr er, PExprList pel, int ctype) {
 // constant expressions are directly evaluated.  If we can't fold the constant,
 // then the usual defered evaluation is carried out.  We do this to
 // support arrays being sized by constants.
-PExpr initialize_op(PEntry pe, PExpr er, PExprList pel, int ctype) {
+PExpr initialize_op(PEntry pe, PExpr er, PExprList pel, int ctype)
+{
   Type t = pe->type;
   if (Parser::debug.compile_program && pe->is_direct()
       && ! t.is_pointer() && t.is_int() && t.is_const()) {
@@ -664,7 +711,8 @@ PExpr initialize_op(PEntry pe, PExpr er, PExprList pel, int ctype) {
   return init_op(entry_op(pe), Parser::array_size(pe), er, pel, ctype);
 }
 
-PExpr expr_list_op(PExprList pel, bool is_list) {
+PExpr expr_list_op(PExprList pel, bool is_list)
+{
   PExpr ex = function_op(NULL, pel);
   if (! is_list) {
     ex->set_type(t_int);
@@ -672,17 +720,20 @@ PExpr expr_list_op(PExprList pel, bool is_list) {
   return ex;
 }
 
-void add_to_arg_list(PExpr ec, PExpr arg) {
+void add_to_arg_list(PExpr ec, PExpr arg)
+{
   PExprList pel = (PExprList) ec->arg2();
   pel->push_front(arg);
 }
 
-Type base_type(Type t) {
+Type base_type(Type t)
+{
   t.decr_pointer();
   return t;
 }
 
-PExpr new_op(Type t, PExpr e, PExprList pel) {
+PExpr new_op(Type t, PExpr e, PExprList pel)
+{
 // e represents the (opt.)_number_ of objects, pel the (opt.) _arguments_ to the constructor
 // *change 1.1.0 we switch to the overallocating version of new when there's a VMT
 // unless the operator was overloaded.
@@ -739,11 +790,13 @@ PExpr new_op(Type t, PExpr e, PExprList pel) {
   return er;
 }
 
-bool is_object(Type t) {
+bool is_object(Type t)
+{
   return t.is_class() && !t.is_pointer();  //*NOTE* Type::is_object
 }
 
-PExpr assign_op(PExpr e1, PExpr e2, bool constness) {
+PExpr assign_op(PExpr e1, PExpr e2, bool constness)
+{
   if (!e1) {
     return make_op(ASSIGN, e2->type(), NULL, e2);  // see above...only called from there?
   }
@@ -768,7 +821,8 @@ PExpr assign_op(PExpr e1, PExpr e2, bool constness) {
 
 PExpr convert_type_op(Type t, PExpr e, bool try_conversions_from = false); // forward
 
-PExpr cast_to_bool_op(PExpr e1) {
+PExpr cast_to_bool_op(PExpr e1)
+{
   Type t = e1->type();
 // it's necessary to strip the reference before is_object() works;
 // I'm sure this is going to cause grief elsewhere!
@@ -781,7 +835,8 @@ PExpr cast_to_bool_op(PExpr e1) {
   }
 }
 
-PExpr compound_assign_op(int op, PExpr e1, PExpr e2) {
+PExpr compound_assign_op(int op, PExpr e1, PExpr e2)
+{
   if (is_object(e1->type()) || is_object(e2->type()) ) {
     return bin_op(op, e1, e2);
   } else {
@@ -789,7 +844,8 @@ PExpr compound_assign_op(int op, PExpr e1, PExpr e2) {
   }
 }
 
-PEntry add_temporary(Type t, PExpr e, bool always_construct, bool dont_call_dtor) {
+PEntry add_temporary(Type t, PExpr e, bool always_construct, bool dont_call_dtor)
+{
   using namespace Parser;
   PEntry pe;
   state.check_context(0);
@@ -813,7 +869,8 @@ PEntry add_temporary(Type t, PExpr e, bool always_construct, bool dont_call_dtor
 // *fix 1.2.8 must guarantee that the temporary is initialized as close
 // to the point of use; this expression ensures that ctors for temp objects
 // are constructed next to the argument push value.
-PExpr construct_temporary_op(Type t, PExpr e, bool dont_call_dtor = false) {
+PExpr construct_temporary_op(Type t, PExpr e, bool dont_call_dtor = false)
+{
 //* return entry_op(add_temporary(t,e,true,dont_call_dtor));
   // create a temporary entry, but don't initialize it.
   PExpr ee = entry_op(add_temporary(t, NULL, false, dont_call_dtor));
@@ -833,7 +890,8 @@ PExpr construct_temporary_op(Type t, PExpr e, bool dont_call_dtor = false) {
 PExpr force_addr_op(Type tt, PExpr e);  // forward...
 
 // *note* in general this is the _initialization logic_
-PExpr return_op(Function *fn, Type rt, PExpr e) {
+PExpr return_op(Function *fn, Type rt, PExpr e)
+{
   if(rt.is_reference()) {
     return force_addr_op(rt, e);  // force a reference conversion
   } else if (rt.is_object()) {
@@ -857,7 +915,8 @@ PExpr return_op(Function *fn, Type rt, PExpr e) {
 // These guys are very similar by the array/pointer equivalence;
 // arrays are implemented as a dereference of a pointer addition.
 // note again that the result is an implicit reference!
-PExpr deref_op(PExpr e1, bool do_overload) {
+PExpr deref_op(PExpr e1, bool do_overload)
+{
   Type t = e1->type();
   if (t.is_pointer()) {
     // try to reduce (* (& x)) to x
@@ -875,7 +934,8 @@ PExpr deref_op(PExpr e1, bool do_overload) {
   }
 }
 
-PExpr array_op(PExpr e1, PExpr e2) {
+PExpr array_op(PExpr e1, PExpr e2)
+{
   if (e1->type().is_pointer()) {
     return deref_op(make_op(ARRAY, e1->type(), e1, e2));
   } else {
@@ -886,13 +946,15 @@ PExpr array_op(PExpr e1, PExpr e2) {
 // *fix 0.9.5 Non-reference values can be passed as references via a _reference stub_
 // (this copies the value into a temporary static var, and pushes the addr of that)
 // *fix 0.9.7 The target type can be of a different size, so we need it explicitly!
-PExpr reference_stub_op(Type tt, PExpr e) {
+PExpr reference_stub_op(Type tt, PExpr e)
+{
   tt.strip_qualifiers();
   PExpr temp = entry_op(Parser::state.add_variable(tt, "*", NULL, Static));
   return make_op(REF_STUB, tt, e, temp);
 }
 
-PExpr addr_op(PExpr e1, bool do_overload, bool force_reference /* = false */) {
+PExpr addr_op(PExpr e1, bool do_overload, bool force_reference /* = false */)
+{
 // tricky one this - not clear how to unambiguously distinguish the ordinary
 // old case!
   Type t = e1->type();
@@ -920,7 +982,8 @@ PExpr addr_op(PExpr e1, bool do_overload, bool force_reference /* = false */) {
   }
 }
 
-PExpr force_addr_op(Type tt, PExpr e) {
+PExpr force_addr_op(Type tt, PExpr e)
+{
 // This is ONLY called for reference conversions - so tt is always a reference....
   PExpr ex;
   if (e->op() == ADDR || e->type().size() != tt.size()) {
@@ -935,7 +998,8 @@ PExpr force_addr_op(Type tt, PExpr e) {
 
 Type t_const_int; // initialized in init();
 
-PExpr unary_op(int op, PExpr e1) {
+PExpr unary_op(int op, PExpr e1)
+{
 // A special case: -<number>
 // *NOTE* 1st Oct 00: let's think about this, because it would be
 // a good easier to get numbers in negative right from the start;
@@ -953,7 +1017,8 @@ PExpr unary_op(int op, PExpr e1) {
   }
 }
 
-PExpr arith_if_op(PExpr cond, PExpr e1, PExpr e2) {
+PExpr arith_if_op(PExpr cond, PExpr e1, PExpr e2)
+{
   PExpr rest = arith_op(':', e1, e2);
   return make_op(ARITH_IF, rest->type(), cond, rest);
 }
@@ -966,17 +1031,20 @@ PExpr sizeof_op(int type_size)
   return constant_op(t_int, type_size);
 }
 
-string t2s(Type t) {
+string t2s(Type t)
+{
   string ts;
   t.as_string(ts);
   return "'" + ts + "'";
 }
 
-bool type_has_VMT(Type t) {
+bool type_has_VMT(Type t)
+{
   return t.is_class() ? t.as_class()->has_VMT() : false;
 }
 
-PExpr typecast_op(int which, Type t, PExpr e) {
+PExpr typecast_op(int which, Type t, PExpr e)
+{
   Type te = type_of(e);
   if (which == DYNAMIC_CAST) { // *add 0.9.5 dynamic cast
     if (! t.is_class() && t != t_void_ptr) {
@@ -1001,7 +1069,8 @@ PExpr typecast_op(int which, Type t, PExpr e) {
 }
 
 // *fix 1.2.8 It's necessary to look at the 'no args' case specially.
-PExpr function_cast_op(Type t, PExprList pel) {
+PExpr function_cast_op(Type t, PExprList pel)
+{
   if (t.is_class() && !t.is_ref_or_ptr()) {
     return construct_temporary_op(t, pel->size() > 0 ? function_op(NULL, pel) : NULL);
   } else {
@@ -1012,11 +1081,13 @@ PExpr function_cast_op(Type t, PExprList pel) {
   }
 }
 
-PExpr must_be_lvalue(int op) {
+PExpr must_be_lvalue(int op)
+{
   return expr_error(Operators::name_from_id(op) + ": must be lvalue");
 }
 
-PExpr inc_dec_op(int op, PExpr e, bool is_postfix) {
+PExpr inc_dec_op(int op, PExpr e, bool is_postfix)
+{
   Type t = e->type();
 // C++ convention for indicating whether ++ is post or prefix: a dummy parm!
 // (cd easily be constant, but what the hell...
@@ -1053,11 +1124,13 @@ PExpr inc_dec_op(int op, PExpr e, bool is_postfix) {
 }
 
 
-PExpr equal_op(PExpr e1, PExpr e2) {
+PExpr equal_op(PExpr e1, PExpr e2)
+{
   return relational_op(EQUAL, e1, e2);
 }
 
-PExpr relational_op(int op, PExpr e1, PExpr e2) {
+PExpr relational_op(int op, PExpr e1, PExpr e2)
+{
   PExpr e;
   if (e2) {
     e = arith_op(op, e1, e2);
@@ -1071,7 +1144,8 @@ PExpr relational_op(int op, PExpr e1, PExpr e2) {
   return e;
 }
 
-PEntry ExprToEntry(PExpr e) {
+PEntry ExprToEntry(PExpr e)
+{
   return  e->entry();
 }
 
@@ -1102,14 +1176,16 @@ PExpr convert_function_ptr(PFunction pf, PExpr e)
   }
 }
 
-void generate_type_list(PExprList args, TypeList& tl) {
+void generate_type_list(PExprList args, TypeList& tl)
+{
   ExprList::iterator eli;
   for (eli = args->begin(); eli != args->end(); ++eli) {
     tl.push_back((*eli)->type());
   }
 }
 
-PExpr convert_type_op(Type t, PExpr e, bool try_conversions_from) {
+PExpr convert_type_op(Type t, PExpr e, bool try_conversions_from)
+{
 // *fix 1.1.3 will also try to use ctors to construct a type!
   Function *pf;
   // first try user-defined conversions, if the expression is an object
@@ -1131,27 +1207,32 @@ PExpr convert_type_op(Type t, PExpr e, bool try_conversions_from) {
   return NULL;  // no conversions possible
 }
 
-int min(int a, int b) {
+int min(int a, int b)
+{
   return a > b ? b : a;
 }
 
 
-bool was_plain(int match) {
+bool was_plain(int match)
+{
   return match == EXACT_MATCH || match == TRIVIAL_MATCH || match == PROMOTE_MATCH || match == STD_MATCH;
 }
 
-PExpr this_ref() {
+PExpr this_ref()
+{
   PEntry pe = new Entry();
   pe->data = THIS_OFFSET;
   return entry_op(pe);
 }
 
-PExpr pass_by_value(Type t, PExpr e) {
+PExpr pass_by_value(Type t, PExpr e)
+{
   PExpr ec = construct_op(t.as_class(), expr_list(e));
   return make_op(PASS_BY_VALUE, t, ec);
 }
 
-PExpr function_op(PExpr e, PExprList args, bool suppress_error) {
+PExpr function_op(PExpr e, PExprList args, bool suppress_error)
+{
   PExpr er;
   FunctionMatch fm;
   PFunction fn;
@@ -1323,12 +1404,14 @@ PExpr function_op(PExpr e, PExprList args, bool suppress_error) {
   }
 }
 
-PExpr expr_not_found_error(char *name, PClass pc) {
+PExpr expr_not_found_error(char *name, PClass pc)
+{
   using Parser::quotes;
   return expr_error(quotes(name) + " is not a member of " + quotes(pc->name()));
 }
 
-PExpr selection_op(PExpr e, char *name, bool is_ptr, bool is_member_ptr) {
+PExpr selection_op(PExpr e, char *name, bool is_ptr, bool is_member_ptr)
+{
   Type t = e->type();
   bool was_pointer = t.is_pointer();
 
@@ -1374,7 +1457,8 @@ PExpr selection_op(PExpr e, char *name, bool is_ptr, bool is_member_ptr) {
   return make_op(DOT, em->type(), e, em);
 }
 //----------------------------------------------------------
-PExpr entry_op(PEntry pe) {
+PExpr entry_op(PEntry pe)
+{
 // NOTE(3) identifiers are given an 'variable reference' type
 //  (Note: this replaces a scheme where it was actually a reference type! (Algol 68
 //   understood this kinda thing better).  We now have an extra type flag to indicate
@@ -1392,7 +1476,8 @@ PExpr entry_op(PEntry pe) {
   }
 }
 
-PExpr constant_op(Type t, unsigned long val) {
+PExpr constant_op(Type t, unsigned long val)
+{
   PEntry pe;
 //using Parser::create_const_entry;
   unsigned long *pi = (unsigned long *)Parser::create_const_entry(t, pe);
@@ -1401,7 +1486,8 @@ PExpr constant_op(Type t, unsigned long val) {
 }
 
 // *add 1.2.3 Experimental implementation of __lambda
-PExpr lambda_op(PEntry) {
+PExpr lambda_op(PEntry)
+{
   PEntry pe = Parser::symbol_lookup("_");
   FunctionEntry* pfe = (FunctionEntry*)pe->data;
 // *NOTE* shd dispose of '_'!!
@@ -1409,7 +1495,8 @@ PExpr lambda_op(PEntry) {
   return entry_op(pe);
 }
 
-PExpr make_op(int op, Type type, PExpr e1, PExpr e2/* = NULL */) {
+PExpr make_op(int op, Type type, PExpr e1, PExpr e2/* = NULL */)
+{
   return new Expr(op, type, e1, e2);
 }
 
@@ -1438,7 +1525,8 @@ PExpr clone (PExpr e)
   return er;
 }
 
-void dump(std::ostream& os, PExpr e) {
+void dump(std::ostream& os, PExpr e)
+{
   if (!e) {
     return;
   }
@@ -1473,7 +1561,8 @@ void dump(std::ostream& os, PExpr e) {
   }
 }
 
-void init() {
+void init()
+{
   int equiv[] = {MUL_A, STAR, DIV_A, DIVIDE, MOD_A, MODULO, ADD_A, PLUS, MINUS_A, MINUS,
                  SHL_A, LSHIFT, SHR_A, RSHIFT, BAND_A, BIN_AND, BOR_A, BIN_OR, XOR_A, BIN_XOR
                 };

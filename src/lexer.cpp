@@ -30,7 +30,8 @@ UCTokenStream input(NULL);
 // depending on whether it's a number, string, etc.  Do note that all constants
 // use the same mechanism as variables; they are allocated space in the data section.
 // This simplifies the instruction set w/out much impact on performance.
-static int do_constant(int c) {
+static int do_constant(int c)
+{
   static char buff[512];
   char *ptr = buff;
   char *endp;
@@ -97,7 +98,8 @@ static int do_constant(int c) {
 // these nasty things, we need to get it right. I'm now excluding any '::' found
 // within parens, as well as within angle brackets
 // *fix 1.2.7 This was broken for '(C<T> c, A::B)'. So I'm hopping out on ','
-static bool hunt_for_scope() {
+static bool hunt_for_scope()
+{
   int i = 0, level = 0;   // i wuz 1!!
   while (input.peek_ahead(i) != 0) {
     char c1 = input.peek_ahead(i), c2 = input.peek_ahead(i + 1);
@@ -117,7 +119,8 @@ static bool hunt_for_scope() {
   return false;
 }
 
-static int count(char *p, char ch, bool in_brackets) {
+static int count(char *p, char ch, bool in_brackets)
+{
   int blevel = 0, ncount = 0;
   while (*p) {
     if (*p == '{') {
@@ -144,7 +147,8 @@ extern bool no_new_line; // *HACK* *HACK*
 
 // *fix 1.2.3L GCC2.96 doesn't like local functions
 // just like strchr() but returns pointer to end of 'str' when not found
-static char *ch_search(char *str, char c) {
+static char *ch_search(char *str, char c)
+{
   while (*str && *str != c) {
     ++str;
   }
@@ -153,7 +157,8 @@ static char *ch_search(char *str, char c) {
 
 // *add 1.2.7 Finds the first character in buff which is not alphabetic,
 // a digit, or '_'
-static char *first_non_alphanum(char* p) {
+static char *first_non_alphanum(char* p)
+{
   while (*p && (isspace(*p) || *p == '_' || isalnum(*p))) {
     ++p;
   }
@@ -343,7 +348,8 @@ token_lookup:
 }
 
 // this is exported (via directcall.cpp) to give UC programmers access to #commands
-void uc_hash_cmd(char *s) {
+void uc_hash_cmd(char *s)
+{
   char *cmd = strtok(s, " ");
   char *rest = strtok(NULL, "");    // *fix 1.2.4 this fn wd fail if there were no args for the cmd!
   if (rest) {
@@ -359,21 +365,25 @@ void macro_substitute(TokenStream& tok, char *str, char *buff);
 
 
 // *add 1.2.2 Can now do macro substitutions on arbitrary strings
-void uc_macro_subst(const char *str, char *buff, int sz) {
+void uc_macro_subst(const char *str, char *buff, int sz)
+{
   // *NB* this routine can't check whether the buffer will overrun...
   macro_substitute(input, (char *)str, buff);
 }
 
 // two useful functions which can be used anywhere to tell where we are in the compilation...
-int Input::lineno() {
+int Input::lineno()
+{
   return input.lineno();
 }
 
-string Input::filename() {
+string Input::filename()
+{
   return input.file();
 }
 
-bool Input::open(const char *fname) {
+bool Input::open(const char *fname)
+{
 // *fix 1.0.1 Tokenizer::open() throws an exception!
   try {
     return input.open(fname);
@@ -382,38 +392,45 @@ bool Input::open(const char *fname) {
   }
 }
 
-void Input::clear() {
+void Input::clear()
+{
   input.clear();   // clear the file stack
 }
 
-void Input::insert_stream(std::istream *pos, const char *name, int start_line) {
+void Input::insert_stream(std::istream *pos, const char *name, int start_line)
+{
   input.insert_stream(pos, name, start_line);
 }
 
 // *add 1.2.7 Used to insert stuff into the input stream
 // It suffers from the limitations of TokenStream::insert_string(), i.e. it destroys existing buffer!
-void Input::insert_string(char* str) {
+void Input::insert_string(char* str)
+{
   input.insert_string(str);
 }
 
-void Input::grab_next_line(char *buff) {
+void Input::grab_next_line(char *buff)
+{
 // *I am quite dubious about this*
 //  strcpy(buff, input.get_upto(0,false));
 //  input.fetch_line();
   input.grab_line(buff);
 }
 
-char *Input::next_token(bool first) {
+char *Input::next_token(bool first)
+{
   // *fix 1.1.4L Watch out for whitespace and (NB) ignore \r!
   return strtok(first ? input.get_upto(0, false) : NULL, " \r\t");
 }
 
-void Input::set_open_restore(INTFN module_open, INTFN module_close) {
+void Input::set_open_restore(INTFN module_open, INTFN module_close)
+{
   input.set_open_op((RESTOREFN)module_open);
   input.set_restore_op((RESTOREFN)module_close);
 }
 
-PEntry Input::lookup_next_symbol() {
+PEntry Input::lookup_next_symbol()
+{
   Errors::reset_error_state();
   int tok = yylex();
   if (tok == TYPENAME_FUNCTION && input.next_two("::")) {

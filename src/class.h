@@ -8,13 +8,17 @@
 #include "function.h"
 
 class NamedObject {
- string m_name;
+  string m_name;
 public:
   NamedObject(string name) : m_name(name) { }
   string name()
-   { return m_name; }
+  {
+    return m_name;
+  }
   void set_name(string s)
-  { m_name = s; }
+  {
+    m_name = s;
+  }
 };
 
 class Enum: public NamedObject {
@@ -25,20 +29,26 @@ public:
   void add_entry(PEntry);
   Table* context();
   string lookup_value(int val);
-  PEntry entry()   { return m_entry; }
-  void   entry(PEntry pe) { m_entry = pe; }
+  PEntry entry()
+  {
+    return m_entry;
+  }
+  void   entry(PEntry pe)
+  {
+    m_entry = pe;
+  }
 };
 
-const int MAX_VMT_ENTRIES = 250, IS_STRUCT=TABLE+10;
+const int MAX_VMT_ENTRIES = 250, IS_STRUCT = TABLE + 10;
 
 class Function; // forward...
 
 struct MethodBody {
-    Function* pf;
-    string body;
+  Function* pf;
+  string body;
 
-    MethodBody(Function* _pf, string _body)
-        : pf(_pf),body(_body) { }
+  MethodBody(Function* _pf, string _body)
+    : pf(_pf), body(_body) { }
 };
 
 class Class: public NamedTable {
@@ -50,13 +60,13 @@ protected:
   FunctionList        m_vtable_funs;
   std::list<MethodBody*> m_DeferedBodies;
   int m_vtable_size;
-  EntryList m_obj_list,m_field_list,m_entries;
+  EntryList m_obj_list, m_field_list, m_entries;
   Class **m_VMT;
   int m_slot_id;
   PEntry m_base_entry;
   TemplateInstance *m_templ_info;
   int m_base_access, m_access_mode, m_abstract;
-  bool m_simple_struct, m_has_constructors,m_finalized, m_imported, m_struct, m_is_union;
+  bool m_simple_struct, m_has_constructors, m_finalized, m_imported, m_struct, m_is_union;
   Function *m_default_constructor, *m_copy_constructor, *m_destructor;
   ImportScheme *m_import;
 
@@ -149,19 +159,19 @@ public:
   void      make_abstract();
   bool      is_abstract();
 
-  void      attach_VMT(void *obj, PPClass vmt=NULL);
+  void      attach_VMT(void *obj, PPClass vmt = NULL);
   static PPClass find_VMT(void *obj);
   bool      has_true_VMT();
 
   // general utilities & template info
   //*SJD* No longer override base routine...
- // void dump_entries(ostream& os, int depth);
- void add_line_no(const string& file, int line);
- static Class *generate_try_block_handler();
- bool make_available();
- bool is_template();
- TemplateInstance *get_template();
- void set_template(TemplateInstance *pti);
+// void dump_entries(ostream& os, int depth);
+  void add_line_no(const string& file, int line);
+  static Class *generate_try_block_handler();
+  bool make_available();
+  bool is_template();
+  TemplateInstance *get_template();
+  void set_template(TemplateInstance *pti);
 };
 
 typedef Class *PClass, **PPClass;
