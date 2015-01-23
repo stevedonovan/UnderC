@@ -176,7 +176,7 @@ CodeGenerator::instruction_with_pointer(int opcode, void *ptr)
 }
 
 
-
+//NOTE: x_copy_code is never used
 Instruction *
 x_copy_code(Instruction *iptr)
 {
@@ -352,7 +352,6 @@ void chk_ods()
   if (ostack.depth() > OBJECT_STACKSIZE) {
     ostack.clear();
   }
-
 }
 
 inline void opush(void *data)
@@ -423,53 +422,7 @@ ExecutionState resume_state;
 const Instruction *end_of_code = (Instruction *)4;
 
 //----------------------- object destructor stack ---------------------------
-// *change 1.0.0 The ODS is now a stack of <class,object> records
-// *change 1.2.3 The stack is now backed by a vector, so we don't get
-// unpleasant suprises with large numbers of objects.
-
-template <class T, int N>
-class VStack {
-private:
-  std::vector<T> m_vec;
-public:
-  VStack()
-  {
-    m_vec.reserve(N);
-    m_vec.resize(0);
-  }
-
-  void push(const T& val)
-  {
-    m_vec.push_back(val);
-  }
-
-  T pop()
-  {
-    T val = m_vec.back();
-    m_vec.pop_back();
-    return val;
-  }
-
-  bool empty()
-  {
-    return m_vec.size() = 0;
-  }
-
-  void clear()
-  {
-    m_vec.resize(0);
-  }
-
-  int depth()
-  {
-    return m_vec.size();
-  }
-
-  T& get(int i)
-  {
-    return m_vec[i];
-  }
-};
+// The ODS is a stack of <class,object> records
 
 struct ODS_Record {
   PClass m_class;
@@ -480,7 +433,7 @@ struct ODS_Record {
 #endif
 };
 
-class ODStack: public VStack<ODS_Record, ODS_STACKSIZE> { // wuz Stack<...
+class ODStack: public Stack<ODS_Record, ODS_STACKSIZE> {
 private:
   ODS_Record orec;
 public:
@@ -509,8 +462,7 @@ public:
 
   void fetch_object(int idx, PClass& pc, void*& obj)
   {
-    orec = get(idx);
-    //orec = *ref_to_TOS(-idx);
+    orec = *ref_to_TOS(-idx);
     pc = orec.m_class;
     obj = orec.m_obj;
   }

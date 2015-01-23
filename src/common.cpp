@@ -386,9 +386,10 @@ Function *current_function(Table *context)
 
 int a;
 
+//Symbol Lookup
 PEntry symbol_lookup(const string& name)
 {
-  Table *context = &state.context() ;
+  Table *context = &state.context();
   PEntry pe = context->lookup(name);
   if (!pe) {
     return NULL;
@@ -422,23 +423,25 @@ PEntry symbol_lookup(const string& name)
     return pe;  // trivial case!
   }
 
-  int access = pe->access(), base_access = pe_class->base_access_mode();
-  if (base_access != Public) {
-    if (base_access == Private) {
-      access = Private;
-    } else if (base_access == Protected && access == Public) {
-      access = Protected;
-    }
-  }
-  if (access == Public) {
-    return pe;
-  }
-
+  int access = pe->access();
   if (this_class) {
-    if (access == Protected && this_class->inherits_from(pe_class)) {
+    if (pe_class->is_friend_class(this_class)) {
       return pe;
     }
-    if (pe_class->is_friend_class(this_class)) {
+    if (access == Private) {
+      goto WN;
+    }
+
+    if (this_class->inherits_from(pe_class)) {
+      int base_access = pe_class->base_access_mode();
+      if (base_access > access) {
+        access = base_access;
+      }
+      if (access == Protected) {
+        return pe;
+      }
+    }
+    if (access == Public) {
       return pe;
     }
 
@@ -447,12 +450,14 @@ PEntry symbol_lookup(const string& name)
     if (this_class->parent_context() == pe_class && this_class->base_class() == NULL) {
       return pe;
     }
-
+  } else {
+    if (access == Public) {
+      return pe;
+    }
   }
-  // sorry, no can do.
+WN: // sorry, nothing can be done.
   warning("cannot access " + quotes(pe->name));
   return pe; ///NULL;  *Behaviour is different in 'console mode'
-
 }
 
 // *add 0.9.4 support for extern "C".  Returns int because we may need to be explicit.
@@ -2899,4 +2904,3 @@ void dump_var(PEntry pe)
 }
 ////
 } // namespace Parser
-

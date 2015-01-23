@@ -22,10 +22,6 @@
 #include <cstdlib>
 #include <strstream>
 
-// found in directcall.cpp
-void *_new_ex(int sz);
-void _delete_ex(char *ptr, int sz);
-
 // found in main.cpp
 int uc_eval(char *expr, bool append_semicolon = true, bool synchronous = false, char *name = NULL, int lineno = 0);
 bool do_str_to_val(Type t, char *buff, void *ptr); // at end of this module

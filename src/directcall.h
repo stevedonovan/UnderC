@@ -34,6 +34,10 @@ struct Sig {
   void set_const(bool t);
 };
 
+void *_new_ex(int sz);
+void _delete_ex(char *ptr,int sz);
+void *_new_vect_ex(int n,int sz);
+
 #define IMPLICIT_LINK ((void *)-1)
 
 namespace Builtin {
@@ -62,4 +66,3 @@ void cleanup_ordinal_lookup();
 
 
 #endif
-

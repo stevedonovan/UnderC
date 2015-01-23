@@ -7,15 +7,15 @@
 struct FBlock;
 
 struct ArgBlock {
-  char *OPtr;
-  int  no;
-  int  values[20];
-  int  ret1;
+  char  *OPtr;
+  int    no;
+  int    values[20];
+  int    ret1;
   double ret2;
-  long ret_addr;
-  long esi_ptr;
-  long edi_ptr;
-  int flags;
+  long   ret_addr;
+  long   esi_ptr;
+  long   edi_ptr;
+  int    flags;
 };
 
 namespace Engine {

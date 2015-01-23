@@ -19,10 +19,7 @@ public:
   size_type size()       const {
     return m_size;
   }
-  size_type capacity()   const {
-    return m_cap;
-  }
-  bool     empty() const {
+  bool empty() const {
     return m_size == 0;
   }
 private:
@@ -59,6 +56,12 @@ public:
   stack() {
     m_begin = NULL;
     m_size = 0;
+    grow();
+  }
+
+  explicit vector(size_type sz) {
+    m_begin = NULL;
+    m_size = sz;
     grow();
   }
 
