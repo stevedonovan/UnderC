@@ -6,9 +6,8 @@
 
 typedef bool (*UserCommand)(string cmd);
 
-enum { T_END, T_TOKEN, T_INT, T_DOUBLE, T_FLOAT, T_HEX, T_CHAR, T_STRING, T_OCT,
-       T_NUMBER = T_INT | T_DOUBLE | T_FLOAT | T_HEX | T_OCT,
-       T_LAST
+enum { T_END, T_TOKEN, T_INT, T_DOUBLE, T_FLOAT,
+       T_HEX, T_CHAR, T_STRING, T_OCT, T_BIN, T_LAST
      };
 
 // *fix 1.1.4 MAX_MACRO_ARGS was too small for the GDK headers
@@ -59,15 +58,15 @@ typedef unsigned char uchar;
 
 class TokenStream {
 private:
-  char *start_P, *P, *start, *end_P;
-  char buff[TT_BUFFSIZE];
+  char  *start_P, *P, *start, *end_P;
+  char   buff[TT_BUFFSIZE];
   std::istream *inf;
-  int line, int_type;
+  int    line, int_type;
   string filename;
   string m_cwd;
-  bool m_C_str, m_line_feed, m_expecting_defined;
-  uchar m_skip;
-  bool in_comment;
+  bool   m_C_str, m_line_feed, m_expecting_defined;
+  uchar  m_skip;
+  bool   in_comment;
   Stack <FileStruct, MAX_FILE_DEPTH> fstack;
   Stack <uchar, MAX_NEST_IFDEF> sstack;
   UserCommand m_cmd;
@@ -112,7 +111,6 @@ public:
   char *get_token();
   double get_float();
   int    get_int();
-  double next_float();
 
   // overrideables
   virtual bool user_cmd(string ppd)

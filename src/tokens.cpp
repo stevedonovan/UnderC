@@ -1035,49 +1035,60 @@ do_it_again:
       }
       return T_TOKEN;
     } else if (isdigit(*P)  ||  *P == '.' && isdigit(*(P + 1))) { //------- NUMBERS ------------------
-      int ntype = int_type = T_INT;   // until proved otherwise!
+      int ntype = int_type = T_INT;        // until proved otherwise!
       start_P = P;
       if (*P != '.') {
         if (*P == '0') {
           // actual verification of hex or octal constants must happen in lexer
-          if (*(P + 1) == 'x') {     // hex constant
+          P++;
+          if (*P == 'x' || *P == 'X') {    // hex constant
+            P++;
+            start_P = P;  // skip the base (0x)
             while (isalnum(*P)) {
               P++;  // a preliminary check!
             }
             ntype = int_type = T_HEX;
-          } else if (isdigit(*(P + 1))) {   // octal constant
+          } else if (*P == 'b' || *P == 'B') {
+            P++;
+            start_P = P;  // skip the base (0b)
+            while (*P == '0' || *P == '1') {
+              P++;  // a preliminary check!
+            }
+            ntype = int_type = T_BIN;
+          } else if (isdigit(*P)) {        // octal constant
             skip_digits();
             ntype = int_type = T_OCT;
-          } else {
-            skip_digits();  // plain zero!
           }
         } else {
-          P++;                        // skip first - might be '-'
+          P++;                             // skip first - might be '-'
           skip_digits();
         }
       }
-      if (*P == '.') {               // (opt) fractional part
+      if (*P == '.') {                     // (opt) fractional part
         P++;
         skip_digits();
         ntype = T_DOUBLE;
       }
-      if (*P == 'e' || *P == 'E') { // (opt) exponent part
+      if (*P == 'e' || *P == 'E') {        // (opt) exponent part
         P++;
         if (*P == '+' || *P == '-') {
           P++;  // (opt) exp sign
         }
         skip_digits();
         ntype = T_DOUBLE;
+      } else {
+        if (*P == 'l' || *P == 'L') {
+          P++;
+        }
+        if (ntype == int_type) {
+          goto end_number;
+        }
       }
       if (*P == 'f' || *P == 'F')      {
         P++;
         ntype = T_FLOAT;
       }
-      // *fix 1.2.6 long integer constants ending with 'L' are now acceptable
-      else if (*P == 'l' || *P == 'L') {
-        P++;
-        ntype = T_INT;
-      }
+end_number:
       end_P = P;
       return ntype;
     } else if (*P == '\"' || *P == '\'') { //------------CHAR OR STRING CONSTANT-------
@@ -1231,18 +1242,6 @@ int TokenStream::get_int()
 {
   char buff[20];
   return convert_int(get_str(buff), int_type == T_INT ? 10 : 16);
-}
-
-double TokenStream::next_float()
-{
-  int t;
-  do {
-    t = next();
-    if (t == T_NUMBER || t == T_END) {
-      return get_float();
-    }
-  } while (t != T_END);
-  return 0.0;
 }
 
 void TokenStream::set_include_dir(const char *s)

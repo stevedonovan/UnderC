@@ -63,6 +63,11 @@ static int do_constant(int c)
       pe->type = t_int;
     }
     break;
+  case T_BIN:
+    input.get_str(ptr);
+    *(unsigned long *)ptr = strtoul(ptr, (char **)&endp, 2);
+    pe->type = t_int;
+    break;
   case T_HEX:
   case T_OCT:
     input.get_str(ptr);
