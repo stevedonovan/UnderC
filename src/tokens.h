@@ -101,7 +101,8 @@ public:
   void macro_process(PMEntry pme, char *out);
   void alias_process(PMEntry pme);
   bool skip_whitespace();
-  void skip_digits();
+  void skip_digits(bool oct_esc = false);
+  void skip_hex();
   int  next();
   int  look_ahead(bool skipws = false);
   int  peek_ahead(int count = 1);

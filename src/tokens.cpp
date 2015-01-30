@@ -868,9 +868,25 @@ void separate_alias_commands(TokenStream& tok)
   }
 }
 
-void TokenStream::skip_digits()
+void TokenStream::skip_digits(bool oct_esc)
 {
-  while(isdigit(*P)) {
+  if (oct_esc) {
+    int n = 2;
+    while (n-- && isdigit(*P)) {
+      P++;
+    }
+  } else {
+    while(isdigit(*P)) {
+      P++;
+    }
+  }
+}
+
+void TokenStream::skip_hex()
+{
+  while (isdigit(*P)
+         || ('A' <= *P && *P <= 'F')
+         || ('a' <= *P && *P <= 'f')) {
     P++;
   }
 }
@@ -1044,9 +1060,7 @@ do_it_again:
           if (*P == 'x' || *P == 'X') {    // hex constant
             P++;
             start_P = P;  // skip the base (0x)
-            while (isalnum(*P)) {
-              P++;  // a preliminary check!
-            }
+            skip_hex();
             ntype = int_type = T_HEX;
           } else if (*P == 'b' || *P == 'B') {
             P++;
@@ -1133,11 +1147,19 @@ next_string:
           case 'v':
             ch = '\v';
             break;
-          case '0':  { //..collecting OCTAL constant
-            char *start_oct = P;
-            skip_digits();
+          case '0':  { //..collecting OCTAL escape sequence
+            char *start_oct = ++P;
+            skip_digits(true);
             copy_str(obuff, start_oct, P);
             ch = (char)convert_int(obuff, 8);
+            P--;  // leave us on last digit
+          }
+          break;
+          case 'x':  { //..collecting hexadecimal escape sequence
+            char *start_hex = ++P;
+            skip_hex();
+            copy_str(obuff, start_hex, P);
+            ch = (char)convert_int(obuff, 16);
             P--;  // leave us on last digit
           }
           break;
@@ -1169,7 +1191,7 @@ next_string:
             goto next_string;            // so go back & keep grabbing...
           }
         }
-        return  T_STRING;
+        return T_STRING;
       } else {
         return T_CHAR;
       }
