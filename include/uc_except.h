@@ -8,14 +8,14 @@ class Exception {
 private:
 	char *m_what;
 public:
-	Exception(char *msg="unknown") : m_what(msg) {}
+	Exception(const char *msg="unknown") : m_what(msg) {}
 	char *what() { return m_what; }
 	static void initialize();
 };
 
 class HardwareException: public Exception {
 public:
-	HardwareException(char *msg) : Exception(msg) { }
+	HardwareException(const char *msg) : Exception(msg) { }
 };
 
 class IntOverflow: public HardwareException {

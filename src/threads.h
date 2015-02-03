@@ -30,9 +30,9 @@ typedef unsigned long ulong;
 class Thread: public KernelObject {
 
 public:
-  enum Piority { Lowest, BelowNormal, Normal, AboveNormal, Highest };
+  enum Priority { Lowest, BelowNormal, Normal, AboveNormal, Highest };
   Thread(bool owner = true);
-  void piority (Piority p);
+  void priority (Priority p);
   void resume();
   void suspend();
   void start_time();
@@ -73,5 +73,3 @@ public:
 
 
 #endif
-
-

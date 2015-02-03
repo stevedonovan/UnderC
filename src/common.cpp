@@ -1980,7 +1980,7 @@ PEntry ParserState::add_variable(Type t, string name, Expression init, int mode)
     if (t.is_pointer() && s_array_size != 1) { // a fiddle: means we have an array!
       bool is_elist = init && init->is_expr_list();
       if (init && ! is_elist) {
-        if (! t.is_char() || init->type() != t_char_ptr || ! init->is_entry()) {
+        if (! t.is_char() || !init->type().is_pointer() || ! init->is_entry()) {
           error("bad array initializer");
         } else if (s_array_size == 0) {
           s_array_size = strlen((char *)init->entry()->global_ptr()) + 1;

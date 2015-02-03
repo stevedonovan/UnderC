@@ -88,10 +88,7 @@ static int do_constant(int c)
     pe->type = t_double;
     break;
   }
-  // note that string literals are _not_ const!!
-  if (c != T_STRING) {
-    pe->type.make_const();
-  }
+  pe->type.make_const();
   int sz = pe->type != t_char_ptr ? pe->size * pe->type.size() : pe->size;
   pe->data = Parser::global().alloc(sz, ptr);
   return CONSTANT;

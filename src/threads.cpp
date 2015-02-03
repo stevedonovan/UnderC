@@ -47,7 +47,7 @@ Thread::Thread(bool owner)
 }
 
 
-void  Thread::piority(Thread::Piority p)
+void  Thread::priority(Thread::Priority p)
 {
 //  int pr;
   /*
@@ -188,4 +188,3 @@ bool Event::is_set()
 {
   return m_set;
 }
-

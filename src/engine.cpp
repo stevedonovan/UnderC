@@ -202,7 +202,7 @@ void Engine::set_data_seg(void *ptr)
 
 // for reasons of efficiency, the execution stack
 // is statically allocated.  Fine if thread-safe isn't
-// a piority.
+// a priority.
 // (note: I know this should be in an anonymous namespace,
 // but the Visual C++ debugger can't see them then...until
 // then!)
