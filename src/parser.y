@@ -40,12 +40,12 @@ void dcl_set(bool yes, bool comma_flag) {
   als.push(comma_flag);  /* force ',' _not_ to be COMMA */
 }
 
-void dcl_reset() { 
+void dcl_reset() {
   state.in_declaration = dcl_stack.pop();
   als.pop();
 }
 
-void force_comma_flag() { 
+void force_comma_flag() {
   als.clear();
   dcl_stack.clear();
   dcl_set(false,false);
@@ -55,7 +55,7 @@ bool in_arg_list()   {
   return als.TOS();
 }
 
-inline void enter_arglist() { 
+inline void enter_arglist() {
   dcl_set(false);
 }
 
@@ -74,21 +74,21 @@ void IEF_set()   {
 
 void IEF_reset() {
   IEF=false;
-    /*ief_stack.pop();*/ 
-} 
+    /*ief_stack.pop();*/
+}
 
 void ttpush(TType t) {
   tpush(AsType(t));
 }
 
-void raise_error(string msg) 
+void raise_error(string msg)
 {
   int yyerror(const char *);
 
   if (state.err != "") { msg = state.err; state.err = ""; }
   state.reset();
   als.clear();
-  als.push(false); 
+  als.push(false);
   yyerror(msg.c_str());
 }
 
@@ -105,7 +105,7 @@ bool check_error()
 %}
 
 %union{
-  int       val; 
+  int       val;
   long      ctype;
   char*     str;
   Entry*    entry;
@@ -119,10 +119,9 @@ bool check_error()
 %token <entry>     IDEN CONSTANT TYPENAME TYPENAME_FUNCTION TEMPLATE_NAME TEMPLATE_NAME_EXPR
 %token <classptr>  THIS_CLASSNAME
 %token             FLOAT DOUBLE UNSIGNED INT SHORT LONG CHAR VOID BOOL
-%token             TYPEDEF CLASS STRUCT ENUM OPERATOR GOTO UNION
 %token <val>       STATIC_CAST CONST_CAST DYNAMIC_CAST REINTERPRET_CAST  STRUCT_X  CLASS_X  STRUCT_Y  CLASS_Y  UNION_Y
 %token             IF ELSE WHILE DO FOR SWITCH CASE RETURN CONTINUE BREAK OPERATOR DEFAULT
-%token             NAMESPACE USING TRY CATCH THROW TEMPLATE EXTERN
+%token             TYPEDEF ENUM GOTO NAMESPACE USING TRY CATCH THROW TEMPLATE EXTERN
 %token             THREEDOT  TYPEOF  EXPLICIT  FRIEND  LAMBDA  FAKE_INIT_LIST
 %token <val>       CONST STATIC STDCALL API VIRTUAL PRIVATE PROTECTED PUBLIC CLASS STRUCT UNION
 
@@ -151,7 +150,7 @@ bool check_error()
 %type <ctype>      typename_function  typename_class  typename_expr  template_class  template_expr  templ_item
 %type <ctype>      conversion_operator  class_parm  scope  pointer_expr
 %type <val>        poss_unsigned  poss_int poss_const typecast_type
-%type <val>        access_modifier poss_access_modifier class_or_struct poss_derived  template_class_header  struct_or_class_x 
+%type <val>        access_modifier poss_access_modifier class_or_struct poss_derived  template_class_header  struct_or_class_x
 %type <val>        class_or_struct_ex
 %type <str>        poss_tag  class_name  poss_class_name  class_id  class_item  template_class_name  token_or_typename
 /* these should be 'expression'!! */
@@ -174,11 +173,11 @@ block:
   statement_list
   '}' { state.finalize_block(); IEF_reset();}
 
-statement: ';' /* empty statement */ 
+statement: ';' /* empty statement */
   | block
-  | declaration         
+  | declaration
   | function_declaration
-  | function_definition 
+  | function_definition
   | friend_declaration
   | expr ';'             {expression_end($1);}
   | typedef_stmt
@@ -207,8 +206,8 @@ statement: ';' /* empty statement */
 
 
 declaration:
-  mod_type_name tname_expr_list ';'  
-  { 
+  mod_type_name tname_expr_list ';'
+  {
     Type dt = tpop();
 	dcl_reset();
 	state.check_dcl_init(dt);
@@ -226,7 +225,7 @@ declaration_stmt:
 
  /* constructor/destructors */
 this_classname:
-  THIS_CLASSNAME 
+  THIS_CLASSNAME
   {
    dcl_set();
    state.token_stack.push($1->constructor_name());
@@ -236,8 +235,8 @@ this_classname:
   }
 
 construct_destruct:
-  this_classname {}       
-| BIN_NOT this_classname   
+  this_classname {}
+| BIN_NOT this_classname
 {
   state.token_stack.TOS() = $2->destructor_name();
   state.in_construct_destruct = IsDestructor;
@@ -245,7 +244,7 @@ construct_destruct:
 
 conversion_operator:
  OPERATOR  mod_type_name tname_exp2 arg_list
- { 
+ {
    state.token_stack.push(CONVERSION_OPNAME);
    ttpush($3); $$ = $3;
   }
@@ -258,17 +257,17 @@ explicit_mod: EXPLICIT
  { state.modifier = Explicit; }
 
 ctor_dtor_dcl:
- construct_destruct arg_list ';'   
- {  
+ construct_destruct arg_list ';'
+ {
    state.declare_function(t_void,state.token_stack.pop());
    tpop();
    check_error();
  }
 
 function_declaration:
- function_front ';'  
+ function_front ';'
  {
-   state.declare_function(AsType($1),state.token_stack.pop(), gFunInit); 
+   state.declare_function(AsType($1),state.token_stack.pop(), gFunInit);
    dcl_reset();
    gFunInit = NULL;
    tpop();
@@ -277,18 +276,18 @@ function_declaration:
 | ctor_dtor_dcl
 | explicit_mod ctor_dtor_dcl
 | conversion_operator ';'
-  { 
+  {
     state.declare_function(AsType($1),state.token_stack.pop());
 	tpop();
 	check_error();
   }
 
 /***** extern "C" ******/
-/* *fix 1.1.4 
+/* *fix 1.1.4
  *   - plain 'extern' is no longer confused with 'extern "C"'!
  *   - 'extern "C"' no longer has to be followed by a block
 */
-extern_c_declaration: 
+extern_c_declaration:
   extern_qualifier any_declaration            { state.extern_flag = false; }
 | extern_c '{' statement_list '}'             { state.extern_flag_C = false; }
 | extern_c any_declaration                    { state.extern_flag_C = false; }
@@ -322,9 +321,9 @@ ctor_dtor:
    (before the init list) and then initialize the function
  */
 poss_class_init_list: /*EMPTY*/
- | ':'  
+ | ':'
    {   state.init_block(CONSTRUCTOR_BLOCK);  }
-   class_init_list 
+   class_init_list
    {  check_error(); state.in_method = true; }
 
 /*add 1.2.7 Fake syntax __init_list__ used to fool parser when grabbing init list + body */
@@ -335,14 +334,14 @@ class_init_list:
 
 class_init_item:
   typename_function function_arg_list
-    { 
+    {
 	 ((Class*)state.context().parent_context())
 	    ->add_class_init_list(AsType($1).as_class()->entry(),$2);
 	 /* fix 1.2.3a Can crash UC if we don't catch errors in the init list */
-	 if (check_error()) YYABORT;  
+	 if (check_error()) YYABORT;
 	}
 
-| 
+|
  IDEN function_arg_list
     { ((Class*)state.context().parent_context())
 	      ->add_class_init_list($1,$2);
@@ -360,10 +359,10 @@ poss_const: /*EMPTY*/ { $$=0; }
 mod_type_name:
   type_name                 {dcl_set();}
 | modifiers type_name       {dcl_set();}
-| CONST type_name           {dcl_set(); tots().make_const();} 
+| CONST type_name           {dcl_set(); tots().make_const();}
 | modifiers CONST type_name {dcl_set(); tots().make_const();}
 
-modifiers: 
+modifiers:
    STATIC  {state.modifier = Static;  }
  | VIRTUAL {state.modifier = Virtual; }
  | STDCALL {state.modifier = Stdcall; }
@@ -374,14 +373,14 @@ open_parens:  '(' {dcl_set(false);}
 
 close_parens: ')' {dcl_reset();}
 
-type_name: typename_class                 { ttpush($1);  }  
+type_name: typename_class                 { ttpush($1);  }
  | TYPEOF open_parens expr close_parens   { tpush(typeof_op($3)); }
- | integer                                { } 
+ | integer                                { }
  | UNSIGNED integer                       { tots().make_unsigned(); }
  | UNSIGNED                               { tpush(t_int); tots().make_unsigned(); }
  | FLOAT                                  { tpush(t_float);  }
  | DOUBLE                                 { tpush(t_double); }
- | BOOL                                   { tpush(t_bool); } 
+ | BOOL                                   { tpush(t_bool); }
  | VOID                                   { tpush(t_void); }
  | class_declaration                      { }
  | enum_stmt                              { }
@@ -393,11 +392,11 @@ poss_int: /*empty*/       { $$=0; }
    | INT                 { $$=1; }
 
 integer: INT         { tpush(t_int);   }
-  | SHORT            { tpush(t_short); } 
-  | LONG             { tpush(t_long);  } 
+  | SHORT            { tpush(t_short); }
+  | LONG             { tpush(t_long);  }
 /*
-  | SHORT  INT       { tpush(t_short); } 
-  | LONG   INT       { tpush(t_long);  } 
+  | SHORT  INT       { tpush(t_short); }
+  | LONG   INT       { tpush(t_long);  }
 */
   | CHAR             { tpush(t_char);  }
 
@@ -409,31 +408,31 @@ array_expr:
 	 poss_int_const
 	']' %prec ARRAY  { dcl_reset(); $$ = $3; }
 
-tname_expr:  /*empty*/   
-{ 
+tname_expr:  /*empty*/
+{
     $$=ttots();
     state.token_stack.push("");
 }
   | token                       { $$=$1;   }
-  | pointer_expr arg_list 
-{ 
+  | pointer_expr arg_list
+{
     Type t = AsType($1);
     t.decr_pointer();
     $$ = AsTType(state.signature_type(t));
  }
   | '(' scope STAR token ')' end_scope  arg_list
 /* fix 1.2.3a Set the class type for this method ptr declaration first */
-{ 
+{
      state.class_dcl = AsType($2);
-     $$ = AsTType(state.signature_type(AsType($4))); 
-} 
+     $$ = AsTType(state.signature_type(AsType($4)));
+}
   | STAR poss_const tname_expr  { $$ = incr_ptr($3);         }
   | ADDR  tname_expr            { $$ = make_ref($2);         }
   | scope token end_scope       { $$ = $2;   state.class_dcl = AsType($1); }
   | scope conversion_operator
     end_scope                   { $$ = $2;   state.class_dcl = AsType($1); }
   | tname_expr array_expr       { $$ = make_array($1,$2); check_error();   }
-  | pointer_expr array_expr     { $$ = make_array($1,$2); check_error();   } 
+  | pointer_expr array_expr     { $$ = make_array($1,$2); check_error();   }
   | error { raise_error("Error in type expression"); YYABORT; }
 
 /* conversion_operator requires special consideration! */
@@ -448,20 +447,20 @@ begin_list: '(' { dcl_set(false); state.begin_args(); }
 
 end_list: ')' { dcl_reset(); }
 
-arg_list: 
+arg_list:
  begin_list type_list end_list /*%prec FUN_CALL     */
 
 type_list: /*empty*/
- | type_expr_init                 
- | type_expr_init ',' type_list  
+ | type_expr_init
+ | type_expr_init ',' type_list
  | THREEDOT
- { 
+ {
    state.add_to_arg_list(t_void,"...",0);
  }
 
 type_expr_init:
   type_expr poss_initialization
-{  
+{
   state.add_to_arg_list(AsType($1),state.token_stack.pop(),$2);
   tpop();
   dcl_reset();
@@ -479,19 +478,19 @@ init_tname_expr: tname_expr poss_initialization
 
 tname_expr_list: /*empty*/
  | init_tname_expr
- | init_tname_expr ',' tname_expr_list 
+ | init_tname_expr ',' tname_expr_list
 
 poss_int_const: /*empty*/ { $$=NULL; }
  | expr {$$=$1;}
 
 
 /* Initializations occur in a declarative context, so it's
- * important that they reset/set this state properly 
+ * important that they reset/set this state properly
  */
 init_assign: ASSIGN { dcl_set(false); }
 
 poss_initialization: /*empty*/               { $$=NULL; }
-  | init_assign 
+  | init_assign
    expr
   { dcl_reset(); $$=$2; }
 
@@ -499,8 +498,8 @@ poss_initialization: /*empty*/               { $$=NULL; }
   { $$=expr_list_op($1,true); }
 
   | init_assign '{'    { enter_arglist();}
-     brace_list '}'    
-  {leave_arglist(); dcl_reset(); $$=expr_list_op($4,false); } 
+     brace_list '}'
+  {leave_arglist(); dcl_reset(); $$=expr_list_op($4,false); }
 
   | ':' CONSTANT
   { $$ = new Expr(ECONST,t_void,$2,NULL); }
@@ -511,10 +510,10 @@ poss_initialization: /*empty*/               { $$=NULL; }
 brace_expr: '{'  brace_list '}' { $$ = $2; }
 
 brace_item: _expr { $$ = $1; }
-  | brace_expr    { $$ = expr_list_op($1,false); } 
+  | brace_expr    { $$ = expr_list_op($1,false); }
 
 brace_list: brace_item        { $$ = new ExprList; $$->push_back($1);  }
-  | brace_list ',' brace_item { $$ = $1; $$->push_back($3); } 
+  | brace_list ',' brace_item { $$ = $1; $$->push_back($3); }
 
 /* brace_list: expr_list { $$=$1; }; simplified */
 
@@ -524,7 +523,7 @@ brace_list: brace_item        { $$ = new ExprList; $$->push_back($1);  }
 
 access_modifier:
  PUBLIC      {$$=Public;}
- | PRIVATE   {$$=Private;} 
+ | PRIVATE   {$$=Private;}
  | PROTECTED {$$=Protected;}
 
 poss_access_modifier: /*EMPTY*/ { $$=Default; } | access_modifier
@@ -532,20 +531,20 @@ poss_access_modifier: /*EMPTY*/ { $$=Default; } | access_modifier
 class_or_struct: CLASS | STRUCT | UNION
 
 class_or_struct_ex: CLASS_Y  { $$ = CLASS; }
-| STRUCT_Y                   { $$ = STRUCT; } 
+| STRUCT_Y                   { $$ = STRUCT; }
 | UNION_Y                    { $$ = UNION;  }
 
 poss_derived: /*EMPTY*/ { $$=NotDerived; }
- | ':' poss_access_modifier typename_class 
+ | ':' poss_access_modifier typename_class
  { $$=$2; state.class_dcl = AsType($3); }
 
 token_or_typename:
     TOKEN                   { $$ = $1;  }
   | TYPENAME                { $$ = $1->name.c_str(); }
 
-class_name: /*empty*/       { $$ = "";   } 
-  | token_or_typename       { $$ = $1;   } 
-  | template_class          
+class_name: /*empty*/       { $$ = "";   }
+  | token_or_typename       { $$ = $1;   }
+  | template_class
 {
     PClass pc = AsType($1).as_class();
     $$ = pc->name().c_str();
@@ -558,27 +557,27 @@ class_id: { dcl_set();} class_name { dcl_reset(); $$ = $2;  }
 
 class_declaration:
     class_or_struct class_id poss_derived '{'
-      { 
+      {
 	   tpush(state.add_class($1,$2,$3,state.class_dcl));
        if (check_error()) YYABORT;
 	   state.init_block(CLASS_BLOCK); IEF_set();
        typedef_stack.push(state.in_typedef);
        state.in_typedef = false;
       }
-	statement_list '}' 
+	statement_list '}'
      {
 	   state.finalize_block(); IEF_reset();
-  	   state.in_typedef = typedef_stack.pop(); 
-	 } 
-  | class_or_struct_ex class_id  
+  	   state.in_typedef = typedef_stack.pop();
+	 }
+  | class_or_struct_ex class_id
      { tpush(state.add_class($1,$2,ForwardClass,t_void)); }
 
 access_specifier: access_modifier ':'
   { state.set_access_mode($1); }
 
 friend_declaration:
-   FRIEND { state.in_friend_dcl = true; } function_declaration 
-|  FRIEND CLASS class_name ';'{ state.add_friend_class($2); } 
+   FRIEND { state.in_friend_dcl = true; } function_declaration
+|  FRIEND CLASS class_name ';'{ state.add_friend_class($2); }
 
 /*** Enumerations **********/
 /*** Note that getting the token value is often unreliable! ***/
@@ -587,7 +586,7 @@ friend_declaration:
    used to initialize further constants.
  */
 enum_stmt:
-  ENUM { dcl_set(); } poss_tag  
+  ENUM { dcl_set(); } poss_tag
    {
     tpush(state.do_enum(tag_name));
     if (check_error()) YYABORT;
@@ -598,31 +597,31 @@ enum_stmt:
 poss_enum_list: /*empty*/
 | '{' enum_list '}'
 
-poss_tag: /*EMPTY*/ {$$=NULL; tag_name="";} 
+poss_tag: /*EMPTY*/ {$$=NULL; tag_name="";}
 | TOKEN {$$=$1; tag_name=$1;}
 | TYPENAME {$$=""; tag_name=$1->name.c_str();}
 
 enum_item:
  TOKEN poss_initialization
- { 
+ {
   state.add_enum(tots(),$1,$2);
  }
 
 enum_list: /*EMPTY*/
- | enum_item 
+ | enum_item
  | enum_list ',' enum_item
 
 /* namespaces and using directives *****/
 /*REF:NAMESPACE*/
 
 namespace_declaration:
-  NAMESPACE { dcl_set(); } poss_class_name 
-  { dcl_reset(); 
+  NAMESPACE { dcl_set(); } poss_class_name
+  { dcl_reset();
     state.add_namespace($3 ? $3 : "");
     state.in_class = true;
     if (check_error()) YYABORT;
    }
-  block 
+  block
 
 poss_class_name: /*empty*/  { $$ = NULL; }
  | class_name { $$ = $1;  }
@@ -630,15 +629,15 @@ poss_class_name: /*empty*/  { $$ = NULL; }
 using_directive:
   USING NAMESPACE TYPENAME ';'
   /* note: cd also express this as $3->type.as_class()!! */
-   { 
-   	if ((Namespace *)$3->data != &state.context()) 
+   {
+   	if ((Namespace *)$3->data != &state.context())
       state.context().inject_namespace((Namespace *)$3->data);
     else raise_error("Cannot inject a namespace into itself");
     if (check_error()) YYABORT;
    }
 
 using_declaration:
-  USING scoped_name ';'  
+  USING scoped_name ';'
    {  state.context().inject_entry($2);  }
 | USING scope TEMPLATE_NAME end_scope
    { state.context().inject_entry($3); }
@@ -658,7 +657,7 @@ goto_label:
 /* expressions *************************/
 
 scope:
-  typename_expr BINARY_SCOPE 
+  typename_expr BINARY_SCOPE
   { state.begin_scope(AsType($1)); $$ = $1; }
 
 global_scope:
@@ -668,11 +667,11 @@ global_scope:
 end_scope:
   { state.end_scope(); }
 
-assign_op: 
+assign_op:
  MUL_A | DIV_A | MOD_A | ADD_A | MINUS_A
  | SHL_A | SHR_A | BAND_A | BOR_A | XOR_A
 
-scoped_name: IDEN  
+scoped_name: IDEN
 | scope scoped_name end_scope
   { $$ = $2; }
 | global_scope IDEN end_scope
@@ -684,16 +683,16 @@ expr: _expr
 poss_size: /*EMPTY*/ { $$ = NULL; }
  | '[' _expr ']' %prec ARRAY { $$ = $2; }
 
-type_expression: type_expr 
+type_expression: type_expr
 { dcl_reset(); $$=$1; state.token_stack.pop(); tpop(); }
 
 typecast_type: STATIC_CAST | CONST_CAST | DYNAMIC_CAST | REINTERPRET_CAST
 
-type_bracket: LESS_THAN type_expression GREATER 
+type_bracket: LESS_THAN type_expression GREATER
                   { $$=$2; }
 
 
-_expr: 
+_expr:
  CONSTANT                { $$ =  entry_op($1); }
  | scoped_name           { $$ =  entry_op($1); } /* IDEN */
  | '(' _expr ')'         { $$ =  $2; }
@@ -729,14 +728,14 @@ _expr:
 /* misc. */
 /* *fix 0.9.2 sizeof() now works properly w/ arrays */
 /* *fix 1.2.3 sizeof(int)*N was broken; we now require the parens */
- | SIZEOF '(' _expr ')'     { 
+ | SIZEOF '(' _expr ')'     {
     if ($3->is_entry()) $$ = sizeof_op(size_of_entry($3->entry()));
 	              else  $$ = sizeof_op($3->type().size());
   }
  | SIZEOF '(' type_expression ')' { $$=sizeof_op(AsType($3).size());  }
  | _expr ARITH_IF _expr ':' _expr { $$=arith_if_op($1,$3,$5); }
  | _expr COMMA _expr              { $$=bin_op(COMMA,$1,$3); }
- | NEW type_name poss_size 
+ | NEW type_name poss_size
    { $$ = new_op(tpop(),$3,NULL);  }
 
  | NEW TYPENAME_FUNCTION  { tpush($2->type); } function_arg_list /*typename_function*/
@@ -748,7 +747,7 @@ _expr:
  | STAR _expr  %prec DEREF  { $$ = deref_op($2); }
  | ADDR _expr               { $$ = addr_op($2); }
 /** typecasts *****/
- | typecast_type type_bracket '(' _expr ')' 
+ | typecast_type type_bracket '(' _expr ')'
    { $$ = typecast_op($1,AsType($2),$4); }
 
  | TYPENAME_FUNCTION  function_arg_list  /*typename_function*/
@@ -767,18 +766,18 @@ _expr:
 
  | _expr '[' _expr ']' %prec ARRAY
    { $$=array_op($1, $3); }
-  
+
  | _expr function_arg_list { $$=function_op($1,$2); }
-  
- | _expr DOT 
-   {dcl_set(); } 
+
+ | _expr DOT
+   {dcl_set(); }
    TOKEN
    { dcl_reset(); $$=selection_op($1,$4,false);  }
-  
+
  | _expr ARROW
    {dcl_set();}
    TOKEN
-   { dcl_reset(); $$=selection_op($1,$4,true);  } 
+   { dcl_reset(); $$=selection_op($1,$4,true);  }
  | _expr MEMBER_ARROW
    {dcl_set();}
    TOKEN
@@ -788,7 +787,7 @@ _expr:
  | LAMBDA function_definition
     { $$=lambda_op(0);   }
 
- | error { raise_error("error in expression"); YYABORT; } 
+ | error { raise_error("error in expression"); YYABORT; }
 
 poss_array: /*EMPTY*/ { $$ = 0; }
  | '[' ']'  { $$ = 1; }
@@ -799,14 +798,14 @@ poss_function_arg_list: /*EMPTY*/ { $$ = NULL; }
 function_arg_list:  '(' ')'     { $$ = new ExprList; }
  |   init_list                   { $$ = $1; }
 
-init_list: 
+init_list:
   begin_list
   expr_list
-  end_list %prec FUN_CALL            { $$ = $2; } 
+  end_list %prec FUN_CALL            { $$ = $2; }
 
-expr_list: 
+expr_list:
    _expr                { $$ = new ExprList; $$->push_back($1);  }
- | expr_list ',' _expr  { $$ = $1; $$->push_back($3); }  
+ | expr_list ',' _expr  { $$ = $1; $$->push_back($3); }
  | error               { raise_error("Error in arg list"); YYABORT; }
 
 /*** Control statements **************************/
@@ -825,23 +824,23 @@ controlled_statement:
 if_front:
   IF condition { do_loop_start($2,false); }
 
-if_stmt: 
+if_stmt:
   if_front controlled_statement { do_loop_end(false); }
 
 if_else_stmt:
-  if_front controlled_statement   
-  ELSE                             { do_loop_end(true,true); } 
+  if_front controlled_statement
+  ELSE                             { do_loop_end(true,true); }
   controlled_statement             { do_loop_end(false);     }
 
 while_stmt:
-  WHILE                  { label_here(); state.in_loop = true; } 
+  WHILE                  { label_here(); state.in_loop = true; }
   condition              { do_loop_start($3,true); }
   controlled_statement   { do_loop_end(true); state.in_loop = false;}
 
 /* fix 1.2.3 break was broken in do-while statements */
 do_stmt:
   DO                           { label_here(); push_label_stack(); state.in_loop = true;}
-   controlled_statement      
+   controlled_statement
   WHILE condition              { do_do_end($5); state.in_loop = false; }
 
 for_init: ';'
@@ -850,7 +849,7 @@ for_init: ';'
 
 for_stmt:
   FOR  '(' { state.init_block(PLAIN_BLOCK); }   /*correct scoping for any dcls*/
-    for_init                   { label_here();	state.in_loop = true; } 
+    for_init                   { label_here();	state.in_loop = true; }
     poss_expr ';'
     poss_expr ')'              { do_loop_start($6,true); }
   controlled_statement         { do_for_end($8);    state.in_loop = false;
@@ -867,7 +866,7 @@ case_label:
   CASE expr ':'
   { do_case ($2);   }
 | DEFAULT ':'
-  { do_case(NULL);  } 
+  { do_case(NULL);  }
 
 break_stmt:  BREAK ';'
  { if (!do_break_continue(BREAK)) { check_error(); YYABORT; } }
@@ -883,7 +882,7 @@ try_catch_stmt:
 
 try_block:
   TRY
-  { state.init_block(PLAIN_BLOCK); IEF_set(); 
+  { state.init_block(PLAIN_BLOCK); IEF_set();
 	do_start_try_block();  }
   except_block
 
@@ -891,11 +890,11 @@ except_block:
   '{' statement_list '}'
 
    { state.finalize_block(); IEF_reset();
-     do_end_try_catch_block(false);   } 
+     do_end_try_catch_block(false);   }
 
 catch_block:
   CATCH arg_list
-  { state.init_block(PLAIN_BLOCK); IEF_set(); 
+  { state.init_block(PLAIN_BLOCK); IEF_set();
     do_start_catch_block(); if (check_error()) YYABORT; }
   except_block
 
@@ -922,7 +921,7 @@ typename_class:
 /***** Expression context types ***/
 typename_expr:
    TYPENAME_FUNCTION { $$ = AsTType($1->type); }
- | template_expr    { $$ = $1; } 
+ | template_expr    { $$ = $1; }
  | scope typename_expr end_scope { $$ = $2; }
 
 template_class:
@@ -940,21 +939,21 @@ template_header:
 
 template_function_declaration:
  template_header
-   function_front 
-  { Template::do_function_template(); 
+   function_front
+  { Template::do_function_template();
   	if (yychar != YYEMPTY) yyclearin;
   }
 
 template_class_declaration:
    template_class_header  template_class_name
    {
-    dcl_reset();    
+    dcl_reset();
     Template::do_class_template($1,$2,yychar,NULL);
 	if (yychar != YYEMPTY) yyclearin;
    }
  | template_class_header  template_class_name template_type_list
    {
-    dcl_reset();        
+    dcl_reset();
     Template::do_class_template($1,$2,yychar,$3);
 	if (yychar != YYEMPTY) yyclearin;
    }
@@ -974,12 +973,12 @@ begin_templ_list:  LESS_THAN { dcl_set(true); state.begin_templ_list(); }
 
 end_templ_list:    GREATER   { dcl_reset();   state.end_templ_list();   }
 
-template_type_list: 
+template_type_list:
    begin_templ_list end_templ_list                 { $$ = new TypeList; }
  | begin_templ_list templ_item_list end_templ_list { $$ = $2; }
 
 /* rather like expr_list! */
-templ_item_list:  
+templ_item_list:
    templ_item                       { $$ = new TypeList; $$->push_back(AsType($1)); }
  | templ_item_list ',' templ_item   { $$ = $1; $$->push_back(AsType($3));   }
 
@@ -987,7 +986,7 @@ class_item:
    CLASS TOKEN { $$ = $2; }
  | CLASS TYPENAME { $$ = $2->name.c_str(); }
 
-class_parm: 
+class_parm:
   class_item    {
     string c = $1;
     $$ = AsTType(Template::dummy(t_null,c));
@@ -1002,8 +1001,5 @@ templ_item:
  | CONSTANT         { $$ = AsTType(Template::dummy($1)); }
  | class_parm       { $$ = $1; }
 
-     
-%%  
 
-
-
+%%

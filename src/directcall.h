@@ -41,27 +41,27 @@ void *_new_vect_ex(int n,int sz);
 #define IMPLICIT_LINK ((void *)-1)
 
 namespace Builtin {
-void init();
-int alloc_size(void *p);
-void bad_ptr_check(void *p);
+void    init();
+int     alloc_size(void *p);
+void    bad_ptr_check(void *p);
 FBlock *imported_fblock_from_function(void *pfn);
 FBlock *import_vmethod(CALLFN fn, PFBlock pf);
-bool add_dll_function(Function *pfn, int modifier, string& name);
-void *get_dll_handle();
-void set_direct_import(void* p);
-void set_dll_handle(void *dl);
-void unload_lib(void *hlib);
-bool set_current_lib_file(char *file);
-string get_current_lib_file();
-void finis();
-void *generate_native_stub(Function *pfn);
-int range_check_function();
+bool    add_dll_function(Function *pfn, int modifier, string& name);
+void  * get_dll_handle();
+void    set_direct_import(void* p);
+void    set_dll_handle(void *dl);
+void    unload_lib(void *hlib);
+bool    set_current_lib_file(char *file);
+string  get_current_lib_file();
+void    finis();
+void  * generate_native_stub(Function *pfn);
+int     range_check_function();
 
-bool using_ordinal_lookup();
-bool lookup_is_ordinal();
-int lookup_ordinal(const char *name);
-bool generate_ordinal_lookup(const char *index_file);
-void cleanup_ordinal_lookup();
+bool    using_ordinal_lookup();
+bool    lookup_is_ordinal();
+int     lookup_ordinal(const char *name);
+bool    generate_ordinal_lookup(const char *index_file);
+void    cleanup_ordinal_lookup();
 }
 
 

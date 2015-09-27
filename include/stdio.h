@@ -1,4 +1,4 @@
-/*
+/* 
  this file is deliberately empty (the stdio functions are built-in)
  * but FILE is often needed...
 */
@@ -17,7 +17,7 @@ extern "C" {
        int putchar(int c);
        //int puts(const char *s);
        int scanf(const char * format, ...);
-       int printf(const char * format, ...);
 }
 #lib
 #endif
+

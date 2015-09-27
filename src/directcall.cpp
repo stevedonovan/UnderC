@@ -77,46 +77,46 @@ void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
 {
   int sz = sizeof(int) * argc;
   _asm {
-    mov ecx, argc
-    mov ebx, args
+    mov     ecx, argc
+    mov     ebx, args
     // push the arguments onto the stack, backwards
-    a_loop:
-    cmp ecx, 0
-    jz a_out
-    mov eax, [ebx + 4*ecx]
-    push eax
-    dec ecx
-    jmp a_loop
+a_loop:
+    cmp     ecx, 0
+    jz      a_out
+    mov     eax,    [ebx + 4*ecx]
+    push    eax
+    dec     ecx
+    jmp     a_loop
 
-    a_out:
-    mov ecx, optr // thiscall calling convention (MS only)
-    call fn
+a_out:
+    mov     ecx,    optr // thiscall calling convention (MS only)
+    call    fn
     // Cleanup stack ptr if this was a cdecl call
-    mov ecx, flags
-    test ecx, DC_CDECL
-    jz  a_over
-    add  esp, sz
-    a_over:
-    test ecx, DC_RET_OBJ
-    jz a_again
+    mov     ecx,    flags
+    test    ecx,    DC_CDECL
+    jz      a_over
+    add     esp,    sz
+a_over:
+    test    ecx,    DC_RET_OBJ
+    jz      a_again
 // these cases are peculiar to GCC
-    cmp ecx, DC_RET_VAL
-    jl  a_skip
-    mov ebx, gObjectReturnPtr
-    mov [ebx], eax
-    mov [ebx+4], edx
-    jmp a_finish
-    a_skip:
-    sub  esp, 4
-    a_again:
-    mov ebx, buff
-    test ecx, DC_QWORD
-    jnz  a_dbl
-    mov  dword ptr[ebx], eax
-    jmp a_finish
-    a_dbl:
-    fstp qword ptr[ebx]
-    a_finish:
+    cmp     ecx,    DC_RET_VAL
+    jl      a_skip
+    mov     ebx,    gObjectReturnPtr
+    mov    [ebx],   eax
+    mov    [ebx+4], edx
+    jmp     a_finish
+a_skip:
+    sub     esp, 4
+a_again:
+    mov     ebx,    buff
+    test    ecx,    DC_QWORD
+    jnz     a_dbl
+    mov     dword   ptr[ebx], eax
+    jmp     a_finish
+a_dbl:
+    fstp    qword ptr[ebx]
+a_finish:
   }
 }
 
@@ -1243,4 +1243,3 @@ CALLFN lookup_self_link(PClass pc, const string& name)
 
 
 }  // namespace Builtin
-

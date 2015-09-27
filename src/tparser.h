@@ -30,8 +30,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_YY_PARSER_TAB_H_INCLUDED
-# define YY_YY_PARSER_TAB_H_INCLUDED
+#ifndef YY_YY_Y_TAB_H_INCLUDED
+# define YY_YY_Y_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -62,54 +62,54 @@ extern int yydebug;
     CHAR = 272,
     VOID = 273,
     BOOL = 274,
-    TYPEDEF = 275,
-    CLASS = 276,
-    STRUCT = 277,
-    ENUM = 278,
-    OPERATOR = 279,
-    GOTO = 280,
-    UNION = 281,
-    STATIC_CAST = 282,
-    CONST_CAST = 283,
-    DYNAMIC_CAST = 284,
-    REINTERPRET_CAST = 285,
-    STRUCT_X = 286,
-    CLASS_X = 287,
-    STRUCT_Y = 288,
-    CLASS_Y = 289,
-    UNION_Y = 290,
-    IF = 291,
-    ELSE = 292,
-    WHILE = 293,
-    DO = 294,
-    FOR = 295,
-    SWITCH = 296,
-    CASE = 297,
-    RETURN = 298,
-    CONTINUE = 299,
-    BREAK = 300,
-    DEFAULT = 301,
-    NAMESPACE = 302,
-    USING = 303,
-    TRY = 304,
-    CATCH = 305,
-    THROW = 306,
-    TEMPLATE = 307,
-    EXTERN = 308,
-    THREEDOT = 309,
-    TYPEOF = 310,
-    EXPLICIT = 311,
-    FRIEND = 312,
-    LAMBDA = 313,
-    FAKE_INIT_LIST = 314,
-    CONST = 315,
-    STATIC = 316,
-    STDCALL = 317,
-    API = 318,
-    VIRTUAL = 319,
-    PRIVATE = 320,
-    PROTECTED = 321,
-    PUBLIC = 322,
+    STATIC_CAST = 275,
+    CONST_CAST = 276,
+    DYNAMIC_CAST = 277,
+    REINTERPRET_CAST = 278,
+    STRUCT_X = 279,
+    CLASS_X = 280,
+    STRUCT_Y = 281,
+    CLASS_Y = 282,
+    UNION_Y = 283,
+    IF = 284,
+    ELSE = 285,
+    WHILE = 286,
+    DO = 287,
+    FOR = 288,
+    SWITCH = 289,
+    CASE = 290,
+    RETURN = 291,
+    CONTINUE = 292,
+    BREAK = 293,
+    OPERATOR = 294,
+    DEFAULT = 295,
+    TYPEDEF = 296,
+    ENUM = 297,
+    GOTO = 298,
+    NAMESPACE = 299,
+    USING = 300,
+    TRY = 301,
+    CATCH = 302,
+    THROW = 303,
+    TEMPLATE = 304,
+    EXTERN = 305,
+    THREEDOT = 306,
+    TYPEOF = 307,
+    EXPLICIT = 308,
+    FRIEND = 309,
+    LAMBDA = 310,
+    FAKE_INIT_LIST = 311,
+    CONST = 312,
+    STATIC = 313,
+    STDCALL = 314,
+    API = 315,
+    VIRTUAL = 316,
+    PRIVATE = 317,
+    PROTECTED = 318,
+    PUBLIC = 319,
+    CLASS = 320,
+    STRUCT = 321,
+    UNION = 322,
     COMMA = 323,
     ASSIGN = 324,
     MUL_A = 325,
@@ -164,15 +164,133 @@ extern int yydebug;
     UNARY_SCOPE = 374
   };
 #endif
+/* Tokens.  */
+#define TOKEN 258
+#define IDEN 259
+#define CONSTANT 260
+#define TYPENAME 261
+#define TYPENAME_FUNCTION 262
+#define TEMPLATE_NAME 263
+#define TEMPLATE_NAME_EXPR 264
+#define THIS_CLASSNAME 265
+#define FLOAT 266
+#define DOUBLE 267
+#define UNSIGNED 268
+#define INT 269
+#define SHORT 270
+#define LONG 271
+#define CHAR 272
+#define VOID 273
+#define BOOL 274
+#define STATIC_CAST 275
+#define CONST_CAST 276
+#define DYNAMIC_CAST 277
+#define REINTERPRET_CAST 278
+#define STRUCT_X 279
+#define CLASS_X 280
+#define STRUCT_Y 281
+#define CLASS_Y 282
+#define UNION_Y 283
+#define IF 284
+#define ELSE 285
+#define WHILE 286
+#define DO 287
+#define FOR 288
+#define SWITCH 289
+#define CASE 290
+#define RETURN 291
+#define CONTINUE 292
+#define BREAK 293
+#define OPERATOR 294
+#define DEFAULT 295
+#define TYPEDEF 296
+#define ENUM 297
+#define GOTO 298
+#define NAMESPACE 299
+#define USING 300
+#define TRY 301
+#define CATCH 302
+#define THROW 303
+#define TEMPLATE 304
+#define EXTERN 305
+#define THREEDOT 306
+#define TYPEOF 307
+#define EXPLICIT 308
+#define FRIEND 309
+#define LAMBDA 310
+#define FAKE_INIT_LIST 311
+#define CONST 312
+#define STATIC 313
+#define STDCALL 314
+#define API 315
+#define VIRTUAL 316
+#define PRIVATE 317
+#define PROTECTED 318
+#define PUBLIC 319
+#define CLASS 320
+#define STRUCT 321
+#define UNION 322
+#define COMMA 323
+#define ASSIGN 324
+#define MUL_A 325
+#define DIV_A 326
+#define MOD_A 327
+#define ADD_A 328
+#define MINUS_A 329
+#define SHL_A 330
+#define SHR_A 331
+#define BAND_A 332
+#define BOR_A 333
+#define XOR_A 334
+#define ARITH_IF 335
+#define LOG_OR 336
+#define LOG_AND 337
+#define BIN_OR 338
+#define BIN_XOR 339
+#define BIN_AND 340
+#define EQUAL 341
+#define NOT_EQUAL 342
+#define LESS_THAN 343
+#define LEQ 344
+#define GREATER 345
+#define GEQ 346
+#define LSHIFT 347
+#define RSHIFT 348
+#define PLUS 349
+#define MINUS 350
+#define STAR 351
+#define DIVIDE 352
+#define MODULO 353
+#define MEMBER_ARROW 354
+#define MEMBER_DOT 355
+#define NEW 356
+#define DELETE 357
+#define TYPECAST 358
+#define DEREF 359
+#define ADDR 360
+#define UPLUS 361
+#define UMINUS 362
+#define LOG_NOT 363
+#define BIN_NOT 364
+#define INCR 365
+#define DECR 366
+#define SIZEOF 367
+#define TYPE_CONSTRUCT 368
+#define FUN_CALL 369
+#define ARRAY 370
+#define ARROW 371
+#define DOT 372
+#define BINARY_SCOPE 373
+#define UNARY_SCOPE 374
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 107 "parser.y" /* yacc.c:1909  */
+#line 98 "parser.y" /* yacc.c:1909  */
 
-  int       val; 
+  int       val;
   long      ctype;
   char*     str;
   Entry*    entry;
@@ -181,7 +299,7 @@ union YYSTYPE
   Class    *classptr;
   TypeList *typelist;
 
-#line 185 "parser.tab.h" /* yacc.c:1909  */
+#line 303 "y.tab.h" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -192,4 +310,4 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 
-#endif /* !YY_YY_PARSER_TAB_H_INCLUDED  */
+#endif /* !YY_YY_Y_TAB_H_INCLUDED  */

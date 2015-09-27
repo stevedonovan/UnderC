@@ -28,10 +28,10 @@ bool grab_list(const TypeList& tl1, TypeList& tl2);
 typedef std::map<PEntry, PExprList> Entry2ExprMap;
 FunctionContext *mFe;
 
-PEntry begin_method(string name, Type rtype, char *arg_name, Type atype, int ftype);
-void declare_method(string name, Type rtype, char *arg_name, Type atype, int ftype);
-void   end_method();
-Function *get_std_match(const TypeList& tl, const FunctionList& fl, Type t);
+PEntry    begin_method  (string name, Type rtype, char *arg_name, Type atype, int ftype);
+void      declare_method(string name, Type rtype, char *arg_name, Type atype, int ftype);
+void      end_method    ();
+Function *get_std_match (const TypeList& tl, const FunctionList& fl, Type t);
 
 PFBlock mVMT[MAX_VMT_ENTRIES];
 
@@ -1196,4 +1196,3 @@ Function *get_std_match(const TypeList& tl, const FunctionList& fl, Type t)
 }
 
 }
-
