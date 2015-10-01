@@ -10,10 +10,10 @@
 #define JOP(t) t,
 
 enum Opcodes {
-    END_OP,
+  END_OP,
 #include "ops.h"
-    EOP
-};  
+  EOP
+};
 
 #undef TOK
 #undef TNAME

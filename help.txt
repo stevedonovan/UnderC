@@ -52,16 +52,22 @@ UnderC Command Summary (available with #help)
 
  For example, #opt t+ v+
 
- o- Auto Dissemble 
- t- Function Trace
- v- Verbose Mode
- s- Strict Mode   (no implicit bool conversions)
- p- Pointer Check
- a- Access Control
+ a- No Access Control
  c- Strip Prompt when Copying (WCON only)
  C- C mode
+ d- Dump Expresson
+ e- Errors as Break
+ i- Interactive Debugging
+ L- Suppress Link 
+ p- Pointer Check
+ R- Range Check
+ s- Strict Mode   (no implicit bool conversions)
+ S- No Trace std
+ t- Function Trace
+ u- Auto Dissemble
+ v- Verbose Mode
  T- Use typedef names if possible
- L- Suppress Link Errors
+ x- Auto Execution
 
  The 'use typedefs' option is an interesting UnderC feature where
  the compiler tries to use any defined typedefs instead of long

@@ -7,34 +7,35 @@
 struct FBlock;
 
 struct ArgBlock {
-    char *OPtr;
-    int  no;
-    int  values[20];
-    int  ret1;
-    double ret2;
-	long ret_addr;
-	long esi_ptr;
-    long edi_ptr;
-	int flags;
+  char  *OPtr;
+  int    no;
+  int    values[20];
+  int    ret1;
+  double ret2;
+  long   ret_addr;
+  long   esi_ptr;
+  long   edi_ptr;
+  int    flags;
 };
 
-namespace Engine { 
-    bool paused();
-    bool running();
-    void kill(int retcode = 0);
-    void  object_ptr(void *);
-    void *object_ptr();
-    char **object_ptr_addr();
-    int __STDCALL execute(FBlock *fb,int flags = 0, ArgBlock *xargs = NULL);
-    int __STDCALL stub_execute(FBlock* _fb, int flags, ArgBlock *xargs);
-    void set_data_seg(void *ptr);
-    void global_unwind();
-    void set_frame(int i,bool verbose);  
-    void attach_main_context(char *fct); 
-    int  retval();
-    bool set_single_stepping(bool yesno);
-	void reset_single_stepping();
-    enum {RESUME=1,ARGS_PASSED=2,METHOD_CALL=4,RETURN_32=8,RETURN_64=16,FROM_OUTSIDE=32};
+namespace Engine {
+
+bool paused();
+bool running();
+void kill(int retcode = 0);
+void  object_ptr(void *);
+void *object_ptr();
+char **object_ptr_addr();
+int __STDCALL execute(FBlock *fb, int flags = 0, ArgBlock *xargs = NULL);
+int __STDCALL stub_execute(FBlock* _fb, int flags, ArgBlock *xargs);
+void set_data_seg(void *ptr);
+void global_unwind();
+void set_frame(int i, bool verbose);
+void attach_main_context(char *fct);
+int  retval();
+bool set_single_stepping(bool yesno);
+void reset_single_stepping();
+enum {RESUME = 1, ARGS_PASSED = 2, METHOD_CALL = 4, RETURN_32 = 8, RETURN_64 = 16, FROM_OUTSIDE = 32};
 
 };
 
@@ -44,16 +45,16 @@ typedef unsigned int uint;
 
 // 32-bit instruction record
 struct Instruction {
-  uint opcode: 8;
-  uint rmode: 2;
-  int data: 22;
+  uint opcode:  8;
+  uint rmode :  2;
+  int  data  : 22;
 };
 typedef Instruction *PInstruction;
 
 // these functions define the Virtual Method Table structure of UC
 
 class Class;
-typedef Class **PPClass; 
+typedef Class **PPClass;
 
 inline PPClass *VMT(void *p)
 {
@@ -71,14 +72,14 @@ class CodeGenerator {
 public:
 
   CodeGenerator() : NC(0), mTotal(0), pcode(_code_buff_) { }
-    
+
   void begin_code();
   Instruction *current_pi();
   Instruction *last_pi();
   int total_instructions();
   int ip_offset();
   void backspace();
-  void emitc(int opc, RMode rm=NONE, int data=0);
+  void emitc(int opc, RMode rm = NONE, int data = 0);
   void out(Instruction *is);
   Instruction *end_code();
   static Instruction *instruction_with_pointer(int opcode, void *ptr);
@@ -89,7 +90,7 @@ public:
 
 struct CatchBlock {
   Type type;
-  int  ip_offset;   
+  int  ip_offset;
 };
 
 typedef std::list<CatchBlock *> CatchBlockList;
@@ -107,10 +108,22 @@ public:
   void add_catch_block(Type t, int ip_offs);
   int match_thrown_object(Type t, void *obj);
 
-  Label *label()      { return m_end_label; }
-  FBlock *fun_block() { return m_fb; }
-  void *thrown_object() { return m_thrown_object; }
-  Type  thrown_type()   { return m_thrown_type; }
+  Label *label()
+  {
+    return m_end_label;
+  }
+  FBlock *fun_block()
+  {
+    return m_fb;
+  }
+  void *thrown_object()
+  {
+    return m_thrown_object;
+  }
+  Type  thrown_type()
+  {
+    return m_thrown_type;
+  }
 
 };
 

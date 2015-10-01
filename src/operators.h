@@ -5,7 +5,7 @@
 
 #include "classlib.h"
 #ifdef NEEDS_LOOKUP
-#include "tokens.h"
+  #include "tokens.h"
 #endif
 
 namespace Operators {
@@ -13,9 +13,9 @@ namespace Operators {
 void init();
 string name_from_id(int id);
 #ifdef NEEDS_LOOKUP
-int lookup(int ch, TokenStream& ts);
+  int lookup(int ch, TokenStream& ts);
 #endif
-void add(char *first, int id,...);
+void add(char *first, int id, ...);
 void init_lookup();
 
 };

@@ -10,7 +10,7 @@ const int MAX_BREAKPOINTS = 20;
 
 class Breakpoint;
 typedef std::list<Breakpoint *> BreakpointList;
- 
+
 class Breakpoint {
 private:
   int m_ip;
@@ -25,18 +25,27 @@ public:
   typedef BreakpointList::iterator iterator;
 
   Breakpoint(int id, bool persist, Function *pf, int lineno);
-  ~Breakpoint(); 
- 
-  Instruction saved_instruction() { return m_saved_instruction; }
-  int         line()              { return m_line; }
-  Function *  function()          { return m_pf;  }
-  
+  ~Breakpoint();
+
+  Instruction saved_instruction()
+  {
+    return m_saved_instruction;
+  }
+  int         line()
+  {
+    return m_line;
+  }
+  Function *  function()
+  {
+    return m_pf;
+  }
+
   static iterator   find_in_function(Function *pf);
   static void toggle(char *file, int lineno, bool is_persistent, std::ostream& out);
   static void group(char *file, int *lines, int& sz, bool do_get);
   static iterator find_in_file(const string& file);
   static iterator   end_list();
-  static Breakpoint *create(const string& filename, int lineno, bool persist); 
+  static Breakpoint *create(const string& filename, int lineno, bool persist);
   static Breakpoint *from_id(int id);
   static Breakpoint *exists_at(const string& filename, int lineno);
   static void remove_all();

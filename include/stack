@@ -1,0 +1,112 @@
+// A simplified version of the std::stack class
+// UnderC Development Project, 2001-2003
+
+#ifndef _STACK_H
+#define _STACK_H
+
+namespace std {
+
+template <class T>
+class stack {
+  T *m_begin;
+  T *m_end;
+  unsigned int m_size;
+  unsigned int m_cap;
+public:
+  typedef T         value_type;
+  typedef size_t    size_type;
+
+  size_type size()       const {
+    return m_size;
+  }
+  bool empty() const {
+    return m_size == 0;
+  }
+private:
+  void raw_copy(T *tmp, T *old_ptr, size_type sz) {
+    for(size_type i = 0; i < sz; i++) tmp[i] = old_ptr[i];
+  }
+
+  void alloc(size_type new_sz, T *old_ptr) {
+    T *tmp = new T[new_sz];
+    // reallocating case
+    if (m_size && old_ptr==NULL && m_begin != NULL) {
+      raw_copy(tmp, m_begin, m_size);
+      delete[] m_begin;
+    }
+    // copying case
+    else if (old_ptr != NULL)
+      raw_copy(tmp, old_ptr, new_sz);
+    m_begin = tmp;
+    m_end = m_begin + new_sz;
+  }
+
+  void copy(const stack& v) {
+    m_cap  = v.m_cap;
+    m_size = v.m_size;
+    alloc(v.m_size, v.m_begin);
+  }
+
+  void grow(T *data = NULL) {
+    m_cap = m_size + 10;
+    alloc(m_cap, data);
+    m_end = m_begin + m_size;
+  }
+public:
+  stack() {
+    m_begin = NULL;
+    m_size = 0;
+    grow();
+  }
+
+  explicit vector(size_type sz) {
+    m_begin = NULL;
+    m_size = sz;
+    grow();
+  }
+
+  stack(const stack& v) {
+    m_size = 0;
+    m_begin = NULL;
+    copy(v);
+  }
+
+  bool operator== (const stack& v) const {
+    if (m_size != v.m_size) return false;
+    bool equal = true;
+    T *op = v.m_begin;
+    for(size_type i = 0; i < m_size; i++)
+      equal = equal && m_begin[i]==op[i];
+    return equal;
+  }
+
+  ~stack() {
+    if (m_size > 0) {
+      delete[] m_begin;
+      m_size = 0;
+      m_cap = 0;
+    }
+  }
+
+  void push(const value_type& t)  {
+    if (m_size+1 > m_cap) grow();
+    m_size++;
+    *m_end++ = t;
+  }
+
+  void pop()   {
+    if (!empty()) {
+      m_end--;
+      m_size--;
+    }
+  }
+
+  T& top()         {
+    return *(m_end-1);
+  }
+
+};
+
+} // namespace std
+
+#endif

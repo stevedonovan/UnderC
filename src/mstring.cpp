@@ -6,7 +6,7 @@
   (at least) size penalty for using the char traits templatized
   iostreams and strings, hassle debugging those long names,
   plus longer compile times. A longer version of this rave
-  is available at 
+  is available at
     home.mweb.co.za/sd/sdonovan/templates.html
 
   Masochists and other diehard supporters of the standard
@@ -23,18 +23,21 @@ int nCreated = 0;
 
 STR
 string::alloc(int size)
-{ STR ss = new char[size+1];
-   return ss;
+{
+  STR ss = new char[size + 1];
+  return ss;
 }
 
 string::string (const char *ss /*=NULL*/)
 //*acts as our default constructor
 {
- if (!ss) ss = "";
- m_length = strlen((char *)ss);
- m_data = alloc (m_length);
- strcpy (m_data, (char *)ss);
- nCreated++;
+  if (!ss) {
+    ss = "";
+  }
+  m_length = strlen((char *)ss);
+  m_data = alloc (m_length);
+  strcpy (m_data, (char *)ss);
+  nCreated++;
 }
 
 string::string (int size)
@@ -50,7 +53,7 @@ string::string (const string& s)
 {
   m_length = s.m_length;
   m_data = alloc(m_length);
-  strcpy(m_data,s.m_data);
+  strcpy(m_data, s.m_data);
   nCreated++;
 }
 
@@ -65,14 +68,16 @@ string::~string()
 string&
 string::operator = (const string &s)
 {
-  copy(s.c_str(),s.length());
+  copy(s.c_str(), s.length());
   return *this;
 }
 
 string&
 string::operator = (const char *str)
 {
-  if (!str) str = "";
+  if (!str) {
+    str = "";
+  }
   copy (str, strlen(str));
   return *this;
 }
@@ -80,55 +85,64 @@ string::operator = (const char *str)
 
 int string::compare(const string& s) const
 {
-    if(!m_data || !s.m_data) return -1; else
-    return strcmp(m_data,s.m_data);
+  if(!m_data || !s.m_data) {
+    return -1;
+  } else {
+    return strcmp(m_data, s.m_data);
+  }
 }
 
 int string::compare(const char *s) const
-{   return strcmp(m_data,s);  }
+{
+  return strcmp(m_data, s);
+}
 
 string
 string::substr (int start, int n)
 {
-   STR in,out;
-   int i;
- 
-   if (!n || start + n > length()) n = length()-start;
-   
-   string T(n);
-   in = c_str() + start;
-   out = T.c_str();
-   //strcpy(out,in);
-   for (i = 0; i < n; i++) *out++ = *in++;
-   *out = 0;
-   return T;
+  STR in, out;
+  int i;
+
+  if (!n || start + n > length()) {
+    n = length() - start;
+  }
+
+  string T(n);
+  in = c_str() + start;
+  out = T.c_str();
+  //strcpy(out,in);
+  for (i = 0; i < n; i++) {
+    *out++ = *in++;
+  }
+  *out = 0;
+  return T;
 
 }
 int
 string::find(STR ps)
 {
-   STR ss = strstr(c_str(),ps);
-   return !ss ? -1 :long(ss) - long(c_str());
+  STR ss = strstr(c_str(), ps);
+  return !ss ? -1 : long(ss) - long(c_str());
 }
 
 int
 string::find(string& s)
 {
-   return find(s.c_str());
+  return find(s.c_str());
 }
 
 int
 string::find(char ch)
 {
-   STR ss = strchr(c_str(),ch);
-   return !ss ? -1 :long(ss) - long(c_str());
+  STR ss = strchr(c_str(), ch);
+  return !ss ? -1 : long(ss) - long(c_str());
 }
 
 int
 string::rfind(char ch)
 {
-  STR ss = strrchr(c_str(),ch);
-  return !ss ? -1 :long(ss) - long(c_str());
+  STR ss = strrchr(c_str(), ch);
+  return !ss ? -1 : long(ss) - long(c_str());
 }
 
 string &
@@ -143,17 +157,19 @@ string::operator += (const string &s)
 string&
 string::operator += (const char *str)
 {
-  if (!str) str = "";
+  if (!str) {
+    str = "";
+  }
   m_length += strlen(str);
   resize (m_length);
   strcat(m_data, str);
   return *this;
 }
 
-string& 
+string&
 string::operator += (char ch)
-{ 
-  char tmp[] = {ch,'\0'};  // very crude!!
+{
+  char tmp[] = {ch, '\0'}; // very crude!!
   return (*this) += tmp;
 }
 
@@ -161,25 +177,32 @@ string::operator += (char ch)
 
 void string::copy(const char*str, int sz)
 {
-  if (sz > length() || sz == 0) resize(sz);
+  if (sz > length() || sz == 0) {
+    resize(sz);
+  }
   m_length = sz;
-  strcpy (m_data,str);
+  strcpy (m_data, str);
 }
 
 int string::resize (int size)
 {
-   STR new_str = alloc (size);
-   if (m_data) strncpy(new_str,m_data,size+1);
-   if (m_length > 0) { delete m_data; m_data = NULL; }
-   m_data = new_str;
-   return size; 
+  STR new_str = alloc (size);
+  if (m_data) {
+    strncpy(new_str, m_data, size + 1);
+  }
+  if (m_length > 0) {
+    delete m_data;
+    m_data = NULL;
+  }
+  m_data = new_str;
+  return size;
 }
 
 string operator + (string s1, string s2)
 {
-   string temps(s1);
-   temps += s2;
-   return temps;
+  string temps(s1);
+  temps += s2;
+  return temps;
 }
 
 //#include <iostream.h>
@@ -222,7 +245,7 @@ void do_it()
 
   cout << c.find("what") << s.substr(s.find("h"),3) << endl;
 
-  
+
  }
 
 

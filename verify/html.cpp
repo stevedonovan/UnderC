@@ -3,8 +3,8 @@
 #include "xml.h"
 using namespace std;
 
-Tag bold("BOLD");
-Tag italic("ITALIC");
+Tag bold("B");
+Tag italic("I");
 Tag link_tag("A");
 Tag para("P");
 Tag head_tag("");

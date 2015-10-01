@@ -11,15 +11,15 @@ typedef unsigned int size_t;
 
 #include <_shared_lib.h>
 extern "C" {
-//  char *getenv(char *);
+  //char *getenv(char *);
   //double atof(const char *);
   //int atoi(const char *);
   long atol(const char *);
   double strtod(const char *, char **);
   long strtol(const char *, char **, int);
   unsigned long strtoul(const char *s, char **, int);
-  //int rand(void);
-  int srand(unsigned int);
+  int rand(void);
+  void srand(unsigned int);
   void *malloc(size_t);
   void *realloc(void *, size_t);
   void free(void *);

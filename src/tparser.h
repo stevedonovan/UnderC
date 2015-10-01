@@ -62,54 +62,54 @@ extern int yydebug;
     CHAR = 272,
     VOID = 273,
     BOOL = 274,
-    TYPEDEF = 275,
-    CLASS = 276,
-    STRUCT = 277,
-    ENUM = 278,
-    OPERATOR = 279,
-    GOTO = 280,
-    UNION = 281,
-    STATIC_CAST = 282,
-    CONST_CAST = 283,
-    DYNAMIC_CAST = 284,
-    REINTERPRET_CAST = 285,
-    STRUCT_X = 286,
-    CLASS_X = 287,
-    STRUCT_Y = 288,
-    CLASS_Y = 289,
-    UNION_Y = 290,
-    IF = 291,
-    ELSE = 292,
-    WHILE = 293,
-    DO = 294,
-    FOR = 295,
-    SWITCH = 296,
-    CASE = 297,
-    RETURN = 298,
-    CONTINUE = 299,
-    BREAK = 300,
-    DEFAULT = 301,
-    NAMESPACE = 302,
-    USING = 303,
-    TRY = 304,
-    CATCH = 305,
-    THROW = 306,
-    TEMPLATE = 307,
-    EXTERN = 308,
-    THREEDOT = 309,
-    TYPEOF = 310,
-    EXPLICIT = 311,
-    FRIEND = 312,
-    LAMBDA = 313,
-    FAKE_INIT_LIST = 314,
-    CONST = 315,
-    STATIC = 316,
-    STDCALL = 317,
-    API = 318,
-    VIRTUAL = 319,
-    PRIVATE = 320,
-    PROTECTED = 321,
-    PUBLIC = 322,
+    STATIC_CAST = 275,
+    CONST_CAST = 276,
+    DYNAMIC_CAST = 277,
+    REINTERPRET_CAST = 278,
+    STRUCT_X = 279,
+    CLASS_X = 280,
+    STRUCT_Y = 281,
+    CLASS_Y = 282,
+    UNION_Y = 283,
+    IF = 284,
+    ELSE = 285,
+    WHILE = 286,
+    DO = 287,
+    FOR = 288,
+    SWITCH = 289,
+    CASE = 290,
+    RETURN = 291,
+    CONTINUE = 292,
+    BREAK = 293,
+    OPERATOR = 294,
+    DEFAULT = 295,
+    TYPEDEF = 296,
+    ENUM = 297,
+    GOTO = 298,
+    NAMESPACE = 299,
+    USING = 300,
+    TRY = 301,
+    CATCH = 302,
+    THROW = 303,
+    TEMPLATE = 304,
+    EXTERN = 305,
+    THREEDOT = 306,
+    TYPEOF = 307,
+    EXPLICIT = 308,
+    FRIEND = 309,
+    LAMBDA = 310,
+    FAKE_INIT_LIST = 311,
+    CONST = 312,
+    STATIC = 313,
+    STDCALL = 314,
+    API = 315,
+    VIRTUAL = 316,
+    PRIVATE = 317,
+    PROTECTED = 318,
+    PUBLIC = 319,
+    CLASS = 320,
+    STRUCT = 321,
+    UNION = 322,
     COMMA = 323,
     ASSIGN = 324,
     MUL_A = 325,
@@ -182,54 +182,54 @@ extern int yydebug;
 #define CHAR 272
 #define VOID 273
 #define BOOL 274
-#define TYPEDEF 275
-#define CLASS 276
-#define STRUCT 277
-#define ENUM 278
-#define OPERATOR 279
-#define GOTO 280
-#define UNION 281
-#define STATIC_CAST 282
-#define CONST_CAST 283
-#define DYNAMIC_CAST 284
-#define REINTERPRET_CAST 285
-#define STRUCT_X 286
-#define CLASS_X 287
-#define STRUCT_Y 288
-#define CLASS_Y 289
-#define UNION_Y 290
-#define IF 291
-#define ELSE 292
-#define WHILE 293
-#define DO 294
-#define FOR 295
-#define SWITCH 296
-#define CASE 297
-#define RETURN 298
-#define CONTINUE 299
-#define BREAK 300
-#define DEFAULT 301
-#define NAMESPACE 302
-#define USING 303
-#define TRY 304
-#define CATCH 305
-#define THROW 306
-#define TEMPLATE 307
-#define EXTERN 308
-#define THREEDOT 309
-#define TYPEOF 310
-#define EXPLICIT 311
-#define FRIEND 312
-#define LAMBDA 313
-#define FAKE_INIT_LIST 314
-#define CONST 315
-#define STATIC 316
-#define STDCALL 317
-#define API 318
-#define VIRTUAL 319
-#define PRIVATE 320
-#define PROTECTED 321
-#define PUBLIC 322
+#define STATIC_CAST 275
+#define CONST_CAST 276
+#define DYNAMIC_CAST 277
+#define REINTERPRET_CAST 278
+#define STRUCT_X 279
+#define CLASS_X 280
+#define STRUCT_Y 281
+#define CLASS_Y 282
+#define UNION_Y 283
+#define IF 284
+#define ELSE 285
+#define WHILE 286
+#define DO 287
+#define FOR 288
+#define SWITCH 289
+#define CASE 290
+#define RETURN 291
+#define CONTINUE 292
+#define BREAK 293
+#define OPERATOR 294
+#define DEFAULT 295
+#define TYPEDEF 296
+#define ENUM 297
+#define GOTO 298
+#define NAMESPACE 299
+#define USING 300
+#define TRY 301
+#define CATCH 302
+#define THROW 303
+#define TEMPLATE 304
+#define EXTERN 305
+#define THREEDOT 306
+#define TYPEOF 307
+#define EXPLICIT 308
+#define FRIEND 309
+#define LAMBDA 310
+#define FAKE_INIT_LIST 311
+#define CONST 312
+#define STATIC 313
+#define STDCALL 314
+#define API 315
+#define VIRTUAL 316
+#define PRIVATE 317
+#define PROTECTED 318
+#define PUBLIC 319
+#define CLASS 320
+#define STRUCT 321
+#define UNION 322
 #define COMMA 323
 #define ASSIGN 324
 #define MUL_A 325
@@ -288,15 +288,15 @@ extern int yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 107 "parser.y" /* yacc.c:1909  */
+#line 98 "parser.y" /* yacc.c:1909  */
 
-  int    val; 
-  long   ctype;
-  char*  str;
-  Entry* entry;
-  Expr*  expression;
+  int       val;
+  long      ctype;
+  char*     str;
+  Entry*    entry;
+  Expr*     expression;
   ExprList *elist;
-  Class *classptr;
+  Class    *classptr;
   TypeList *typelist;
 
 #line 303 "y.tab.h" /* yacc.c:1909  */

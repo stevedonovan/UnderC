@@ -4,7 +4,11 @@
 // sin cos tan atan2 pow exp log sqrt atof
 #ifndef __MATH_H
 #define __MATH_H
-#include <_shared_lib.h>
+#ifdef __win32__
+#lib msvcrt40.dll
+#else
+#lib libm.so
+#endif
 extern "C" {
 /* From Appendix B4 of K&R2 */
 // double sin(double);
@@ -30,9 +34,5 @@ extern "C" {
   //* double mod(double, double *); *not in Linux?*
   double fmod(double, double);  
 }
-#include <_end_shared.h>
+#lib
 #endif
-
-
-
-

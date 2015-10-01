@@ -8,7 +8,7 @@
 
 typedef void *Handle;
 #ifndef NULL
-#define NULL 0
+  #define NULL 0
 #endif
 
 int tick_count();
@@ -26,41 +26,41 @@ public:
 };
 
 typedef unsigned long ulong;
-  
+
 class Thread: public KernelObject {
- 
- public:
-   enum Piority { Lowest, BelowNormal,Normal,AboveNormal,Highest };
-   Thread(bool owner = true);
-   void piority (Piority p);
-   void resume();
-   void suspend();
-   void start_time();
-   long elapsed_time();
-   void kill();
-   static void sleep(int msec);
-   static ulong local();
-   static void local(ulong);
-   virtual int execute();
-   virtual void cleanup() {}
+
+public:
+  enum Priority { Lowest, BelowNormal, Normal, AboveNormal, Highest };
+  Thread(bool owner = true);
+  void priority (Priority p);
+  void resume();
+  void suspend();
+  void start_time();
+  long elapsed_time();
+  void kill();
+  static void sleep(int msec);
+  static ulong local();
+  static void local(ulong);
+  virtual int execute();
+  virtual void cleanup() {}
 };
 
 typedef Thread *PThread;
 
 class Mutex: public KernelObject {
-  public:
-   Mutex(char *name=NULL);
-   int release();
+public:
+  Mutex(char *name = NULL);
+  int release();
 };
 
 // *add 1.2.4
 class Event: public KernelObject {
-    bool m_set;
+  bool m_set;
 public:
-    Event(char *name=NULL);
-    void reset();
-    void set();
-    bool is_set();
+  Event(char *name = NULL);
+  void reset();
+  void set();
+  bool is_set();
 };
 
 class Lock {
@@ -73,5 +73,3 @@ public:
 
 
 #endif
-   
-

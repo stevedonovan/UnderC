@@ -6,73 +6,84 @@
 
 #include <iostream>
 #ifndef NULL
-#define NULL 0
+  #define NULL 0
 #endif
 
 const int MAX_LINE=1024;
 
-#ifndef MSC_VER
-#define EXPORT
+#ifndef _MSC_VER
+  #define EXPORT
 #else
-#define EXPORT __declspec(dllexport)
+  #define EXPORT __declspec(dllexport)
 #endif
 
 #ifdef __UNDERC__
-  namespace std  {
-#endif    
-    
-#pragma dlink string_imp.dll
+namespace std  {
+  #pragma dlink string_imp.dll
+#endif
 
 class EXPORT string {
 protected:
- char *m_str;
- unsigned int m_len;
+  char *m_str;
+  unsigned int m_len;
 public:
- typedef unsigned long size_type;
- typedef char *iterator;
- typedef const char *const_iterator;
- enum { npos = 0xFFFFFFFF };
+  typedef unsigned long size_type;
+  typedef char *iterator;
+  typedef const char *const_iterator;
+  enum { npos = 0xFFFFFFFF };
 
- char *c_str() const { return m_str; }
- size_type  length() const { return m_len; }
- size_type  size()   const { return m_len; }
- bool       empty()  const { return m_len == 0; }
- // *hack 0.9.5 These aren't really const methods (but!)
- iterator begin() const { return m_str; }
- iterator end() const  { return m_str + m_len; }
+  char *c_str() const {
+    return m_str;
+  }
+  size_type  length() const {
+    return m_len;
+  }
+  size_type  size()   const {
+    return m_len;
+  }
+  bool       empty()  const {
+    return m_len == 0;
+  }
+// *hack 0.9.5 These aren't really const methods (but!)
+  iterator begin() const {
+    return m_str;
+  }
+  iterator end() const  {
+    return m_str + m_len;
+  }
 
- void resize(size_type sz); 
- void append(char *s);
- void push_back(char ch);
- void copy(char *str);
- string(const char *str); 
- string(const char *str, int sz);
- string();
- string(size_type sz, char ch);
- string(const string& s);
- string& operator= (const string& s);
- string& operator= (char *str);
- string& operator+= (char *str);
- string& operator+= (const string& s);
- string& operator+= (char ch);
- ~string();
- size_type find(char *str) const;
- size_type find(const string& s) const;
- size_type find(char ch) const;
- size_type rfind(char ch) const;
- size_type bound(size_type n) const;
- string substr(size_type start, size_type n = npos) const;
- string& replace(size_type is, size_type n, char *repl);
- string& replace(size_type is, size_type n, const string& repl);
- void insert(size_type idx, const string& repl);
- char& operator[] (size_type i);
- #ifndef __UNDERC__
- char operator[] (size_type i) const;
- #endif  
+  void resize(size_type sz);
+  void append(char *s);
+  void push_back(char ch);
+  void copy(char *str);
+  string(const char *str);
+  string(const char *str, int sz);
+  string();
+  string(size_type sz, char ch);
+  string(const string& s);
+  string& operator= (const string& s);
+  string& operator= (char *str);
+  string& operator+= (char *str);
+  string& operator+= (const string& s);
+  string& operator+= (char ch);
+  ~string();
+  size_type find(char *str) const;
+  size_type find(const string& s) const;
+  size_type find(char ch) const;
+  size_type rfind(char ch) const;
+  size_type bound(size_type n) const;
+  string substr(size_type start, size_type n = npos) const;
+  string& replace(size_type is, size_type n, char *repl);
+  string& replace(size_type is, size_type n, const string& repl);
+  void insert(size_type idx, const string& repl);
+  char& operator[] (size_type i);
+#ifndef __UNDERC__
+  char operator[] (size_type i) const;
+#endif
 
- int compare(const string& s) const;
+  int compare(const string& s) const;
 // *hack 0.9.7 used to be non-member, but that won't work for now!
- bool operator== (const string& s2) const;
+  bool operator== (const string& s2) const;
 };
 
 #ifdef __UNDERC__
@@ -83,7 +94,7 @@ public:
 #endif
 
 //*SJD* Currently we aren't doing overloading with functions which
-// span different namespaces.  So putting operator+ in std would 
+// span different namespaces.  So putting operator+ in std would
 // mean being unable to overload it for any other type.
 EXPORT bool operator != (const _string& s1, const _string& s2);
 EXPORT bool operator> (const _string& s1, const _string& s2);
@@ -91,29 +102,27 @@ EXPORT bool operator< (const _string& s1, const _string& s2);
 EXPORT _string operator+ (const _string& s1, const _string& s2);
 EXPORT _string operator+ (const _string& s1, char *str2);
 
-#pragma dlink
+#ifdef __UNDERC__
+  #pragma dlink
 
-std::ostream& operator<< (std::ostream& os, const std::string& s)
-{
+std::ostream& operator<< (std::ostream& os, const std::string& s) {
   os << s.c_str();
   return os;
 }
 
-std::istream& operator>> (std::istream& is, std::string& s)
-{ char buff[MAX_LINE]; 
+std::istream& operator>> (std::istream& is, std::string& s) {
+  char buff[MAX_LINE];
   is >> buff;
-  s = buff; 
+  s = buff;
   return is;
 }
 
-std::istream& getline(std::istream& is, std::string& s)
- { 
-   char buff[MAX_LINE];
-   is.getline(buff,MAX_LINE);
-   s = buff;
-   return is;
- }
-
+std::istream& getline(std::istream& is, std::string& s) {
+  char buff[MAX_LINE];
+  is.getline(buff,MAX_LINE);
+  s = buff;
+  return is;
+}
 #endif
 
- 
+#endif

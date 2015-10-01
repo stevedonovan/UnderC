@@ -36,7 +36,7 @@
 #include <fstream>
 
 #ifdef _WCON
-#include "ide.h"
+  #include "ide.h"
 #endif
 
 // *DEBUG*
@@ -82,11 +82,12 @@ const int EXPR_BUFF_SIZE = 1024, PATHSIZE = 256;
 int call_parser()
 {
   try {
-    if (yyparse()==1) { // an error occured!
-       Input::clear();
-       return FAIL;
-    } else
-	   return OK; // successful exit!
+    if (yyparse() == 1) { // an error occured!
+      Input::clear();
+      return FAIL;
+    } else {
+      return OK;  // successful exit!
+    }
   } catch(int) {
 #ifndef _WCON
     //cerr << "DUD err" << endl;
@@ -95,53 +96,62 @@ int call_parser()
   }
 }
 
-int uc_eval(char *expr, bool append_semicolon=true, bool synchronous=false, char *name=NULL, int lineno=0)
+int uc_eval(char *expr, bool append_semicolon = true, bool synchronous = false, char *name = NULL, int lineno = 0)
 {
- static char buffer[EXPR_BUFF_SIZE];
- char *ibuff = synchronous ? new char[strlen(expr)+10] : buffer;
- strcpy(ibuff,expr);
- if (append_semicolon) strcat(ibuff,";");
- if (synchronous) strcat(ibuff,"\n#q");
- //cout << "*ibuff " << ibuff;
- Parser::state.lineno = 0;   // reset error state and go for it...
- Parser::state.file = "";
- bool old_compile_flag = Parser::debug.compile_program;
- Parser::debug.compile_program = false;
- Input::insert_stream(new std::istrstream(ibuff),name ? name : "$EXPR",lineno);
- if (synchronous) {
-     int ret = call_parser();
-     delete ibuff;
-     Parser::debug.compile_program = old_compile_flag;
-     if (ret == OK) {
-         if (Engine::paused()) return HALTED;
-         if (Parser::state.lineno > 0) return CRASHED;
-     }
-     return ret;
- }
- else {
-  Parser::debug.compile_program = old_compile_flag;
-  return PENDING;
- }
+  static char buffer[EXPR_BUFF_SIZE];
+  char *ibuff = synchronous ? new char[strlen(expr) + 10] : buffer;
+  strcpy(ibuff, expr);
+  if (append_semicolon) {
+    strcat(ibuff, ";");
+  }
+  if (synchronous) {
+    strcat(ibuff, "\n#q");
+  }
+//cout << "*ibuff " << ibuff;
+  Parser::state.lineno = 0;   // reset error state and go for it...
+  Parser::state.file = "";
+  bool old_compile_flag = Parser::debug.compile_program;
+  Parser::debug.compile_program = false;
+  Input::insert_stream(new std::istrstream(ibuff), name ? name : "$EXPR", lineno);
+  if (synchronous) {
+    int ret = call_parser();
+    delete ibuff;
+    Parser::debug.compile_program = old_compile_flag;
+    if (ret == OK) {
+      if (Engine::paused()) {
+        return HALTED;
+      }
+      if (Parser::state.lineno > 0) {
+        return CRASHED;
+      }
+    }
+    return ret;
+  } else {
+    Parser::debug.compile_program = old_compile_flag;
+    return PENDING;
+  }
 }
 
 // *change 1.2.8 May be passed an optional (file,position) for
 // incremental compilation.  In this mode, we force compilation
 // to occur in global context.
-int redirected_eval(char *s, bool do_semi, char *name=NULL, int lineno=0)
+int redirected_eval(char *s, bool do_semi, char *name = NULL, int lineno = 0)
 {
   Table* tbl = &Parser::state.context();
   bool pushing_context = false;
   if (name != NULL && tbl != &Parser::global()) {
-      Parser::state.push_context(&Parser::global());
-      pushing_context = true;
+    Parser::state.push_context(&Parser::global());
+    pushing_context = true;
   }
 // synchronous execution
   Errors::redirect_output(true);
-  int ret = uc_eval(s,do_semi,true,name,lineno);
+  int ret = uc_eval(s, do_semi, true, name, lineno);
   Errors::check_output(); // make sure errors & messages no longer redirected
   if (pushing_context) {  // restore context
-      Parser::state.pop_context();
-      if (ret == HALTED) ret = OK;  // engine state was halted; no problem
+    Parser::state.pop_context();
+    if (ret == HALTED) {
+      ret = OK;  // engine state was halted; no problem
+    }
   }
   return ret;
 }
@@ -163,13 +173,17 @@ int _uc_exec(char* s, void* cntxt, char* filename, int line)
 
   // keep old parser state for later
   Parser::ParserState old_state = Parser::state;
-  dcl_set(false,false); // save the DCL & ALS stacks...
+  dcl_set(false, false); // save the DCL & ALS stacks...
   save_parser_state();  // save the BISON state...
 
   // do the compilation/evaluation, using the context if requested.
-  if (cntxt) Parser::state.push_context((Table*)cntxt);
-  int ret = uc_eval(s,false,true,filename,line);
-  if (cntxt) Parser::state.pop_context();
+  if (cntxt) {
+    Parser::state.push_context((Table*)cntxt);
+  }
+  int ret = uc_eval(s, false, true, filename, line);
+  if (cntxt) {
+    Parser::state.pop_context();
+  }
 
   // reset parser state, but make sure the error state is kept!
   file = Parser::state.file;
@@ -189,9 +203,12 @@ int _uc_exec(char* s, void* cntxt, char* filename, int line)
 void _uc_result(int ret, char *output, int sz, char* filename, int* line)
 {
   char *out;
-  if (ret==OK) out = Errors::get_redirect_buffer(1);
-  else out = Errors::get_redirect_buffer(2);
-  strncpy(output,out,sz);
+  if (ret == OK) {
+    out = Errors::get_redirect_buffer(1);
+  } else {
+    out = Errors::get_redirect_buffer(2);
+  }
+  strncpy(output, out, sz);
   if (filename) {
     *line = Errors::get_stop_position(filename);
   }
@@ -199,8 +216,8 @@ void _uc_result(int ret, char *output, int sz, char* filename, int* line)
 
 int ext_uc_eval(char *expr, char *output, int sz)
 {
-  int ret = redirected_eval(expr,true);
-  _uc_result(ret,output,sz,0,0);
+  int ret = redirected_eval(expr, true);
+  _uc_result(ret, output, sz, 0, 0);
   return ret;
 }
 
@@ -209,43 +226,54 @@ static char* gCurrentArgs = "";
 
 int ext_run_program(char *cmdline, int stepping)
 {
- Errors::redirect_output(true,false);
- char buff[256];
- strcpy(buff,cmdline);
- if (stepping) { Engine::set_single_stepping(stepping == 1); } // *HACK*
- if (Program::run(buff)) return 0;  // main() not found!
- else return 1;
+  Errors::redirect_output(true, false);
+  char buff[256];
+  strcpy(buff, cmdline);
+  if (stepping) {
+    Engine::set_single_stepping(stepping == 1);  // *HACK*
+  }
+  if (Program::run(buff)) {
+    return 0;  // main() not found!
+  } else {
+    return 1;
+  }
 }
 
 bool insert_input_file(char *filename)
 {
   std::ifstream *pfs = new std::ifstream(filename, std::ios::in);
   if (!(*pfs)) {
-        delete pfs;
-        return false;
+    delete pfs;
+    return false;
   }
-  Input::insert_stream(pfs,filename);
+  Input::insert_stream(pfs, filename);
   return true;
 }
 
 int safe_atoi(char *str)
 {
-  return str==NULL ? 0 : atoi(str);
+  return str == NULL ? 0 : atoi(str);
 }
 
-bool command_error(char *msg, char *sym=NULL)
+bool command_error(char *msg, char *sym = NULL)
 {
   cerr << msg;
-  if (sym != NULL) cerr << '\'' << sym << '\'';
+  if (sym != NULL) {
+    cerr << '\'' << sym << '\'';
+  }
   cerr << std::endl;
   return true;
 }
 
 bool cant_open_err(char *cfile)
-{ return command_error("Cannot open",cfile); }
+{
+  return command_error("Cannot open", cfile);
+}
 
 bool cant_find(char *name)
-{  return command_error("Cannot find",name); }
+{
+  return command_error("Cannot find", name);
+}
 
 
 static char *TMPFILE = "_tmp010_u.txt";
@@ -263,29 +291,34 @@ void uc_system(char *cmd)
   string spath = getenv("COMSPEC");   // Win32 warning...
   string cmdl = spath + " /c " + string(cmd);
   bool redirect_stdout = cmdl.find(">") == -1;
-  if(redirect_stdout) { cmdl += " > "; cmdl += TMPFILE; }
-  exec(cmdl.c_str(),0,true);
   if(redirect_stdout) {
-    ifstream inf(TMPFILE,IOS_IN_FLAGS);
-    if (!inf) return;
+    cmdl += " > ";
+    cmdl += TMPFILE;
+  }
+  exec(cmdl.c_str(), 0, true);
+  if(redirect_stdout) {
+    ifstream inf(TMPFILE, IOS_IN_FLAGS);
+    if (!inf) {
+      return;
+    }
     while (!inf.eof()) {
-      inf.getline(buff,BUFFSIZE);
+      inf.getline(buff, BUFFSIZE);
       puts(buff);
-     }
+    }
   }
 #endif
 }
 
 char *get_temp_log()
 {
- static char buff[30];
- struct tm *ts;
- time_t t;
- time(&t);
- ts = localtime(&t);
- ts->tm_mon++;
- sprintf(buff,"%02d%02d-%02d%02d",ts->tm_mon,ts->tm_mday,ts->tm_hour,ts->tm_min);
- return buff;
+  static char buff[30];
+  struct tm *ts;
+  time_t t;
+  time(&t);
+  ts = localtime(&t);
+  ts->tm_mon++;
+  sprintf(buff, "%02d%02d-%02d%02d", ts->tm_mon, ts->tm_mday, ts->tm_hour, ts->tm_min);
+  return buff;
 }
 
 // *add 1.2.1 Getting interactive help
@@ -294,28 +327,34 @@ string uc_home_dir(); // forward
 
 void show_help(char* help_text, char* cmd, char marker)
 {
-    char buff[256];
-    string help_file = uc_home_dir()+"/";
-    help_file += help_text;
-    std::ifstream in(help_file.c_str(), std::ios::in);
-    if (! in) { cerr << "cannot find " << help_file << std::endl; return; }
-    if (cmd && *cmd == marker) cmd++;
-    while (! in.eof()) {
-      in.getline(buff,sizeof(buff));
-      if (buff[0] == marker) {
-       if (! cmd) cmsg << buff << std::endl;
-       else {
-         if (strncmp(cmd,buff+1,strlen(cmd))==0) {
-            buff[0] = ' ';
-            while (buff[0] != marker) {
-                cmsg << buff << std::endl;
-                in.getline(buff,sizeof(buff));
-            }
-         return;
-         }
-       }
+  char buff[256];
+  string help_file = uc_home_dir() + "/";
+  help_file += help_text;
+  std::ifstream in(help_file.c_str(), std::ios::in);
+  if (! in) {
+    cerr << "cannot find " << help_file << std::endl;
+    return;
+  }
+  if (cmd && *cmd == marker) {
+    cmd++;
+  }
+  while (! in.eof()) {
+    in.getline(buff, sizeof(buff));
+    if (buff[0] == marker) {
+      if (! cmd) {
+        cmsg << buff << std::endl;
+      } else {
+        if (strncmp(cmd, buff + 1, strlen(cmd)) == 0) {
+          buff[0] = ' ';
+          while (buff[0] != marker) {
+            cmsg << buff << std::endl;
+            in.getline(buff, sizeof(buff));
+          }
+          return;
+        }
       }
     }
+  }
 }
 #endif
 
@@ -327,22 +366,29 @@ void display_locals(Table *tbl, void *pobj, bool is_ptr = false, bool do_all = f
   const int LOCALBUFF = 1024;
   char buff[LOCALBUFF];
   bool pushing_context = tbl != NULL;
-  if (!pushing_context) tbl = &Parser::state.context();
-  else {
-      Parser::state.push_context(tbl);
-	  if (is_ptr) pobj = *(void **)pobj;
-      Engine::object_ptr(pobj);
+  if (!pushing_context) {
+    tbl = &Parser::state.context();
+  } else {
+    Parser::state.push_context(tbl);
+    if (is_ptr) {
+      pobj = *(void **)pobj;
+    }
+    Engine::object_ptr(pobj);
   }
-  std::ostrstream os(buff,LOCALBUFF);
+  std::ostrstream os(buff, LOCALBUFF);
   int flags = Table::SEMICOLON_SEP | Table::VARS;
-  if (do_all) flags |= Table::ALL;
-  tbl->dump_entries(os,flags);
+  if (do_all) {
+    flags |= Table::ALL;
+  }
+  tbl->dump_entries(os, flags);
   os << std::ends;
 
   Parser::debug.no_access_control = true;
-  uc_eval(buff,false,true);
+  uc_eval(buff, false, true);
   Parser::debug.no_access_control = false;
-  if (pushing_context) Parser::state.pop_context();
+  if (pushing_context) {
+    Parser::state.pop_context();
+  }
 }
 
 /// These guys bracket every LOAD operation; the idea here
@@ -361,45 +407,49 @@ static bool s_last_c_mode, s_last_strict_mode, s_is_cpp_source = false;
 // only called if the file could be opened...
 int module_open()
 {
-    string ext = Utils::file_extension(Module::current()->name());
-    s_is_cpp_source = ext == ".c" || ext == ".cpp" || ext == ".cxx";
-    s_last_c_mode = Parser::debug.c_mode;
-    s_last_strict_mode = Parser::debug.strict;
-    if (ext == ".c") Parser::set_c_mode(true);
-    Parser::debug.strict = s_is_cpp_source;
-    Parser::debug.compile_program = s_is_cpp_source;
-    Module::clean_namespaces();
-    Module* pm = Module::current();
-    pm->clean_macros_and_typedefs();
-    LoadedModuleList::init_module(s_is_cpp_source ? pm->id() : -1);
-    return 0;
+  string ext = Utils::file_extension(Module::current()->name());
+  s_is_cpp_source = ext == ".c" || ext == ".cpp" || ext == ".cxx";
+  s_last_c_mode = Parser::debug.c_mode;
+  s_last_strict_mode = Parser::debug.strict;
+  if (ext == ".c") {
+    Parser::set_c_mode(true);
+  }
+  Parser::debug.strict = s_is_cpp_source;
+  Parser::debug.compile_program = s_is_cpp_source;
+  Module::clean_namespaces();
+  Module* pm = Module::current();
+  pm->clean_macros_and_typedefs();
+  LoadedModuleList::init_module(s_is_cpp_source ? pm->id() : -1);
+  return 0;
 }
 
 // should always called!
 int module_close()
 {
-    using namespace Parser;
-    if (s_is_cpp_source ) {
-      Instruction* pi;
-      if (code().total_instructions() > 0) {
-          code().emit_return(t_void);
-          pi = code().end_code();
-      } else pi = NULL;
-      LoadedModuleList::finish_module(pi);
+  using namespace Parser;
+  if (s_is_cpp_source ) {
+    Instruction* pi;
+    if (code().total_instructions() > 0) {
+      code().emit_return(t_void);
+      pi = code().end_code();
+    } else {
+      pi = NULL;
     }
-    s_is_cpp_source = false;
-    Module::restore_namespaces();
-    Parser::set_c_mode(s_last_c_mode);
-    Parser::debug.strict = s_last_strict_mode;
-    Parser::debug.compile_program = false;
-    return 0;
+    LoadedModuleList::finish_module(pi);
+  }
+  s_is_cpp_source = false;
+  Module::restore_namespaces();
+  Parser::set_c_mode(s_last_c_mode);
+  Parser::debug.strict = s_last_strict_mode;
+  Parser::debug.compile_program = false;
+  return 0;
 }
 
 extern Function* gLastFunction;  //*DEBUG - found in common.cpp
 
 void __mangle()
 {
- cerr << '_' << Mangle::GCC3(gLastFunction) << ';' << std::endl;
+  cerr << '_' << Mangle::GCC3(gLastFunction) << ';' << std::endl;
 }
 
 enum {CANT_OPEN, FILE_UNCHANGED, SUCCESS};
@@ -407,28 +457,38 @@ enum {CANT_OPEN, FILE_UNCHANGED, SUCCESS};
 int compile_module(char *file, bool is_conditional)
 {
 // *fix 1.2.8 Make sure we're in global context before attempting a compilation
-    bool is_break = Parser::current_function() != NULL;
-    if (is_break) Parser::state.push_context(&Parser::global());
+  bool is_break = Parser::current_function() != NULL;
+  if (is_break) {
+    Parser::state.push_context(&Parser::global());
+  }
 // *add 0.9.8 #l should now do a dependency check to allow changed headers to be included...
-    Module *pm = Module::from_name(file);
-    if (!is_conditional) {
-      if (pm != NULL) {
-       //pm->reset_flags();
-        Module::reset_modify_flags();
-       // should we _always_ reload with #l?
-       if (! pm->needs_rebuilding()) return FILE_UNCHANGED;
+  Module *pm = Module::from_name(file);
+  if (!is_conditional) {
+    if (pm != NULL) {
+      //pm->reset_flags();
+      Module::reset_modify_flags();
+      // should we _always_ reload with #l?
+      if (! pm->needs_rebuilding()) {
+        return FILE_UNCHANGED;
       }
-    } else if (pm != NULL && ! pm->needs_rebuilding()) return FILE_UNCHANGED;
-    //*DEBUG*
-    if (is_conditional) {
-      cmsg << "load: " << file;
-      if (pm != NULL) cmsg << " id = " << pm->id();
-      cmsg << std::endl;
     }
-    Input::set_open_restore(module_open,module_close);
-    Parser::state.reset();
-    if (is_break) Parser::state.pop_context();
-    return Input::open(file) ? SUCCESS : CANT_OPEN;
+  } else if (pm != NULL && ! pm->needs_rebuilding()) {
+    return FILE_UNCHANGED;
+  }
+  //*DEBUG*
+  if (is_conditional) {
+    cmsg << "load: " << file;
+    if (pm != NULL) {
+      cmsg << " id = " << pm->id();
+    }
+    cmsg << std::endl;
+  }
+  Input::set_open_restore(module_open, module_close);
+  Parser::state.reset();
+  if (is_break) {
+    Parser::state.pop_context();
+  }
+  return Input::open(file) ? SUCCESS : CANT_OPEN;
 }
 
 int yylex(); // further along here...
@@ -439,285 +499,360 @@ extern bool tok_dbg;
 bool UCTokenStream::user_cmd(string ppd)
 {
   static string current_file;
-  if (ppd == "q") return false; else
-#ifdef _WCON
-  if (ppd == "ql") {
-    wcon_copy_to_log(get_temp_log());
+  if (ppd == "q") {
     return false;
   } else
+#ifdef _WCON
+    if (ppd == "ql") {
+      wcon_copy_to_log(get_temp_log());
+      return false;
+    } else
 #endif
-  // *add 1.1.2 #pragma! Just dlink and pack()
-    // *fix 1.2.0 it's not an error to leave out the library name
-  if (ppd == "pragma") {
-	  char *line = get_upto(0,false);
-	  string what = strtok(line," ()");
-	  char *arg   = strtok(NULL," ()");
-	  if (what == "dlink") {
-         if (!Builtin::set_current_lib_file(arg)) return cant_open_err(arg);
-         char *impf = strtok(NULL," ()");
-         if (impf != NULL) Builtin::generate_ordinal_lookup(impf);
-      } else
-	  if (what == "pack") Parser::set_alignment(atoi(arg));
-#ifdef _DEBUG
-      else
-      if (what == "break") {
-        gDebugBreak = atoi(arg);
-        if (gDebugBreak == 1) {
-          __break(1);
-          gDebugBreak = 0;
+      // *add 1.1.2 #pragma! Just dlink and pack()
+      // *fix 1.2.0 it's not an error to leave out the library name
+      if (ppd == "pragma") {
+        char *line = get_upto(0, false);
+        string what = strtok(line, " ()");
+        char *arg   = strtok(NULL, " ()");
+        if (what == "dlink") {
+          if (!Builtin::set_current_lib_file(arg)) {
+            return cant_open_err(arg);
+          }
+          char *impf = strtok(NULL, " ()");
+          if (impf != NULL) {
+            Builtin::generate_ordinal_lookup(impf);
+          }
+        } else if (what == "pack") {
+          Parser::set_alignment(atoi(arg));
         }
-      }
+#ifdef _DEBUG
+        else if (what == "break") {
+          gDebugBreak = atoi(arg);
+          if (gDebugBreak == 1) {
+            __break(1);
+            gDebugBreak = 0;
+          }
+        }
 #endif
-  } else
-  if (ppd == "x") uc_system(get_upto(0,false)); else
-  if (ppd == "cd") {
-     Utils::change_dir(Input::next_token(true));
-  } else
-  if (ppd == "pwd") {
-     cmsg << Utils::get_curr_dir() << std::endl;
-  } else
-  if (ppd == "l" || ppd == "lc") {
-    Errors::reset_error_state();
-    char *cfile = Input::next_token();
-    if (cfile) current_file = cfile;
-    else if (current_file[0] != '\0') cfile = current_file.c_str();
-    else return command_error("Please supply file\n");
-    bool condn = ppd == "lc";
-    int ret = compile_module(cfile,condn);
+      } else if (ppd == "x") {
+        uc_system(get_upto(0, false));
+      } else if (ppd == "cd") {
+        Utils::change_dir(Input::next_token(true));
+      } else if (ppd == "pwd") {
+        cmsg << Utils::get_curr_dir() << std::endl;
+      } else if (ppd == "l" || ppd == "lc") {
+        Errors::reset_error_state();
+        char *cfile = Input::next_token();
+        if (cfile) {
+          current_file = cfile;
+        } else if (current_file[0] != '\0') {
+          cfile = current_file.c_str();
+        } else {
+          return command_error("Please supply file\n");
+        }
+        bool condn = ppd == "lc";
+        int ret = compile_module(cfile, condn);
 
-    if (ret == CANT_OPEN && !condn) cant_open_err(cfile);
-    else if (ret == FILE_UNCHANGED) cmsg << "unchanged\n";
-  } else
-  if (ppd == "bl") {
-   // *add 0.9.4 Use this before a series of #lc commands...
-    Module::reset_modify_flags();
-  } else
- // *add 1.2.8 the #args command can be used to set commmand-line args for debugging;
- // after #args, the #r commands will use it as the default, unless overriden.
-  if (ppd == "r" || ppd == "rx" || ppd == "args") {
-     char* args = get_upto(0,false);
-     if (ppd=="args") gCurrentArgs = strdup(args);
-     else { // run the program (rx means 'don't run in separate thread'
-       if (*args == '\0' && gCurrentArgs != NULL) args = strdup(gCurrentArgs);
-       if (!Program::run(args,ppd=="rx")) cant_find("main");
-     }
-  } else
+        if (ret == CANT_OPEN && !condn) {
+          cant_open_err(cfile);
+        } else if (ret == FILE_UNCHANGED) {
+          cmsg << "unchanged\n";
+        }
+      } else if (ppd == "bl") {
+        // *add 0.9.4 Use this before a series of #lc commands...
+        Module::reset_modify_flags();
+      } else
+// *add 1.2.8 the #args command can be used to set commmand-line args for debugging;
+// after #args, the #r commands will use it as the default, unless overriden.
+        if (ppd == "r" || ppd == "rx" || ppd == "args") {
+          char* args = get_upto(0, false);
+          if (ppd == "args") {
+            gCurrentArgs = strdup(args);
+          } else { // run the program (rx means 'don't run in separate thread'
+            if (*args == '\0' && gCurrentArgs != NULL) {
+              args = strdup(gCurrentArgs);
+            }
+            if (!Program::run(args, ppd == "rx")) {
+              cant_find("main");
+            }
+          }
+        } else
 #ifdef _WCON
-  if (ppd == "log") {
-     wcon_copy_to_log(Input::next_token());
-  } else
+          if (ppd == "log") {
+            wcon_copy_to_log(Input::next_token());
+          } else
 #endif
-  if (ppd == "lib") {
-    char *libf = Input::next_token();
-    if (!Builtin::set_current_lib_file(libf)) cant_open_err(libf);
-    char *impf = Input::next_token(false);
-    // *fix 1.2.5 we were attempting to read an ordinal file after an empty #lib
-    if (libf) {
-      if (impf != NULL) Builtin::generate_ordinal_lookup(impf);
-    }
-  } else
-  if (ppd == "opt") {
-     char *line = get_upto(0,false);
-     char *opt = strtok(line,", ");
-     while (opt) {
-      char ch = *opt++;
-      bool is_on = *opt == '+';
-      bool strip_prompt, block_ide, change_block_ide = false;
-      switch(ch) {
-      case 'u': Parser::debug.auto_dissemble = is_on; break;
-      case 'd': Parser::debug.dump_expr = is_on; break;
-      case 'x': Parser::debug.auto_exec = is_on; break;
-      case 't': Parser::debug.function_trace = is_on; break;
-      case '4': Parser::debug.class_dword_align = is_on ? 4 : 1; break;
-      case 'v': Parser::debug.verbose = is_on; tok_dbg = is_on; break;
-      case 's': Parser::debug.strict = is_on; break;
-      case 'p': Parser::debug.ptr_check = is_on; break;
-      case 'a': Parser::debug.no_access_control = is_on; break;
-      case 'c': strip_prompt = is_on; break;
-      case 'q': block_ide = is_on; change_block_ide = true; break;
-      case 'C': Parser::set_c_mode(is_on); break;
-      case 'T': Parser::debug.use_typedef_names = is_on; break;
-      case 'L': Parser::debug.suppress_link_errors = is_on;  break;
-      case 'i': Parser::debug.interactive_debugging = is_on; break;
-      case 'S': Parser::debug.no_trace_std = is_on; break;
-      case 'e': Parser::debug.errors_as_break = is_on; break;
-      case 'R': Parser::debug.range_check = is_on;  break;
-      // temporary debugging options go here...
-      }
-      opt = strtok(NULL,", ");
+            if (ppd == "lib") {
+              char *libf = Input::next_token();
+              if (!Builtin::set_current_lib_file(libf)) {
+                cant_open_err(libf);
+              }
+              char *impf = Input::next_token(false);
+              // *fix 1.2.5 we were attempting to read an ordinal file after an empty #lib
+              if (libf) {
+                if (impf != NULL) {
+                  Builtin::generate_ordinal_lookup(impf);
+                }
+              }
+            } else if (ppd == "opt") {
+              char *line = get_upto(0, false);
+              char *opt = strtok(line, ", ");
+              while (opt) {
+                char ch = *opt++;
+                bool is_on = *opt == '+';
+                bool strip_prompt, block_ide, change_block_ide = false;
+                switch(ch) {
+                case 'u':
+                  Parser::debug.auto_dissemble = is_on;
+                  break;
+                case 'd':
+                  Parser::debug.dump_expr = is_on;
+                  break;
+                case 'x':
+                  Parser::debug.auto_exec = is_on;
+                  break;
+                case 't':
+                  Parser::debug.function_trace = is_on;
+                  break;
+                case '4':
+                  Parser::debug.class_dword_align = is_on ? 4 : 1;
+                  break;
+                case 'v':
+                  Parser::debug.verbose = is_on;
+                  tok_dbg = is_on;
+                  break;
+                case 's':
+                  Parser::debug.strict = is_on;
+                  break;
+                case 'p':
+                  Parser::debug.ptr_check = is_on;
+                  break;
+                case 'a':
+                  Parser::debug.no_access_control = is_on;
+                  break;
+                case 'c':
+                  strip_prompt = is_on;
+                  break;
+                case 'q':
+                  block_ide = is_on;
+                  change_block_ide = true;
+                  break;
+                case 'C':
+                  Parser::set_c_mode(is_on);
+                  break;
+                case 'T':
+                  Parser::debug.use_typedef_names = is_on;
+                  break;
+                case 'L':
+                  Parser::debug.suppress_link_errors = is_on;
+                  break;
+                case 'i':
+                  Parser::debug.interactive_debugging = is_on;
+                  break;
+                case 'S':
+                  Parser::debug.no_trace_std = is_on;
+                  break;
+                case 'e':
+                  Parser::debug.errors_as_break = is_on;
+                  break;
+                case 'R':
+                  Parser::debug.range_check = is_on;
+                  break;
+                  // temporary debugging options go here...
+                }
+                opt = strtok(NULL, ", ");
 #ifdef _WCON
-      // defaults initially to being on....
-      if (strip_prompt) wcon_prompt_char(';',0);
-                  else wcon_prompt_char(0,0);
-      if (change_block_ide) IDE::set_blocking(block_ide);
+                // defaults initially to being on....
+                if (strip_prompt) {
+                  wcon_prompt_char(';', 0);
+                } else {
+                  wcon_prompt_char(0, 0);
+                }
+                if (change_block_ide) {
+                  IDE::set_blocking(block_ide);
+                }
 #endif
-    }
-  } else
-  if (ppd == "lv") {
-    display_locals(NULL,NULL,false,Input::next_token() != NULL);
-  } else
+              }
+            } else if (ppd == "lv") {
+              display_locals(NULL, NULL, false, Input::next_token() != NULL);
+            } else
 // *add 1.2.8 #dl <obj> shows only _local_ fields, not inherited as well.
-    if (ppd == "d" || ppd == "dl") {
-    PEntry pe = Input::lookup_next_symbol();
-    if (pe == NULL)  return cant_find("symbol");
-    Type t = pe->type;
-    if (!t.is_class()) return command_error("Not an object");
-    void *ptr = pe->global_ptr();
-    display_locals(t.as_class(),ptr,t.is_ref_or_ptr(), ppd == "d");
-  } else
-  if (ppd == "rm") { // remove symbol or program
-     PEntry pe = Input::lookup_next_symbol();
-     if (pe->type.is_function()) { // this was a function
-        if (pe->name=="main") Breakpoint::remove_all();  // *add 0.9.8 remove program and clear out breakpoints
-        FunctionEntry* pfe = reinterpret_cast<FunctionEntry *>(pe->data);
-        int imod = pfe->back()->line_nos()->module();
-        Module *pm = Module::from_id(imod);
-        if (pm != NULL) Module::remove(pm);
-     }
-     if (pe == NULL) return cant_find("symbol");
-     Parser::global().remove(pe);
-  } else
-  if (ppd == "s") { // *add 0.9.4 Now can stop runaway programs w/ #s
+              if (ppd == "d" || ppd == "dl") {
+                PEntry pe = Input::lookup_next_symbol();
+                if (pe == NULL) {
+                  return cant_find("symbol");
+                }
+                Type t = pe->type;
+                if (!t.is_class()) {
+                  return command_error("Not an object");
+                }
+                void *ptr = pe->global_ptr();
+                display_locals(t.as_class(), ptr, t.is_ref_or_ptr(), ppd == "d");
+              } else if (ppd == "rm") { // remove symbol or program
+                PEntry pe = Input::lookup_next_symbol();
+                if (pe->type.is_function()) { // this was a function
+                  if (pe->name == "main") {
+                    Breakpoint::remove_all();  // *add 0.9.8 remove program and clear out breakpoints
+                  }
+                  FunctionEntry* pfe = reinterpret_cast<FunctionEntry *>(pe->data);
+                  int imod = pfe->back()->line_nos()->module();
+                  Module *pm = Module::from_id(imod);
+                  if (pm != NULL) {
+                    Module::remove(pm);
+                  }
+                }
+                if (pe == NULL) {
+                  return cant_find("symbol");
+                }
+                Parser::global().remove(pe);
+              } else if (ppd == "s") { // *add 0.9.4 Now can stop runaway programs w/ #s
 #ifdef _WCON
-     Program::stop_main(false); // *change 1.2.8 no longer an error
+                Program::stop_main(false); // *change 1.2.8 no longer an error
 #endif
-  } else
-  if (ppd == "st" || ppd == "sto") { // *add 1.1.4 Single-stepping through programs!
-      s_single_step = true;
-      Engine::set_single_stepping(ppd == "st");
-      Program::run(gCurrentArgs,false /*Input::next_token() == NULL*/);
-  } else
-  if (ppd == "clr") { // clear input (0) or console (1)
+              } else if (ppd == "st" || ppd == "sto") { // *add 1.1.4 Single-stepping through programs!
+                s_single_step = true;
+                Engine::set_single_stepping(ppd == "st");
+                Program::run(gCurrentArgs, false /*Input::next_token() == NULL*/);
+              } else if (ppd == "clr") { // clear input (0) or console (1)
 #ifdef _WCON
-      wcon_clear(safe_atoi(Input::next_token()));
+                wcon_clear(safe_atoi(Input::next_token()));
 #endif
 // otherwise need some portable way of doing clr 0?
-  } else
-  if (ppd == "attach") {
-    //	  char *fn = Input::next_token();
-    //	  attach_main_context(fn);
-  } else
-  if (ppd == "mod") {
-      char *fun = Input::next_token();
-      if (fun == NULL) Module::dump_entries(cmsg,0);
-      else {
-         // Module *pm = Module::from_name(file);
-         // if(pm == NULL) cant_find(file);
-         // else pm->dump(*msg,Module::FUNS | Module::DEPEND);
-         string file;
-         // *change 0.9.4  #mod name gives defn pos. of function 'name'
-         int ln = Module::file_from_function(Function::lookup(fun),file);
-         cmsg << file << ' ' << ln << std::endl;
-      }
-  } else
-  if (ppd == "types" || ppd == "funs") {
-	  char *pat = Input::next_token();
-	  EntryList el;
-	  if (pat == NULL) pat = "*";
-	  Parser::global().search_entries(pat,&el,(ppd == "funs") ? FUNCTIONS : (CLASSES | NAMESPACES | TYPEDEFS));
-	  EntryList::iterator eli;
-	  FORALL(eli,el) cmsg << (*eli)->name << std::endl;
-  } else
-  if (ppd == "gt" || ppd == "b") {
-      Errors::reset_error_state();
-      int lineno = safe_atoi(Input::next_token());
-      char *file = Input::next_token(false);
-      if (file == NULL) file = current_file.c_str();  // set by #l, etc
-      //cout << "b " << file << ':' << lineno << endl;
-      Breakpoint::toggle(file,lineno,ppd == "b",cmsg);
-  } else
-  if (ppd == "bs") { // set a number of breakpoints in a file
-     Errors::reset_error_state();
-     char *tok, *file = Input::next_token();
-     int lines[10], i = 0;
-     while ((tok = Input::next_token(false)) != NULL)
-         lines[i++] = safe_atoi(tok);
-     if (i == 0) { // this is a _request_!!
-         Breakpoint::group(file,lines,i,true);
-         cmsg << i << ' ';
-         for (int k = 0; k < i; k++) cmsg << lines[k] << ' ';
-         cmsg << std::endl;
-     } else
-     Breakpoint::group(file,lines,i,false);
-  } else
+              } else if (ppd == "attach") {
+                //	  char *fn = Input::next_token();
+                //	  attach_main_context(fn);
+              } else if (ppd == "mod") {
+                char *fun = Input::next_token();
+                if (fun == NULL) {
+                  Module::dump_entries(cmsg, 0);
+                } else {
+                  // Module *pm = Module::from_name(file);
+                  // if(pm == NULL) cant_find(file);
+                  // else pm->dump(*msg,Module::FUNS | Module::DEPEND);
+                  string file;
+                  // *change 0.9.4  #mod name gives defn pos. of function 'name'
+                  int ln = Module::file_from_function(Function::lookup(fun), file);
+                  cmsg << file << ' ' << ln << std::endl;
+                }
+              } else if (ppd == "types" || ppd == "funs") {
+                char *pat = Input::next_token();
+                EntryList el;
+                if (pat == NULL) {
+                  pat = "*";
+                }
+                Parser::global().search_entries(pat, &el, (ppd == "funs") ? FUNCTIONS : (CLASSES | NAMESPACES | TYPEDEFS));
+                EntryList::iterator eli;
+                FORALL(eli, el) cmsg << (*eli)->name << std::endl;
+              } else if (ppd == "gt" || ppd == "b") {
+                Errors::reset_error_state();
+                int lineno = safe_atoi(Input::next_token());
+                char *file = Input::next_token(false);
+                if (file == NULL) {
+                  file = current_file.c_str();  // set by #l, etc
+                }
+                //cout << "b " << file << ':' << lineno << endl;
+                Breakpoint::toggle(file, lineno, ppd == "b", cmsg);
+              } else if (ppd == "bs") { // set a number of breakpoints in a file
+                Errors::reset_error_state();
+                char *tok, *file = Input::next_token();
+                int lines[10], i = 0;
+                while ((tok = Input::next_token(false)) != NULL) {
+                  lines[i++] = safe_atoi(tok);
+                }
+                if (i == 0) { // this is a _request_!!
+                  Breakpoint::group(file, lines, i, true);
+                  cmsg << i << ' ';
+                  for (int k = 0; k < i; k++) {
+                    cmsg << lines[k] << ' ';
+                  }
+                  cmsg << std::endl;
+                } else {
+                  Breakpoint::group(file, lines, i, false);
+                }
+              } else
 #ifndef _USRDLL
-  if (ppd == "ff") {
-      Engine::set_frame(safe_atoi(Input::next_token(true)),true);
-      if (! Parser::debug.interactive_debugging)
-        display_locals(NULL,NULL);
-  } else
-  if (ppd == "fs") {
-    dump_fun_stack();
-  }
-  else
+                if (ppd == "ff") {
+                  Engine::set_frame(safe_atoi(Input::next_token(true)), true);
+                  if (! Parser::debug.interactive_debugging) {
+                    display_locals(NULL, NULL);
+                  }
+                } else if (ppd == "fs") {
+                  dump_fun_stack();
+                } else
 #endif
-  if (ppd == "u" || ppd == "mm" || ppd == "fe") {
-    // char *name = next_token();
-     PEntry pe = Input::lookup_next_symbol();
-     if (pe == NULL) return true;
-     int idx = safe_atoi(Input::next_token(true));
-     if (pe->type.is_function()) {
-         if (ppd == "u") Parser::dump_function(pe,true,idx,std::cout);
-         else {
-           Function *pf = *(((FunctionEntry *)pe->data)->begin());
-           if (ppd == "fe") {
-             FBlock *fb = pf->fun_block();
-             fb->nlocal = idx;
-           } else {
-        //    cout << "MS:  " << Mangle::microsoft(pf) << endl;
-			std::cout << Mangle::GCC3(pf) << std::endl;
-           }
-         }
-     }
-  } else
-  if (ppd == "v") { // inspect - used to be 'var'!!
-     PEntry pe = Input::lookup_next_symbol();
-     if (pe==NULL) return true;
-     Parser::dump_var(pe);
-  } else
-  if (ppd == "tx") { //*TEST*
-      redirected_eval(get_upto(0,false),false);
-  }
-  else
-  if (ppd == "rx") { //*TEST*
-     ext_run_program(get_upto(0,false),false);
-  }
-  else
-  if (ppd == "vmt") {
-    PEntry pe = Input::lookup_next_symbol();
-    if (pe == NULL)  return true;
-    Type t = pe->type;
-    int *ptr = *(int **)pe->global_ptr();
-    ptr--;  // now at hidden pointer...
-    PClass pc = t.as_class();
-    if (! pc->has_VMT()) std::cout << "No VMT\n";
-    std::cout << "name " << pc->name() << " " << pc->last_slot() << std::endl;
-	for(int i = 1; i < pc->last_slot(); i++) {
-	   std::cout << i << ' ';
-	   ((Function *)ptr[i])->dump(std::cout);
-	   std::cout << std::endl;
-    }
-  }
-  else
-  if (ppd == "unload") {
-      Builtin::unload_lib(Builtin::get_dll_handle());
-  }
-  else
-  if (ppd == "mc") { macro_cleanup(); clear_global_namespace(); }
-  else
-  if (ppd == "unwind") { Engine::global_unwind(); }
-  else // *add 1.2.9 Module trace back list
-  if (ppd == "trace_back") { dump_module_traceback(); }
+                  if (ppd == "u" || ppd == "mm" || ppd == "fe") {
+                    // char *name = next_token();
+                    PEntry pe = Input::lookup_next_symbol();
+                    if (pe == NULL) {
+                      return true;
+                    }
+                    int idx = safe_atoi(Input::next_token(true));
+                    if (pe->type.is_function()) {
+                      if (ppd == "u") {
+                        Parser::dump_function(pe, true, idx, std::cout);
+                      } else {
+                        Function *pf = *(((FunctionEntry *)pe->data)->begin());
+                        if (ppd == "fe") {
+                          FBlock *fb = pf->fun_block();
+                          fb->nlocal = idx;
+                        } else {
+                          //    cout << "MS:  " << Mangle::microsoft(pf) << endl;
+                          std::cout << Mangle::GCC3(pf) << std::endl;
+                        }
+                      }
+                    }
+                  } else if (ppd == "v") { // inspect - used to be 'var'!!
+                    PEntry pe = Input::lookup_next_symbol();
+                    if (pe == NULL) {
+                      return true;
+                    }
+                    Parser::dump_var(pe);
+                  } else if (ppd == "tx") { //*TEST*
+                    redirected_eval(get_upto(0, false), false);
+                  } else if (ppd == "rx") { //*TEST*
+                    ext_run_program(get_upto(0, false), false);
+                  } else if (ppd == "vmt") {
+                    PEntry pe = Input::lookup_next_symbol();
+                    if (pe == NULL) {
+                      return true;
+                    }
+                    Type t = pe->type;
+                    int *ptr = *(int **)pe->global_ptr();
+                    ptr--;  // now at hidden pointer...
+                    PClass pc = t.as_class();
+                    if (! pc->has_VMT()) {
+                      std::cout << "No VMT\n";
+                    }
+                    std::cout << "name " << pc->name() << " " << pc->last_slot() << std::endl;
+                    for(int i = 1; i < pc->last_slot(); i++) {
+                      std::cout << i << ' ';
+                      ((Function *)ptr[i])->dump(std::cout);
+                      std::cout << std::endl;
+                    }
+                  } else if (ppd == "unload") {
+                    Builtin::unload_lib(Builtin::get_dll_handle());
+                  } else if (ppd == "mc") {
+                    macro_cleanup();
+                    clear_global_namespace();
+                  } else if (ppd == "unwind") {
+                    Engine::global_unwind();
+                  } else // *add 1.2.9 Module trace back list
+                    if (ppd == "trace_back") {
+                      dump_module_traceback();
+                    }
 #ifndef _USRDLL
-  else
-  // *add 1.2.1 Interactive Help
-  if (ppd == "help") show_help("help.txt",Input::next_token(true),'#');
-  else
-  if (ppd == "li") Function::lookup(Input::next_token(true))->line_nos()->dump(cmsg);
-    // *fix 1.2.1 (Eric) Complain if this command is not recognized
+                    else
+                      // *add 1.2.1 Interactive Help
+                      if (ppd == "help") {
+                        show_help("help.txt", Input::next_token(true), '#');
+                      } else if (ppd == "li") {
+                        Function::lookup(Input::next_token(true))->line_nos()->dump(cmsg);
+                      }
+  // *fix 1.2.1 (Eric) Complain if this command is not recognized
 #endif
-  else
-     cerr << '\'' << ppd << "\' is not a command or preprocessor statement" << std::endl;
+                      else {
+                        cerr << '\'' << ppd << "\' is not a command or preprocessor statement" << std::endl;
+                      }
   return true;
 }
 
@@ -725,8 +860,14 @@ bool UCTokenStream::user_cmd(string ppd)
 static string mUCDir;
 static char* mPgmName;
 
-bool interactive_mode()  { return mInteractiveMode; }
-string uc_home_dir()     { return mUCDir; }
+bool interactive_mode()
+{
+  return mInteractiveMode;
+}
+string uc_home_dir()
+{
+  return mUCDir;
+}
 
 void bail_out()
 {
@@ -736,12 +877,14 @@ void bail_out()
 
 int setup_lib()
 {
- Parser::init_lib();
- return 0;
+  Parser::init_lib();
+  return 0;
 }
 
 char *uc_get_title()
-{ return mUCTitle; }
+{
+  return mUCTitle;
+}
 
 
 void Main::initialize()
@@ -754,7 +897,7 @@ void Main::initialize()
   UCTokenStream::init();
 #ifdef _WCON
   IDE::initialize();
- // Non-Interactive
+// Non-Interactive
   mInteractiveMode = true;
 #endif
 }
@@ -762,27 +905,27 @@ void Main::initialize()
 #ifdef _DEBUG
 void init_mem_check() // *DEBUG*
 {
-    static bool init = false;
-    if (! init) {
-        init = true;
+  static bool init = false;
+  if (! init) {
+    init = true;
 // *DEBUG* Fine control of leak detection
 // Get current flag
-     int tmpFlag = _CrtSetDbgFlag( _CRTDBG_REPORT_FLAG );
+    int tmpFlag = _CrtSetDbgFlag( _CRTDBG_REPORT_FLAG );
 
 // Turn on leak-checking bit
-  //  tmpFlag |= _CRTDBG_LEAK_CHECK_DF;
+    //  tmpFlag |= _CRTDBG_LEAK_CHECK_DF;
 
 // Turn on check-always bit
-     tmpFlag |= _CRTDBG_CHECK_ALWAYS_DF;
+    tmpFlag |= _CRTDBG_CHECK_ALWAYS_DF;
 
-     tmpFlag |= _CRTDBG_DELAY_FREE_MEM_DF;
+    tmpFlag |= _CRTDBG_DELAY_FREE_MEM_DF;
 
 // Turn off CRT block checking bit
 //   tmpFlag &= ~_CRTDBG_CHECK_CRT_DF;
 
 // Set flag to the new value
     _CrtSetDbgFlag( tmpFlag );
-    }
+  }
 }
 
 
@@ -808,9 +951,9 @@ bool add_include_path(string path)
 {
   Utils::check_path_end(path);
   if (! Utils::can_access(path)) {
-      cerr << "cannot find " << path << std::endl;
-     error("Cannot find include directory " + path);
-	 return false;
+    cerr << "cannot find " << path << std::endl;
+    error("Cannot find include directory " + path);
+    return false;
   }
   TokenStream::set_include_dir(path.c_str());
   return true;
@@ -819,22 +962,28 @@ bool add_include_path(string path)
 bool extract_options(int *argc, char **argv, char *opt, char **optstring)
 {
   char *p = argv[1];
-  if (p && p[0]=='-') {
-     *opt = p[1];
-     *optstring = p+2;
-	 for (int i = 1; i < *argc; i++) argv[i] = argv[i+1];
-	 --(*argc);
-	 return true;
-  } else return false;
+  if (p && p[0] == '-') {
+    *opt = p[1];
+    *optstring = p + 2;
+    for (int i = 1; i < *argc; i++) {
+      argv[i] = argv[i + 1];
+    }
+    --(*argc);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 // *add 1.2.2 -D adds a preprocessor macro, in the usual way (there must be NO space before the NAME=SUBST)
 bool add_prepro_macro(char *str)
 {
-  char *name = strtok(str," =");
-  if (! name) return false;
-  char *subst = strtok(NULL," =");
-  TokenStream::macro_subst(name,subst ? subst : "");
+  char *name = strtok(str, " =");
+  if (! name) {
+    return false;
+  }
+  char *subst = strtok(NULL, " =");
+  TokenStream::macro_subst(name, subst ? subst : "");
   return true;
 }
 
@@ -856,14 +1005,14 @@ bool Main::process_command_line(int& argc, char**& argv)
   char *inc_path = NULL;
   bool use_gtk = false;
   char *extra_args = getenv("UC_DEFAULT_ARGS");
-  Utils::Args args(argc,argv);
+  Utils::Args args(argc, argv);
   args.set_stop_after_file();
 
   if (extra_args && argv) {
     argv = args.append_extra_args(extra_args);
   }
 
-  special_init(&argc,&argv,use_gtk);
+  special_init(&argc, &argv, use_gtk);
 
   // under Win32, we try to deduce where we're called from using argv[0]
 #ifdef _WIN32
@@ -876,37 +1025,39 @@ bool Main::process_command_line(int& argc, char**& argv)
     Utils::strip_last(progname);   // strip off the 'src'
 #endif
     mUCDir = argv[0];
-   }
+  }
 #endif
 
-   // UC_HOME is determined by evaluating all of the following. The
-   // last one that is set is used as the final value.
-   //
-   //  - the compiled in default
-   //    (under Win32 we get this from argv[0])
-   //  - the UC_HOME environment variable
-   //  - the -H option
+  // UC_HOME is determined by evaluating all of the following. The
+  // last one that is set is used as the final value.
+  //
+  //  - the compiled in default
+  //    (under Win32 we get this from argv[0])
+  //  - the UC_HOME environment variable
+  //  - the -H option
 
-   // *fix 1.2.8 don't use the UC_HOME macro under Win32; rely on argv[0]
-   // for the initial guess.
+  // *fix 1.2.8 don't use the UC_HOME macro under Win32; rely on argv[0]
+  // for the initial guess.
 
 #if defined(UC_HOME) && ! defined(_WIN32)
-    inc_path = UC_HOME;
+  inc_path = UC_HOME;
 #else
   // *fix 1.2.9 argv==NULL when this routine is called in the DLL version!
-    if (argv) mUCDir = argv[0];
+  if (argv) {
+    mUCDir = argv[0];
+  }
 #endif
 
   char *t;
-  if (t=getenv("UC_HOME")) {
+  if (t = getenv("UC_HOME")) {
     // the value set in the environment overrides the compiled in default
     inc_path = t;  // *fix 1.0.0L bash doesn't like 'UC-INC'
   }
   string path;
 
-  if (inc_path==NULL) {
+  if (inc_path == NULL) {
 #ifdef _WIN32
-   path = mUCDir;
+    path = mUCDir;
 
 #endif
   } else {
@@ -919,45 +1070,77 @@ bool Main::process_command_line(int& argc, char**& argv)
     while (args.get_opt(&opt)) {
       switch(opt) {
       // the command line option overrides any previously set value
-      case 'H': path = mUCDir = args.get_opt_parameter(); break;  // *add 1.1.3 Can override UC_HOME
+      case 'H':
+        path = mUCDir = args.get_opt_parameter();
+        break;  // *add 1.1.3 Can override UC_HOME
       case 'I':
-          if (ipaths == MAX_INCLUDE_PATHS) error("Exceeded available include paths");
-          else paths[ipaths++] = args.get_opt_parameter();
-          break;
-      case 'G': use_gtk = true; break;
-      case 'O': Parser::debug.do_overalloc ^= 1; break;
-      case 'P': Parser::debug.ptr_check = true; break;
-      case 'W': Parser::debug.suppress_link_errors = true; break;
-      case 'D': add_prepro_macro(args.get_opt_parameter()); break;
-      case 'i': force_interactive = true; break;
-      case 'F': Parser::debug.attempt_inline = true; break;  // *add 1.2.3a New Optimization flag
+        if (ipaths == MAX_INCLUDE_PATHS) {
+          error("Exceeded available include paths");
+        } else {
+          paths[ipaths++] = args.get_opt_parameter();
+        }
+        break;
+      case 'G':
+        use_gtk = true;
+        break;
+      case 'O':
+        Parser::debug.do_overalloc ^= 1;
+        break;
+      case 'P':
+        Parser::debug.ptr_check = true;
+        break;
+      case 'W':
+        Parser::debug.suppress_link_errors = true;
+        break;
+      case 'D':
+        add_prepro_macro(args.get_opt_parameter());
+        break;
+      case 'i':
+        force_interactive = true;
+        break;
+      case 'F':
+        Parser::debug.attempt_inline = true;
+        break;  // *add 1.2.3a New Optimization flag
 // *add 1.2.5 run in specified directory
-      case 'r': Utils::change_dir(args.get_opt_parameter()); break;
+      case 'r':
+        Utils::change_dir(args.get_opt_parameter());
+        break;
 // *add 1.2.5 switch on range checking of arrays and vectors
-      case 'R': Parser::debug.range_check = true;            break;
+      case 'R':
+        Parser::debug.range_check = true;
+        break;
 // *add 1.2.6 Outputing version and help
 #ifdef _CONSOLE
-      case 'v': std::cout << "UnderC " << mUCVersion << std::endl; return false;
+      case 'v':
+        std::cout << "UnderC " << mUCVersion << std::endl;
+        return false;
       case '-':
-         if (strcmp(args.get_opt_parameter(),"help")==0)
-         {
-             show_help("cmd-help.txt",NULL,'-');
-             return false;
-         }
-      break;
+        if (strcmp(args.get_opt_parameter(), "help") == 0) {
+          show_help("cmd-help.txt", NULL, '-');
+          return false;
+        }
+        break;
       // *add 1.2.9 Evaluating expressions from the command-line
       case 'e':
-          uc_eval(args.get_opt_parameter(),true,true);
-          exit(0);
-          break;
+        uc_eval(args.get_opt_parameter(), true, true);
+        exit(0);
+        break;
 #endif
 // *add 1.2.6 These are also available as #opt parameters
-      case 'T': Parser::debug.use_typedef_names = true;     break;
-      case 'S': Parser::debug.skip_method_bodies = false; break;
-      default: cerr << "unrecognized option: " << opt << std::endl; return false;
+      case 'T':
+        Parser::debug.use_typedef_names = true;
+        break;
+      case 'S':
+        Parser::debug.skip_method_bodies = false;
+        break;
+      default:
+        cerr << "unrecognized option: " << opt << std::endl;
+        return false;
       }
     }
-    if (Parser::debug.range_check) add_builtin_macro("_RANGE_CHECK");
+    if (Parser::debug.range_check) {
+      add_builtin_macro("_RANGE_CHECK");
+    }
   }
 
 // *change 1.2.2b The Windows GUI build is _always_ interactive, and the console
@@ -968,57 +1151,64 @@ bool Main::process_command_line(int& argc, char**& argv)
   mInteractiveMode = force_interactive || argc == 1;
 #endif
 
- Utils::check_path_end(path);
- path += "include";
- if (! add_include_path(path)) return false;
+  Utils::check_path_end(path);
+  path += "include";
+  if (! add_include_path(path)) {
+    return false;
+  }
 
 // NOW we may add the extra paths, if any
- for(int i = 0; i < ipaths; i++)
-	  add_include_path(paths[i]);
+  for(int i = 0; i < ipaths; i++) {
+    add_include_path(paths[i]);
+  }
 
- return true;
+  return true;
 }
 
 void Main::banner()
 {
 #ifdef _WCON
-    wcon_set_size(20,50,600,500);
-    wcon_set_title(mUCTitle);
-    wcon_prompt_char(';',0);
+  wcon_set_size(20, 50, 600, 500);
+  wcon_set_title(mUCTitle);
+  wcon_prompt_char(';', 0);
 #endif
-    cmsg << "UnderC C++ Interpreter vs " << mUCVersion << std::endl;
-    cmsg << "Steve Donovan, 2001-2003" << std::endl;
-    cmsg << "This program is GPL'd; see LICENCE for details" << std::endl;
+  cmsg << "UnderC C++ Interpreter vs " << mUCVersion << std::endl;
+  cmsg << "Steve Donovan, 2001-2003" << std::endl;
+  cmsg << "This program is GPL'd; see LICENCE for details" << std::endl;
 }
 
 void Main::finalize()
 {
 // *add 1.2.3 Destroy any statically allocated objects
-   Engine::global_unwind();
+  Engine::global_unwind();
 
 // and unload any DLLs
-   Builtin::finis();
+  Builtin::finis();
 
 #ifdef _WCON
 // *add 1.2.8 inform the IDE that we're going down...
-   IDE::ucw_shut_down();
+  IDE::ucw_shut_down();
 #endif
 }
 
 int Main::interactive_loop()
 {
   for(;;) {
-    if (call_parser()==FAIL) {
-     if (! interactive_mode()) return -1;// bail out if in batch mode
-    } else return 0;// successful exit!
+    if (call_parser() == FAIL) {
+      if (! interactive_mode()) {
+        return -1;  // bail out if in batch mode
+      }
+    } else {
+      return 0;  // successful exit!
+    }
   }
 }
 
 ////////// MAIN ///////////////
 #ifndef _USRDLL
-int main(int argc, char **argv)
+  int main(int argc, char **argv)
 #else
-int pgm_main(int argc, char **argv)
+  int pgm_main(int argc, char **argv)
 #endif
 //----------------------------
 {
@@ -1027,34 +1217,42 @@ int pgm_main(int argc, char **argv)
   initialize();
 
   // *fix 1.2.3 Suppress irritating warning until we can decide what to do here!
-  if (! process_command_line(argc, argv)) return 0;
+  if (! process_command_line(argc, argv)) {
+    return 0;
+  }
 
   if (interactive_mode()) {
     banner();
     Input::open("CON");
-    Input::set_open_restore(NULL,setup_lib);
+    Input::set_open_restore(NULL, setup_lib);
     const char* defs_file = (argc > 1) ? argv[1] : "defs.h";
     if (!Input::open(defs_file)) {
-	   cmsg << "Now opening defs.h in UC home directory" << std::endl;
-	   string uc_home = uc_home_dir();
-       Utils::check_path_end(uc_home);
-       string default_defs = uc_home + "defs.h";
-       if (! Input::open(default_defs.c_str())) check_error();
+      cmsg << "Now opening defs.h in UC home directory" << std::endl;
+      string uc_home = uc_home_dir();
+      Utils::check_path_end(uc_home);
+      string default_defs = uc_home + "defs.h";
+      if (! Input::open(default_defs.c_str())) {
+        check_error();
+      }
     }
   } else {
-      // *add 1.2.9 Important to call these before/after routines
-      // for initialization/finalization code to work properly.
-      Input::set_open_restore(module_open,module_close);
-      if (! Input::open(argv[1])) bail_out();
+    // *add 1.2.9 Important to call these before/after routines
+    // for initialization/finalization code to work properly.
+    Input::set_open_restore(module_open, module_close);
+    if (! Input::open(argv[1])) {
+      bail_out();
+    }
   }
 
 // keep going until we end successfully!
   int retval = interactive_loop();
-  if (retval == -1) return retval;
+  if (retval == -1) {
+    return retval;
+  }
   if (! interactive_mode()) {
     mInteractiveMode = true;  // to force statement_end() to evaluate!
-	Parser::init_lib();       // *fix 1.1.0 force any library initializations
-    retval = Program::call_main(argc-1,argv+1,Program::new_window);
+    Parser::init_lib();       // *fix 1.1.0 force any library initializations
+    retval = Program::call_main(argc - 1, argv + 1, Program::new_window);
   }
 
   finalize();
