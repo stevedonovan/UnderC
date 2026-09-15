@@ -71,8 +71,10 @@ public:
  #endif  
 
  int compare(const string& s) const;
+ int compare(const char *s) const;
 // *hack 0.9.7 used to be non-member, but that won't work for now!
  bool operator== (const string& s2) const;
+ bool operator== (const char *c1) const;
 };
 
 #ifdef __UNDERC__
@@ -86,6 +88,7 @@ public:
 // span different namespaces.  So putting operator+ in std would 
 // mean being unable to overload it for any other type.
 EXPORT bool operator != (const _string& s1, const _string& s2);
+EXPORT bool operator != (const string& s1, const char *c1);
 EXPORT bool operator> (const _string& s1, const _string& s2);
 EXPORT bool operator< (const _string& s1, const _string& s2);
 EXPORT _string operator+ (const _string& s1, const _string& s2);

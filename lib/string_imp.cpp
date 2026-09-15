@@ -40,10 +40,11 @@ void string::resize(size_type sz)
 
  string::string(const char *str)
  {
-  //if (!str) (char *)str = "";  // UCW bugge...
+  const char *ls = str;
+  if (!ls) ls = "";
   m_len = 0;
   m_str = NULL;
-  copy((char *)str);
+  copy((char *)ls);
  }
  
  string::string(const char *str, int sz)
@@ -198,16 +199,31 @@ string::size_type string::rfind(char ch) const
    return strcmp(m_str, s.m_str); 
  }
 
+ int string::compare(const char *s) const
+ {
+   return strcmp(m_str, s);
+ }
+
 // *hack 0.9.7 used to be non-member, but that won't work for now!
  bool string::operator== (const string& s2) const
  {
   return compare(s2) == 0;
  }
 
+ bool string::operator== (const char *c1) const
+ {
+  return compare(c1) == 0;
+ }
+
  EXPORT bool operator != (const string& s1, const string& s2)
  {
   return s1.compare(s2) != 0;
 }
+
+ EXPORT bool operator != (const string& s1, const char *c1)
+ {
+  return s1.compare(c1) != 0;
+ }
 
 EXPORT  bool operator> (const string& s1, const string& s2)
  {

@@ -4,8 +4,11 @@
 #include <stdlib.h>
 #include "classlib.h"
 #include "tokens.h"
+#ifndef _MSC_VER
+#define _strdup strdup
+#endif
 
-void insert(char *str, char *ins)
+void insert(char *str, const char *ins)
 {
  int sz = strlen(ins);
  memmove(str+sz,str,strlen(str)+1);
@@ -49,7 +52,7 @@ int index_into(char **table, char *sym)
 {
     int i;
     for (i = 0; table[i] != NULL; i++)
-       if (strcmp(sym,table[i]) == 0) return i;    
+       if (strcmp(sym,table[i]) == 0) return i;
     return -1;
 }
 
@@ -68,7 +71,7 @@ char *massage_subst_string(char *buff, char **args, char *str)
 {
    char *p = str, *q = buff;
    int i;
-   char token[MAX_IDEN_SIZE];
+   char token[MAX_IDEN_SIZE + 1];
 
    while (*p) {
        // *fix 1.2.2 Argument may begin with '_' as well as a letter!
@@ -76,8 +79,8 @@ char *massage_subst_string(char *buff, char **args, char *str)
            // *fix 1.2.2 (Eric)..quoted strings are copied verbatim
           if (*p == '\"') {
               copy_quote(q,p);
-              break;            
-          }          
+              break;
+          }
           if (p[0] == '#' && p[1] == '#') {
             // *fix 1.2.2 (Eric) Skip whitespace before and after the ##
               while (q > buff && isspace(q[-1])) --q;
@@ -87,7 +90,7 @@ char *massage_subst_string(char *buff, char **args, char *str)
               while (isspace(*p)) ++p;
           }
           else *q++ = *p++;
-      } 
+      }
       if (*p == 0) break;
 
       //...pick up the identifier, and check it against the map
@@ -98,7 +101,7 @@ char *massage_subst_string(char *buff, char **args, char *str)
       //...if it is indeed a formal argument, then encode as the byte index,
       //...otherwise just copy to output buffer.
       // *change 1.2.2b (Eric) encode as unique macro-arg marker followed by byte index
-      if (i > 0) { *q++ = ARG_MARKER; *q++ = (char)i; } 
+      if (i > 0) { *q++ = ARG_MARKER; *q++ = (char)i; }
       else
         q = copy_chars(q,token);
    }
@@ -109,10 +112,10 @@ char *massage_subst_string(char *buff, char **args, char *str)
 void poss_macro_expand(TokenStream& tok, char*&q, char*& p)
 {
   char temp_buff[TT_BUFFSIZE];
-  char token[MAX_IDEN_SIZE];
+  char token[MAX_IDEN_SIZE + 1];
 
   p = copy_token(p,token);
-  // is it a macro?  Otherwise just copy out....                
+  // is it a macro?  Otherwise just copy out....
   if (tok.macro_attempt_process(p,temp_buff,token))
      q = copy_chars(q,temp_buff);
   else
@@ -137,7 +140,7 @@ void macro_substitute(TokenStream& tok,char *str, char *buff)
  char *p = str, *q = buff;
  while (*p) {
     // found a token
-    if (iscsymf(*p)) poss_macro_expand(tok,q,p); 
+    if (iscsymf(*p)) poss_macro_expand(tok,q,p);
     else if (*p == '\"') copy_quote(q,p);
     else *q++ = *p++;
  }
@@ -150,7 +153,7 @@ void substitute_args(TokenStream& tok, char **args, int n)
   for(int i = 0; i < n; i++)
   {
     macro_substitute(tok,args[i],temp_buff);
-    args[i] = strdup(temp_buff);
+    args[i] = _strdup(temp_buff);
   }
 }
 
@@ -158,7 +161,7 @@ void substitute_args(TokenStream& tok, char **args, int n)
 // before further preprocessing occurs.  This sorts out Eric's subtle but
 // important problem with substitution order.  There seems no obvious way to
 // check for buffer overrun, so caveat emptor.
- 
+
 char *substitute(TokenStream& tok, char *buff, char **actual_args, char *subst)
  //----------------------------------------------------------------------------
  {
@@ -169,10 +172,10 @@ char *substitute(TokenStream& tok, char *buff, char **actual_args, char *subst)
         char *arg = actual_args[p[1]-1]; // get following (one-based) argument
         // stringize or token-pasting operator suppresses arg expansion
         // *fix 1.2.2a Token-pasting can operate the _other way_ of course!
-        if (p > subst && (p[-1]=='#' || p[2]=='#')) { 
-           bool stringize = p[-1] == '#' && (p-1 == subst || p[-2] != '#');           
+        if (p > subst && (p[-1]=='#' || p[2]=='#')) {
+           bool stringize = p[-1] == '#' && (p-1 == subst || p[-2] != '#');
            // the last char(s) were '#' - discard them!
-           if (stringize) { q--; *q++ = '\"'; } 
+           if (stringize) { q--; *q++ = '\"'; }
            else if (p[-1]=='#')  q -= 2;
            // copy the substitution, without expanding the argument
            q = (stringize? stringify : copy_chars)(q,arg);
@@ -185,7 +188,7 @@ char *substitute(TokenStream& tok, char *buff, char **actual_args, char *subst)
          macro_substitute(tok,arg,args_buff);
          q = copy_chars(q,args_buff);
          p += 2;
-        }  
+        }
       }
       else *q++ = *p++;
    }

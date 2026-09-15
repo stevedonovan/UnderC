@@ -1,0 +1,22 @@
+// venv - Windows example: MSVC environment + a command from -ac
+//
+// Same setup as windows_test_env.cvc, but the actual build command is not in
+// the file: it is appended on the command line and run by venvExecAppCommands().
+//
+//   venv examples\windows_test_env_arg.cvc ^
+//       -ac ".\build-cmake-venv-ssl-release.bat"
+//
+// venvExecAppCommands() runs every -ac command in order; because a shell is
+// open they run inside it, inheriting the compiler environment.
+
+int main(int argc, char* argv) {
+    venvRootDir("L:\\bin");
+
+    venvPreEnv("PATH", "L:\\pkg\\bin\\cmake-4.3.2-windows-x86_64\\bin;");
+
+    venvStartShell("cmd.exe");
+    venvExeCommand("call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"", true);
+    venvExecAppCommands();
+    venvStopShell();
+    return 0;
+}

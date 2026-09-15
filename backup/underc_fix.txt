@@ -1,0 +1,562 @@
+================================================================================
+UnderC interpreter bug: heap corruption when a bool/enum literal is passed as the
+trailing argument of a 3-argument imported native function
+================================================================================
+
+Status  : NOT REPRODUCED as described. A group of real memory-safety and
+          64-bit defects that produce this class of corruption was found and
+          fixed instead; see "Investigation, 2026-08-31" below. Re-test the
+          venv_spawner configuration against the current library and reopen
+          with fresh evidence if it still crashes.
+Found   : while adding the optional `bool inShell` argument to the three env
+          editors in src/underc_bridge.cpp (venv_spawner).
+Scope   : UnderC only. venv_spawner needs no further change once this is fixed.
+Purpose : this file is self-contained. Anyone can reproduce and fix the bug from
+          it without access to the chat session it was discovered in.
+
+--------------------------------------------------------------------------------
+INVESTIGATION, 2026-08-31
+--------------------------------------------------------------------------------
+
+An earlier entry here claimed this was RESOLVED by removing the ENUM_INIT
+variable-initialization mode. That claim was withdrawn: the reporter observed
+the crash again afterwards, and the ENUM_INIT theory does not survive
+inspection of the generated code.
+
+What the bytecode actually shows (#opt u+ on the calling statement):
+
+    venvSetEnv("A","b",true);       ->  PUSHC D <addr of the bool constant>
+                                        PEA   D <"b">
+                                        PEA   D <"A">
+                                        CALL  void venvSetEnv(const char*,const char*,int)
+
+    venvSetEnv("A","b",1);          ->  PUSHI D <addr of an int constant>
+                                        PEA   D <"b">
+                                        PEA   D <"A">
+                                        CALL  ...
+
+Both forms push exactly three VM words and reach CALLN with nargs == 3.
+PUSHC reads one byte and pushes one whole VM word, so there is no slot
+accounting discrepancy between `true` and `1`, and neither suspect #1
+(engine.cpp CALLN) nor suspect #2 (directcall.cpp callfn) fires.
+
+Reproduction attempts, all negative:
+
+  - A standalone host that mirrors the venv_spawner imports exactly
+    (overloaded 2-arg and 3-arg natives of the same name, uc_init(NULL,1),
+    uc_load of a .cvc with main(), uc_run, uc_finis) with literal `true` in
+    the trailing position. Clean.
+  - The same under Windows full page heap (gflags /p /enable ... /full).
+    Clean.
+  - The same with the whole interpreter built with MSVC
+    AddressSanitizer (/fsanitize=address). Clean.
+
+This is now a permanent regression: regressiontests/native-shell-env.cpp with
+regressiontests/native-shell-env.cvc. It runs in the ordinary suite and passes
+under page heap.
+
+What WAS found while looking. Each of these is a genuine defect that can
+corrupt the heap or fault at shutdown, and several are much better candidates
+for a delayed, allocation-size-sensitive crash than the argument marshalling
+ever was:
+
+  - VMT() located the hidden method-table pointer 4 bytes below the object
+    instead of one VM word below it, so every virtual method call on x64 read
+    a truncated table pointer.
+  - convert_function_ptr() truncated a generated native callback stub address
+    through 32-bit `long`. An interpreted function passed to a native — for
+    instance to atexit() — then faulted during Builtin::finis(), which runs
+    from uc_finis(). That is the reported symptom, exactly.
+  - The global thrown-object slot `_xo_` was an int, so every throw wrote a
+    pointer-sized value into a 4-byte slot in the global data area.
+  - THROW_EX, DCAST, and SHOWI reinterpreted their operand word as a Type
+    object rather than decoding the parser type handle stored there.
+  - Utils::strip_last() scanned backwards past the start of argv[0] and wrote
+    a terminator wherever it stopped.
+  - ifs::fetch_line() indexed buff[-1]; string::resize() freed a new[] buffer
+    with scalar delete.
+  - Function's constructor left m_ret_obj uninitialized, which selected the
+    wrong aggregate-return calling convention for imported natives.
+  - The Windows bundled C library named msvcrt40.dll, which no longer exists,
+    so every declaration under it failed to link.
+
+See HISTORY.md for the complete list and the regression coverage added.
+
+
+--------------------------------------------------------------------------------
+0. TL;DR
+--------------------------------------------------------------------------------
+
+Calling an *imported* native function whose C signature is
+
+        void f(const char*, const char*, int)
+
+from interpreted `.cvc`/C++ code with the literal constant `true` (or `false`)
+as the 3rd argument corrupts the heap a little on every call. The process keeps
+running and produces correct output; it then crashes with an access violation
+(0xC0000005) LATER, at interpreter/process shutdown, once a subsequent
+allocation lands on the poisoned region.
+
+  - `f("a","b",true)`   -> corrupts       (literal bool constant)
+  - `f("a","b",1)`      -> fine            (plain int literal)
+  - `int v=1;  f("a","b",v)`   -> fine     (int variable)
+  - `bool v=true; f("a","b",v)`-> fine     (bool variable)
+
+The 2-argument form `g(const char*, int)` called with literal `true` is
+completely robust, even under heavy repeated use. So the fault is specific to
+the *call marshalling / argument slot accounting* of a native with >= 3 declared
+arguments receiving an ENUM_INIT constant, NOT to bool->int promotion itself and
+NOT (see section 6) to overload resolution or the parameter type.
+
+`true` and `false` in UnderC are ENUM_INIT constants (see section 4), the same
+mechanism used for user `enum` values, so the very first thing to check in a
+clean repro is whether `enum { X = 1 }; f("a","b",X)` corrupts too. It very
+likely does, which widens the bug from "bool literal" to "any ENUM_INIT constant
+as a native call argument in the >=3-arg case".
+
+
+--------------------------------------------------------------------------------
+1. ENVIRONMENT WHERE THE BUG WAS OBSERVED
+--------------------------------------------------------------------------------
+
+  - OS            : Windows 11 Home, x64 (build 10.0.26200).
+  - Compiler      : MSVC 19.51.36256 (Visual Studio 18, "vc2026"), /MD, Release.
+  - UnderC source : C:\wrk\cpp\underc          (full tree: src/, include/,
+                    verify/, examples/import/, CMake build).
+  - UnderC install: C:\pkg\dep\underc          (what venv_spawner links against)
+                      include/underc/*.h
+                      include/underc/uclstl/*  (STL prelude headers)
+                      lib/underc.lib           (Release, dynamic CRT /MD)
+                      lib/cmake/Underc/UndercTargets.cmake
+                      bin/ffi.dll              (libffi -- IMPORTANT, see below)
+  - Native-call path: libffi is present, so the build defines UCL_LIBFFI and the
+                    native dispatch goes through callfn() in src/directcall.cpp
+                    (the `#ifdef UCL_LIBFFI` branch), NOT legacy_callfn().
+  - Interpreter start: uc_init(NULL, 1)  (i.e. WITH the standard-library prelude:
+                    #include <classlib.h> + `using namespace std;`).
+
+Record the exact version before starting:
+        type C:\pkg\dep\underc\include\underc\version.h
+        (and note the libffi version that ships as bin/ffi.dll)
+
+
+--------------------------------------------------------------------------------
+2. HOW venv_spawner TRIGGERS IT (the real-world case)
+--------------------------------------------------------------------------------
+
+venv_spawner imports its `venv*` API into the interpreter by name in
+src/underc_bridge.cpp, mirroring the existing 1-arg/2-arg `venvExeCommand`
+overload pattern:
+
+    import_native("void venvSetEnv(const char*,const char*)",      &venv_uc_set_env);
+    import_native("void venvSetEnv(const char*,const char*,int)",  &venv_uc_set_env_s);
+    import_native("void venvPreEnv(const char*,const char*)",      &venv_uc_pre_env);
+    import_native("void venvPreEnv(const char*,const char*,int)",  &venv_uc_pre_env_s);
+    import_native("void venvAppEnv(const char*,const char*)",      &venv_uc_app_env);
+    import_native("void venvAppEnv(const char*,const char*,int)",  &venv_uc_app_env_s);
+
+(import_native() is a thin wrapper around uc_import().)
+
+Pre-existing, KNOWN-GOOD control imports (2-arg native + literal true works):
+
+    import_native("void venvExeCommand(const char*)",     &venv_uc_exe_command_1);
+    import_native("void venvExeCommand(const char*,int)",  &venv_uc_exe_command_2);
+
+The C functions `venv_uc_set_env_s` etc. immediately normalise the flag
+(`in_shell ? 1 : 0`) and dispatch. Their behaviour is IDENTICAL for `,1` and
+`,true` (both are non-zero -> same branch taken, same output produced), yet only
+`,true` corrupts. Therefore the fault is in the interpreter's handling of the
+call itself, BEFORE the native C function runs.
+
+Canonical reproducing config (venv_spawner side), "test_shell_env.cvc":
+
+    int main(int argc, char* argv) {
+        venvStartShell("cmd.exe");
+        venvSetEnv("VENV_ONE", "alpha", true);    // 3-arg native, literal true
+        venvPreEnv("VENV_ONE", "pre-",  true);    // 3-arg native, literal true
+        venvAppEnv("VENV_ONE", "-post", true);    // 3-arg native, literal true
+        venvExeCommand("echo VENV_ONE=%VENV_ONE%", true);  // 2-arg native, literal true
+        venvStopShell();
+        return 0;
+    }
+
+Observed output (correct!) followed by the crash:
+
+    venv_spawner: env (shell): set "VENV_ONE=alpha"
+    venv_spawner: env (shell): set "VENV_ONE=pre-%VENV_ONE%"
+    venv_spawner: env (shell): set "VENV_ONE=%VENV_ONE%-post"
+    venv_spawner: [1] shell: echo VENV_ONE=%VENV_ONE%
+    VENV_ONE=pre-alpha-post
+    venv_spawner: [1] command exited with code 0
+    venv_spawner: persistent shell stopped
+    <process exits with 0xC0000005 ; shell reports exit code -1073741819>
+    (the cosmetic "Program returned 0" trailer that uc_run() prints on the
+     console build is sometimes swallowed by the crash)
+
+    0xC0000005 == STATUS_ACCESS_VIOLATION. PowerShell shows it as -1073741819.
+
+
+--------------------------------------------------------------------------------
+3. FULL RESULTS MATRIX (each config run 1..5x; every result deterministic)
+--------------------------------------------------------------------------------
+
+"3-arg true x N"  = N calls of venvSetEnv/PreEnv/AppEnv with a literal `true`.
+"trailing"        = the venvExeCommand(...) call that follows, if any.
+All "3-arg" calls below are made with a persistent shell already open (so the
+native takes its shell-injection branch and actually does work).
+
+  #   3-arg calls                    trailing venvExeCommand                       result
+  --  -----------------------------  -------------------------------------------   ------
+  t2  SetEnv x1  (,true)             none                                          OK
+  t3  Set+Pre+App x3 (,true)         none                                          OK
+  t10 Set+Pre+App x3 (,true)         "echo hello"                       (,true)    OK
+  t8  Set+Pre    x2 (,true)          "echo VENV_ONE=%VENV_ONE%"         (,true)    OK
+  **  Set+Pre+App x3 (,true)         "echo VENV_ONE=%VENV_ONE%"         (,true)    CRASH  <== test_shell_env
+  t13 Set+Pre+App x3 (,true)         "echo VENV_ONE=%VENV_ONE%"         (,1)       OK
+  t15 Set+Pre+App x3 (,1)            "echo VENV_ONE=%VENV_ONE%"         (,true)    OK
+  t12 Set+Pre+App x3 (,1)            "echo VENV_ONE=%VENV_ONE%"         (,1)       OK
+  t16 Set+Pre+App x3 (,sh) int sh=1  "echo VENV_ONE=%VENV_ONE%"         (,true)    OK
+  t17 Set+Pre+App x3 (,sh) bool sh=t "echo VENV_ONE=%VENV_ONE%"         (,true)    OK
+  t18 Set x3 (,false)  (shell-less path, value 0)  "echo ... long"      (,true)    OK
+  t19 none                          8x "echo <30 chars>"               (,true)    OK   (2-arg native, heavy)
+  t20 6x SetEnv (,true) with NO shell open -- native returns early after its
+      !g_shell guard (no work done)                                               exit 1 (the no-shell
+      error path; NOT re-checked under page heap -- do that in the clean repro)
+
+Reading of the matrix:
+
+  A. 2-arg imported native  + literal `true`  = ROBUST (t19: 8x, long strings).
+  B. 3-arg imported native  + literal `true`  = corrupts a bit per call
+     (t3/t10/t8 "OK" only because nothing later reallocated onto the poison).
+  C. `,1` / int var / bool var in place of `,true` anywhere  = NO corruption
+     (t12/t13/t15/t16/t17).
+  D. The crash is delayed and allocation-size sensitive:
+     t10  (3x `,true` + venvExeCommand("echo hello", true))          = OK
+     **   (3x `,true` + venvExeCommand("echo VENV_ONE=%VENV_ONE%"))  = CRASH
+     Only the trailing string length differs. Classic small out-of-bounds
+     write that is only detected once a later allocation reuses the region.
+  E. To reach the crash THRESHOLD in these particular configs you need literal
+     `true` in the 3-arg calls AND in the trailing 2-arg call -- but that is a
+     threshold artefact, not a logic condition. The corrupting agent is the
+     3-arg-native + true-constant call (proof: t13 keeps the 3-arg `,true` but
+     makes the trailing call `,1` and is OK, i.e. reduces total damage below
+     threshold; t15 does the reverse and is also OK).
+
+
+--------------------------------------------------------------------------------
+4. WHAT `true` / `false` ARE IN UnderC
+--------------------------------------------------------------------------------
+
+C:\wrk\cpp\underc\src\common.cpp  (around line 2395):
+
+    state.add_variable(t_const_bool,"true", Expressions::constant_op(t_int,1),ENUM_INIT);
+    state.add_variable(t_const_bool,"false",Expressions::constant_op(t_int,0),ENUM_INIT);
+
+So `true` is:
+  - a symbol-table VARIABLE (an lvalue), type `t_const_bool`,
+  - whose initialiser is a compile-time `int` constant (1 / 0),
+  - flagged `ENUM_INIT` -- the SAME flag used for user `enum` constants.
+
+Hypothesis: the bug is generic to an ENUM_INIT constant used as an argument of a
+native call that has >= 3 declared parameters and needs an implicit promotion of
+that argument to the parameter type. A plain `int` literal (t15/t12) and a
+loaded variable (t16/t17) go through a different, correct path.
+
+types.cpp:586 shows bool is printed as "true"/"false" and stored as `*(int*)ptr`
+(4 bytes), i.e. a bool VALUE on the VM stack is a full machine word, like int.
+
+
+--------------------------------------------------------------------------------
+5. RELEVANT UnderC SOURCE LOCATIONS (already located)
+--------------------------------------------------------------------------------
+
+src/dll_entry.cpp  -- uc_import():
+    CEXPORT int XAPI uc_import(char *dcl, void *fn) {
+        int res;
+        Builtin::set_direct_import(fn);
+        try { res = redirected_eval(dcl,true); } catch(...) { res = FAIL; }
+        Builtin::set_direct_import(0);
+        return res == OK;
+    }
+    -> the decl string is parsed as a normal C++ declaration; overloads
+       accumulate like ordinary C++ overloads.
+
+src/engine.cpp  -- the CALLN opcode (native dispatch), around line 1085:
+    case CALLN:  // native code interface
+        pfb = (NFBlock *)data;
+        nargs = pfb->nargs;
+        if (nargs == -1) nargs = pop();          // stdarg only
+        callfn(pfb, mSP-1, nargs,
+               (pfb->flags & DC_METHOD) ? mOP : NULL, buff);
+        mSP += nargs;                             // <-- pops the args
+        if (pfb->flags & DC_QWORD) push2(*(double *)buff); else
+        if (pfb->flags & DC_NOWORD) ;
+        else push(*buff);
+        break;
+    -> SUSPECT #1. If the number of VM stack words actually occupied by the
+       pushed arguments != pfb->nargs, then callfn() reads args from a wrong
+       base (mSP-1) and/or `mSP += nargs` leaves mSP misaligned afterwards, so
+       every subsequent VM write lands at the wrong stack depth => corruption
+       that only shows up much later.
+
+src/directcall.cpp  -- callfn(), libffi branch, around lines 541..647:
+    void callfn(NFBlock *native, VMWord args[], int argc, void *optr, void *buff)
+    {
+      Function *function   = native->function;
+      Signature *signature = function->signature();
+      ...
+      VMWord *raw = args + 1;
+      unsigned int declared = signature->size();
+      unsigned int capacity = declared + (optr ? 1 : 0) + argc;
+      std::vector<ffi_type *> arg_types;
+      std::vector<FFIValue>   values(capacity);
+      ...
+      int consumed = 0;
+      Signature::iterator it = signature->begin();
+      for (; it != signature->end(); ++it) {
+        int slots = 1;
+        if (it->is_object()) { ... slots = vm_word_count(it->size()); ... }
+        else { set_ffi_value(values[value_index], *it, raw + consumed, slots); }
+        consumed += slots;
+        arg_types.push_back(ffi_type_for(*it));
+        value_ptrs.push_back(&values[value_index]);
+        ++value_index;
+      }
+      // variadic tail: any VM words beyond the declared signature
+      while (consumed < argc) {
+        values[value_index].word = raw[consumed++];
+        arg_types.push_back(sizeof(VMWord)==8 ? &ffi_type_sint64 : &ffi_type_sint32);
+        value_ptrs.push_back(&values[value_index].word);
+        ++value_index;
+      }
+      ffi_cif cif;
+      unsigned int fixed_count = declared + (optr ? 1 : 0);
+      if (signature->stdarg())
+        status = ffi_prep_cif_var(&cif, FFI_DEFAULT_ABI, fixed_count,
+                                  arg_types.size(), ffi_type_for(return_type), types);
+      else
+        status = ffi_prep_cif(&cif, FFI_DEFAULT_ABI, arg_types.size(),
+                              ffi_type_for(return_type), types);
+      ...
+      ffi_call(&cif, FFI_FN(native->pfn), result_pointer, arguments);
+      ...
+    }
+    -> SUSPECT #2. `argc` here is `pfb->nargs` from engine.cpp. For a NON-stdarg
+       import, `argc` MUST equal `declared`. If the codegen pushed the `true`
+       constant as 0 or 2 words instead of 1, then:
+         - `consumed` (driven by the signature = 1 slot per scalar) desyncs
+           from what was really pushed => `raw + consumed` reads off the top of
+           the pushed args (garbage / next frame), and/or
+         - the `while (consumed < argc)` loop fabricates a bogus extra `int`
+           ffi argument, so ffi_prep_cif/ffi_call run a 3-arg C function with a
+           4-entry CIF, and/or
+         - `mSP += nargs` in engine.cpp over/under-pops.
+
+src/directcall.cpp  -- ffi_type_for() ~line 397, set_ffi_value() ~line 413:
+    - `int` param  -> &ffi_type_sint ;  value.int_value = (int)raw[0].
+    - `bool`/`char` param -> schar/uchar (1 byte).
+    These per-value conversions are fine in isolation; the bug is the slot/arg
+    COUNT, not the individual value marshalling.
+
+src/imports.cpp
+    - class / VMT import machinery. NOT involved for standalone function
+      imports. Ignore unless the repro shows the bug needs a method (DC_METHOD).
+
+Argument coercion / overload resolution (inspect, likely fix site (a)):
+    include/function_match.h  (+ its .cpp)   -- overload resolution
+    src/common.cpp , src/code.cpp            -- where implicit-conversion
+        opcodes are emitted for CALL arguments; look for the path that loads an
+        ENUM_INIT / const-folded value as a call argument and check it emits
+        exactly ONE machine-word push, identical to a plain int literal in the
+        same argument position. The emission may be position-indexed or depend
+        on how many prior args were already pushed (that would explain why
+        position 2 = venvExeCommand works but position 3 breaks).
+
+src/dissem.cpp   -- dissemble(fb) / _dissem(pfb): the disassembler used in
+                    step 4 below.
+
+
+--------------------------------------------------------------------------------
+6. WHAT WAS ALREADY TRIED AND DID **NOT** FIX IT (venv_spawner side)
+--------------------------------------------------------------------------------
+
+  - Declaring the 3-arg import parameter as `bool` instead of `int`
+    ("void venvSetEnv(const char*,const char*,bool)") -> STILL crashes with
+    literal `true`.
+  - Replacing the 2 overloaded imports per name with ONE non-overloaded import
+    that uses a default argument
+    ("void venvSetEnv(const char*,const char*,int inShell=0)")     -> STILL
+    crashes with literal `true`.
+
+=> It is NOT overload resolution and NOT the declared parameter type. It is the
+   marshalling / slot accounting of the ENUM_INIT constant argument in a
+   3-argument native call. (Re-confirm all three in the clean standalone repro.)
+
+  - Passing `1`, `int` var, or `bool` var instead of the literal -> always fine.
+  - Making venv_spawner's C code send the shell command via the normal
+    `venvExeCommand(cmd,true)` path instead of a direct helper -> irrelevant,
+    the crash is upstream of the C code.
+
+
+--------------------------------------------------------------------------------
+7. FIX PLAN
+--------------------------------------------------------------------------------
+
+--- Step 0 : record versions -------------------------------------------------
+
+    type C:\pkg\dep\underc\include\underc\version.h
+    note MSVC version, libffi (ffi.dll) version, confirm UCL_LIBFFI is defined
+    in the build config that produced underc.lib.
+
+
+--- Step 1 : minimal standalone reproduction (NO venv_spawner) --------------
+
+Use C:\wrk\cpp\underc\examples\import\import3.cpp as a template. Create
+C:\wrk\cpp\underc\verify\repro_native3.cpp:
+
+    #include <ucdl.h>
+    #include <stdio.h>
+    #include <string.h>
+
+    static int g_calls = 0;
+    void c_f2_1(const char* a)                              { printf("f2/1 a=%s\n", a); }
+    void c_f2  (const char* a, int x)                       { printf("f2   a=%s x=%d\n", a, x); }
+    void c_f3_2(const char* a, const char* b)               { printf("f3/2 a=%s b=%s\n", a, b); }
+    void c_f3  (const char* a, const char* b, int x)        { printf("f3   a=%s b=%s x=%d (call #%d)\n", a, b, x, ++g_calls); }
+    void c_f4  (const char* a, const char* b, const char* c, int x) { printf("f4 a=%s b=%s c=%s x=%d\n", a,b,c,x); }
+
+    int main(int argc, char** argv)
+    {
+        uc_init(NULL, 1);
+        uc_import((char*)"void f2(const char*)",                       (void*)&c_f2_1);
+        uc_import((char*)"void f2(const char*,int)",                    (void*)&c_f2);
+        uc_import((char*)"void f3(const char*,const char*)",            (void*)&c_f3_2);
+        uc_import((char*)"void f3(const char*,const char*,int)",        (void*)&c_f3);
+        uc_import((char*)"void f4(const char*,const char*,const char*,int)", (void*)&c_f4);
+        if (!uc_load("repro.cvc")) { char e[512]; uc_error(e,sizeof e); printf("load: %s\n", e); return 2; }
+        uc_run();
+        uc_finis();
+        printf("clean shutdown\n");
+        return 0;
+    }
+
+repro.cvc:
+
+    int main(int argc, char* argv) {
+        f3("a","b",true);
+        f3("a","b",true);
+        f3("a","b",true);
+        f2("hello", true);
+        // heap traffic so a small OOB write gets detected:
+        for (int i = 0; i < 100; ++i) { string s; for (int j=0;j<80;j++) s += 'x'; }
+        return 0;
+    }
+
+Expected: crash / heap-check failure at or shortly after uc_finis() when the
+3rd args are `true`; "clean shutdown" printed when they are `1`.
+
+Build it the same way UnderC builds its verify/ programs (MSVC, /MD, link
+underc.lib, ffi.dll on PATH). If UnderC has a CMake ctest harness for verify/,
+add repro_native3 there.
+
+
+--- Step 2 : narrow the trigger (fast bisection, edit only repro.cvc) -------
+
+Run and record OK / CRASH for each:
+
+    (a)  f3("a","b",true)            vs   f3("a","b",1)
+    (b)  bool v=true; f3("a","b",v)  vs   int v=1; f3("a","b",v)
+    (c)  enum E { EON = 1 }; f3("a","b",EON);        <-- does a USER ENUM also crash?
+                                                        If yes: bug = "any ENUM_INIT
+                                                        constant as native arg", not bool.
+    (d)  remove the 2-arg overload  ("void f3(const char*,const char*)")
+         and keep only the 3-arg import -- still crash?   (overload vs call marshalling)
+    (e)  f4("a","b","c",true)  -- is it "arg count >= 3" or specifically 3?
+    (f)  import  "void g(int,const char*,const char*)"  and call g(true,"a","b")
+         -- position dependence (constant FIRST)
+    (g)  import  "void h(const char*,int,const char*)"  and call h("a",true,"b")
+         -- constant in the MIDDLE
+    (h)  a method import with DC_METHOD, 3-arg, called with true -- does the
+         optr path behave differently?
+    (i)  vary how many f3(...,true) calls are needed before the poison is
+         detectable (1? 2? 3?) with a fixed amount of trailing heap traffic.
+
+This matrix pins whether the fault is: constant-as-arg codegen, arg-count in
+CALLN, the variadic tail in callfn(), or an interaction with argument position.
+
+
+--- Step 3 : turn the delayed crash into an immediate fault ----------------
+
+Windows:
+    gflags /p /enable repro_native3.exe /full        (Page Heap)
+      -- OR --
+    rebuild engine + repro with:  cl /fsanitize=address ...
+Linux (fastest, most informative):
+    build UnderC engine + repro with  -fsanitize=address,undefined -g
+    ASan will print the exact bad access, its size, and which buffer it belongs
+    to (VM stack vector? `values` vector in callfn? something in the codegen?).
+
+Capture the faulting stack. It will point at one of:
+  - callfn()                         (src/directcall.cpp)   -> suspect #2
+  - the CALLN handler / mSP juggling (src/engine.cpp)       -> suspect #1
+  - the argument-emit / coercion path(src/code.cpp/common.cpp) -> fix site (a)
+
+
+--- Step 4 : inspect the generated bytecode -------------------------------
+
+In the repro, between uc_load() and uc_run(), disassemble `main`:
+  - interactive:  #d main
+  - or call _dissem() / dissemble() from src/dissem.cpp on main's FBlock.
+
+Compare the opcode stream for  f3("a","b",true);  vs  f3("a","b",1);
+  - count the constant / PUSH opcodes feeding the CALLN,
+  - read NFBlock.nargs for that CALLN,
+  - check whether `true` is emitted as an immediate operand vs a stack push.
+
+The discrepancy (an extra push, a missing push, or a wrong nargs) is the bug.
+
+
+--- Step 5 : apply the fix at the correct layer --------------------------
+
+(a) MOST LIKELY -- pushed-slot vs nargs mismatch for a constant argument:
+    Fix in the parser/codegen where a call argument that is an ENUM_INIT /
+    const-folded value is emitted (src/code.cpp / src/common.cpp, near the
+    call-generation and add_to_arg_list paths; cross-check function_match).
+    It must produce exactly ONE VM word for the (promoted) constant, exactly
+    like a plain int literal in the same argument slot.
+    Also harden src/engine.cpp CALLN: for a non-stdarg import,
+        assert(nargs == pfb->function->signature()->size()
+                        + ((pfb->flags & DC_METHOD) ? 1 : 0));
+    so any future desync fails loudly in the repro.
+
+(b) callfn() variadic tail firing for a non-stdarg import:
+    In src/directcall.cpp callfn(), only run the `while (consumed < argc)` loop
+    when `signature->stdarg()` is true. For a fixed-arity import, require
+    `argc == declared` (assert; otherwise ignore extras rather than fabricating
+    ffi args). Ensure ffi_prep_cif() is always called with
+    `arg_types.size() == declared (+optr)` for non-stdarg imports.
+
+(c) LEAST LIKELY -- per-value slot read:
+    Ensure the bool->int (or enum->int) promotion to the PARAMETER type happens
+    before the value reaches the VM stack, so `raw[consumed]` already holds a
+    clean machine word. `ffi_type_for` already keys off the parameter type
+    (here `int` -> ffi_type_sint), so this path is probably already correct.
+
+
+--- Step 6 : regression test in UnderC's own suite ----------------------
+
+Add a ctest to C:\wrk\cpp\underc\src\CMakeLists.txt (see how the existing
+verify/ tests are wired, e.g. the `enum-changed-rejected` / `enum-missing-
+rejected` entries near line 319). The test:
+  - imports overloaded 2-arg + 3-arg (+ 4-arg) natives,
+  - calls them with literal `true`, literal `false`, and a user `enum` constant
+    in the TRAILING position,
+  - verifies the C side receives the exact expected values,
+  - runs under Page Heap / ASan so any corruption fails the test.
+
+
+
+
+================================================================================
+END
+================================================================================

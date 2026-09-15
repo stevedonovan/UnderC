@@ -12,9 +12,10 @@
 #include "directcall.h"
 #include <windows.h>
 
-long get_file_time(const char *file)
 // unfortunately, _stat does not work on Win32?
 // certainly don't seem to get an accurate fractional time.
+//ASK: Does this function need a __int64 return type?
+long get_file_time(const char *file)
 {
   FILETIME at; // hahmm
   OFSTRUCT ofs;
@@ -23,7 +24,7 @@ long get_file_time(const char *file)
   CloseHandle(hFile);
   __int64 *f = (__int64 *)&at;
   (*f) /= 100000;
-  long val = *f;
+  long val = (long)*f;
   return val;
 }
 
@@ -45,15 +46,20 @@ void *get_proc_address(Handle h, const char *name)
  // *add 1.2.2 (Eric) if it's not in the imp file, try the DLL...
  // *add 1.2.5 imp file may contain _absolute_ addresses
     if (Builtin::using_ordinal_lookup()) {
-        int ordn = Builtin::lookup_ordinal(name);
-        if (ordn!=0) {
+        uintptr_t ordn = Builtin::lookup_ordinal(name);
+        if (ordn!=0) {	  
           if (Builtin::lookup_is_ordinal())
-	         name = (const char *)ordn;
+	         name = reinterpret_cast<const char *>(ordn);
   // and pass through
-	      else return (void *)ordn;
+	      else return reinterpret_cast<void *>(ordn);
 	}
     }
-    return (void*)GetProcAddress((HINSTANCE)h,name);
+  void *proc = (void*)GetProcAddress((HINSTANCE)h,name);
+  if (!proc) {
+    const char *alias = Builtin::lookup_symbol_alias(name);
+    if (alias) proc = (void*)GetProcAddress((HINSTANCE)h,alias);
+  }
+  return proc;
 }
 
 Handle get_process_handle()
@@ -61,11 +67,28 @@ Handle get_process_handle()
   return (Handle) GetModuleHandle(NULL);
 }
 
+void *alloc_executable(const void *code, size_t size)
+{
+  if (size == 0) return NULL;
+  void *page = VirtualAlloc(NULL,size,MEM_COMMIT | MEM_RESERVE,PAGE_READWRITE);
+  if (page == NULL) return NULL;
+  memcpy(page,code,size);
+  DWORD previous;
+  if (!VirtualProtect(page,size,PAGE_EXECUTE_READ,&previous)) {
+    VirtualFree(page,0,MEM_RELEASE);
+    return NULL;
+  }
+  FlushInstructionCache(GetCurrentProcess(),page,size);
+  return page;
+}
+
 #else
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include "directcall.h"
 
 char *itoa(int val, char *buff, int)
@@ -81,7 +104,21 @@ long get_file_time(const char *filename)
  return st.st_mtime;
 }
 
-// *ch 1.2.9 patch
+void *alloc_executable(const void *code, size_t size)
+{
+  if (size == 0) return NULL;
+  void *page = mmap(NULL,size,PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANONYMOUS,-1,0);
+  if (page == MAP_FAILED) return NULL;
+  memcpy(page,code,size);
+  if (mprotect(page,size,PROT_READ | PROT_EXEC) != 0) {
+    munmap(page,size);
+    return NULL;
+  }
+  return page;
+}
+
+// *ch 1.2.9 patch 
 #ifdef __BEOS__
 #include <OS.h>
 #include <image.h>
@@ -133,16 +170,19 @@ void *get_proc_address(Handle h, const char *name)
  void *sym;
  image_id img = (image_id)h;
  printf("get_proc_address(%08lx, %s)\n", h, name); /* XXX:DBG */
-  // *add 1.2.4 In the case of Linux, the .IMP file actually contains
-  // absolute addresses.
+  // Legacy Linux manifests may contain absolute addresses. UC3 manifests
+  // fall through to process-symbol lookup.
  if (Builtin::using_ordinal_lookup()) {
-   int ordn = Builtin::lookup_ordinal(name);
+   uintptr_t ordn = Builtin::lookup_ordinal(name);
    if (ordn!=0) {
-    return (void *)ordn;
+    return reinterpret_cast<void *>(ordn);
    }
  }
- if (get_image_symbol(img, name, B_SYMBOL_TYPE_ANY, &sym) < B_OK)
-  return NULL;
+ if (get_image_symbol(img, name, B_SYMBOL_TYPE_ANY, &sym) < B_OK) {
+  const char *alias = Builtin::lookup_symbol_alias(name);
+  if (!alias || get_image_symbol(img, alias, B_SYMBOL_TYPE_ANY, &sym) < B_OK)
+   return NULL;
+ }
  return sym;
 }
 
@@ -156,11 +196,7 @@ Handle get_process_handle()
 
 Handle load_library(const char *name)
 {
-  Handle h = dlopen(*name!=0 ? name : NULL,RTLD_LAZY);
-    if (h == NULL) {
-        puts(dlerror());
-    }
-    return h;
+  return dlopen(*name!=0 ? name : NULL,RTLD_LAZY);
 }
 
 void free_library(Handle h)
@@ -173,16 +209,21 @@ void *get_proc_address(Handle h, const char *name)
   // *add 1.2.4 In the case of Linux, the .IMP file actually contains
   // absolute addresses.
  if (Builtin::using_ordinal_lookup()) {
-   int ordn = Builtin::lookup_ordinal(name);
-   if (ordn!=0) {
-     return (void *)ordn;
+   uintptr_t ordn = Builtin::lookup_ordinal(name);
+   if (ordn!=0) {	  
+     return reinterpret_cast<void *>(ordn);
    }
-  }
- return dlsym(h,name);
+  } 
+ void *proc = dlsym(h,name);
+ if (!proc) {
+   const char *alias = Builtin::lookup_symbol_alias(name);
+   if (alias) proc = dlsym(h,alias);
+ }
+ return proc;
 }
 
 #endif /* __BEOS__ */
 
 #endif /* _WIN32 */
 
-
+ 

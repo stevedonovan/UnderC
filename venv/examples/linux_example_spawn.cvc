@@ -1,0 +1,16 @@
+// venv - minimal test configuration (Linux)
+//
+// Uses /bin/sh inside the real root just to verify the spawner works without a
+// dedicated sandbox directory.
+//   Run: sudo ./venv examples/linux_example_spawn.cvc
+
+int main(int argc, char* argv) {
+    venvRootDir("/");
+
+    venvSetEnv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin");
+    venvSetEnv("HOME", "/root");
+    venvSetEnv("TERM", "xterm-256color");
+
+    venvExeCommand("/bin/sh");
+    return 0;
+}

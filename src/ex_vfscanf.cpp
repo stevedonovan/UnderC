@@ -51,12 +51,12 @@ int con_fprintf(FILE *out, char *fmt, ...)
 
 char *con_fgets(char *buff, int sz, FILE *in)
 {
- if(in==_str_in) str_gets(buff); 
- else {
-     if (! fgets(buff,sz,in))
-         return NULL;
+ if(in==_str_in) {
+   if(in_buff.m_str == NULL || *in_buff.m_str == '\0') return NULL;
+   str_gets(buff);
+   return buff;
  }
- return buff;
+ return fgets(buff,sz,in);
 }
 
 int con_fscanf(FILE *in, char *fmt,...)

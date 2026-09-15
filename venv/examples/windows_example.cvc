@@ -1,0 +1,23 @@
+// venv - Windows example configuration (.cvc = C venv configuration)
+//
+// venvRootDir(): the child process's working directory is set to this path,
+// giving it a "virtual root" context. Omit the call to use venv's own
+// working directory.
+
+int main(int argc, char* argv) {
+    venvRootDir("C:\\Apps\\MySandbox");
+
+    // Environment variables visible to the child process.
+    venvSetEnv("PATH", "C:\\Windows\\System32;C:\\Windows;C:\\Apps\\MySandbox\\bin");
+    venvSetEnv("TEMP", "C:\\Apps\\MySandbox\\tmp");
+    venvSetEnv("TMP", "C:\\Apps\\MySandbox\\tmp");
+    venvSetEnv("MY_APP_ENV", "staging");
+    venvSetEnv("LOG_LEVEL", "debug");
+    venvSetEnv("LOG_OUTPUT", "./venv_debug_out.log");
+
+    // Each venvExeCommand is one command; they run in order and it is up to the
+    // config whether a failure stops the rest (check venvLastExitCode()).
+    venvExeCommand("C:\\Apps\\MySandbox\\bin\\myapp.exe --config config\\app.ini");
+    venvExeCommand("cmd.exe");
+    return 0;
+}

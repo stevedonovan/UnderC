@@ -1,0 +1,108 @@
+136c136
+< #ifndef _WIN32
+---
+> #ifdef __unix__
+195c195
+<       "testl _DC_QWORD_,%edx\t\n"
+---
+>       "testl _DC_QWORD_,%ecx\t\n"
+197c197
+<       "movl %eax,(%ecx)\t\n" 
+---
+>       "movl %eax,(%ebx)\t\n" 
+284c284
+< #ifdef _WIN32  
+---
+> #ifndef __unix__  
+299c299
+< #ifdef _WIN32  
+---
+> #ifndef __unix__  
+309a310
+>   //passop!!
+312c313
+< 	     cerr << (void *)ptr << " is not allocated by us!\n";
+---
+> 	cerr << (void *)ptr << " is not allocated by us!\n";
+314,315c315
+< // *ch 1.2.9 patch
+< #ifdef _WIN32    
+---
+> #ifndef __unix__    
+342,343c342
+< // *ch 1.2.9 patch
+< #ifndef _WIN32
+---
+> #ifdef __unix__
+405,412d403
+< typedef MSI::iterator IMSI;
+< typedef IMSI *PIMSI;
+< 
+< struct StrPair {
+<      string first;
+<      int second;
+< };
+< typedef StrPair* PSP;
+431,462c422
+< }
+< 
+< // *ad 1.2.9 corresponding iterator stuff
+< void* _map_iter_ep(void* pm, int which)
+< {
+<     MSI::iterator it;
+<     if (which==0) it = PMSI(pm)->begin();
+<             else  it = PMSI(pm)->end();
+<     return new IMSI(it);
+< }
+< 
+< void* _map_iter_find(void* pm, const string& key)
+< {
+<     MSI::iterator it = PMSI(pm)->find(key);
+<     return new IMSI(it);
+< }
+< 
+< int  _map_iter_equal(void* i1, void* i2)
+< {
+<   return *PIMSI(i1) == *PIMSI(i2);
+< }
+< 
+< void _map_iter_fetch(void* pi, void* dat)
+< {
+<   PSP(dat)->first =  (*PIMSI(pi))->first;
+<   PSP(dat)->second = (*PIMSI(pi))->second;
+< }
+< 
+< void _map_iter_next(void* pi, int wdir)
+< {
+<   ++(*PIMSI(pi));
+< }
+---
+>  }
+568c528
+<  //add(Sig(t_void), "_init_lib",(CALLFN)&Parser::init_lib);
+---
+>  add(Sig(t_void), "_init_lib",(CALLFN)&Parser::init_lib);
+587,593c547
+<  // *add 1.2.9 iterator support for the fast specialization
+<  add(Sig(t_void_ptr) << t_void_ptr << t_int,              "_map_iter_ep", (CALLFN)&_map_iter_ep);
+<  add(Sig(t_void_ptr) << t_void_ptr << t_void_ptr,         "_map_iter_find",(CALLFN)&_map_iter_find);
+<  add(Sig(t_int)      << t_void_ptr << t_void_ptr,         "_map_iter_equal",(CALLFN)&_map_iter_equal);
+<  add(Sig(t_void)     << t_void_ptr << t_void_ptr,         "_map_iter_fetch",(CALLFN)&_map_iter_fetch);
+<  add(Sig(t_void)     << t_void_ptr << t_int,              "_map_iter_next", (CALLFN)&_map_iter_next);
+<  
+---
+> 
+770c724
+< #ifdef _WIN32
+---
+> #ifndef __unix__
+907c861
+< // *add 1.1.2 Linking to #self finds the actual full path of UC pgm
+---
+> // *add 1.1.2 Linking to #self finds the actual full path of U pgm
+912,913c866
+< // *ch 1.2.9 patch
+< #ifdef _WIN32    
+---
+> #ifndef __unix__    
+

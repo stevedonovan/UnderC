@@ -42,22 +42,22 @@ void UCContext::emit(int opcode, PExpr e)
   }
 }
 
-void UCContext::emit(int opcode, int rm, int data)
+void UCContext::emit(int opcode, int rm, VMWord data)
 {
    emitc(opcode,(RMode)rm,data);
 }
 
-void UCContext::emit_data_instruction(int opcode, unsigned long data)
+void UCContext::emit_data_instruction(int opcode, VMWord data)
 {
 // The operand for a number of instructions is a 20bit offset to an allocated 32-bit word.
- emit(opcode,DIRECT,Parser::global().alloc_int(data));
+ emit(opcode,DIRECT,Parser::global().alloc(sizeof(VMWord),&data));
 }
 
 typedef unsigned long ulong; 
 
-void UCContext::emit_push_int(int sz) 
+void UCContext::emit_push_int(VMWord sz) 
 {
-   emit_data_instruction(PUSHI,(ulong) sz);
+   emit_data_instruction(PUSHI,sz);
 }
 
 void UCContext::emit_type_instr(int opcode, Type t)
@@ -81,6 +81,7 @@ void UCContext::init()
    MODULO,MOD,LSHIFT,SHL,RSHIFT,SHR,BIN_AND,AND,BIN_OR,OR,
    BIN_XOR,XOR,EQUAL,EQ,NOT_EQUAL,NEQ,LESS_THAN,LESS,GREATER,GREAT,
    LEQ,LE,GEQ,GE,UMINUS,NEG,LOG_NOT,NOT};
+ equiv_op[BIN_NOT] = BNOT;
  static int float_equivalents[] = {MUL,FMUL,DIV,FDIV,ADD,FADD,SUB,FSUB,
    EQ,FEQ,LESS,FLESS,GREAT,FGREAT,NEG,FNEG,NEQ,FNEQ,LE,FLE,GE,FGE}; 
 
@@ -175,15 +176,15 @@ SwitchBlock *SwitchBlock::construct()
 {
  if(!m_default_jmp) m_default_jmp = m_code->ip_offset();
  int sz = m_list.size()+2;
- int *block = new int[sz];
+ VMWord *block = new VMWord[sz];
  block[0] = m_list.size()/2;
  block[1] = m_default_jmp;
- IntList::iterator ili;
+ VMWordList::iterator ili;
  int i = 2;
  for(ili = m_list.begin(); ili != m_list.end(); ++ili) 
    block[i++] = *ili;
- m_start->data = Parser::global().alloc(sz*sizeof(int),block);
- delete block;
+ m_start->data = Parser::global().alloc(sz*sizeof(VMWord),block);
+ delete [] block;
  return this;
 }
 
@@ -196,7 +197,7 @@ void UCContext::emit_stack_op(int op, Type t)
 
 // a var encodes in three distinct ways
 // a NULL reference means that this is relative to TOS!
-void UCContext::emit_reference(PExpr ex, int flags, int tcode)
+void UCContext::emit_reference(PExpr ex, int flags, int tcode, Type value_type)
 {
  if (ex) {
    PEntry pe = ex->entry();
@@ -209,13 +210,20 @@ void UCContext::emit_reference(PExpr ex, int flags, int tcode)
 // complete - it assumes that there is only one fn in the set!
    if (t.is_function()) {
         FunctionEntry *pfe = (FunctionEntry *)pe->data;
-        emit_push_int((int) pfe->back()->fun_block());
+        emit_push_int(vm_from_ptr(pfe->back()->fun_block()));
    } else
 // *fix 1.2.0 Special case for regular references; their 'value' is a pointer
    if ((flags & AS_PTR) && ! t.is_plain_reference()) emit(PEA,ex);
+   else if (value_type.is_ref_or_ptr()) emit(flags & LVALUE ? POPP : PUSHP,ex);
    else emit ( (flags & LVALUE ? POPC : PUSHC) + tcode,ex);
  } else {
-  if (!(flags & AS_PTR)) emit( (flags & LVALUE ? POPSC : PUSHSC)+tcode,NONE,0);
+  if (!(flags & AS_PTR)) {
+    // A DEREF expression is represented as a reference to mark it as an
+    // lvalue.  That synthetic reference must load/store the pointee's actual
+    // width; only a pointee which is itself a pointer uses PUSHSP/POPSP.
+    if (value_type.is_pointer()) emit(flags & LVALUE ? POPSP : PUSHSP,NONE,0);
+    else emit((flags & LVALUE ? POPSC : PUSHSC)+tcode,NONE,0);
+  }
  }
 }
 
@@ -319,9 +327,9 @@ void compile_function_call(UCContext* code, int op, int flags, PExpr ex, bool us
      ExprList::reverse_iterator ali;
      if (args != NULL) 
        for (ali = args->rbegin(); ali != args->rend(); ++ali) { 
-          code->compile(*ali);
+		  code->compile(*ali);
 		  if (is_double_number((*ali)->type())) { 
-            sz += 2;
+			sz += vm_word_count(sizeof(double));
 		  } else ++sz;
       }      
 	 bool was_method_call = obj != NULL || is_dynamic;  
@@ -455,6 +463,14 @@ void UCContext::compile(PExpr ex, int flags)
       t.decr_pointer();
       tcode = size_code(t);
     }
+    // Array addressing needs the pointee's object size, not its load opcode.
+    // In particular, char ** indexing must scale by sizeof(void *) on 64-bit
+    // hosts; POINTER_SZ historically selected the four-byte integer scale.
+    int element_size = t.size();
+    if (element_size == 1) tcode = CHAR_SZ;
+    else if (element_size == 2) tcode = SHORT_SZ;
+    else if (element_size == sizeof(VMInt)) tcode = POINTER_SZ;
+    else if (element_size == sizeof(double)) tcode = DOUBLE_SZ;
     compile(e2);    // put index on stack
     // *add 1.2.5 Check for array bounds, if requested
     if (Parser::debug.range_check && array_size > 1) {
@@ -473,7 +489,12 @@ void UCContext::compile(PExpr ex, int flags)
         if (sz == 4) tcode = 2; else tcode = 3;
        }
     } 
-    if (is_entry) {
+    if (element_size != 1 && element_size != 2
+        && element_size != sizeof(VMInt) && element_size != sizeof(double)) {
+       compile(e1);
+       emit_push_int(element_size);
+       emit(ADDSN);
+    } else if (is_entry) {
        if (array_size > 1) emit(ADDCC + tcode,e1);
        else emit(ADDPC + tcode,e1);
     } else {
@@ -512,7 +533,7 @@ void UCContext::compile(PExpr ex, int flags)
                else if (is_auto) {
                    // *fix 1.2.3 Only set the first object if it _will_ be on the ODS
                    Expressions::set_first_object(e1);  // set as the first object on the stack frame
-                   emit_data_instruction(TOSD,(ulong)pc);
+                   emit_data_instruction(TOSD,vm_from_ptr(pc));
                }
                else { // if (is_direct)
                 // *change 1.2.9 The static ODS has been retired; instead, we keep
@@ -531,7 +552,7 @@ void UCContext::compile(PExpr ex, int flags)
   // *change 1.0.0 We use TPODS instruction before functions returning objects...
   	 push_object_ptr(this, e1);
 	 Expressions::set_first_object(e1);  // set as the first object on the stack frame
-     emit_data_instruction(TPODS,(ulong)t.as_class());
+     emit_data_instruction(TPODS,vm_from_ptr(t.as_class()));
   break;
   case DCONTEXT: // dynamic scalar ctor or dtor call.
   { 
@@ -571,9 +592,15 @@ void UCContext::compile(PExpr ex, int flags)
   break;
   case PASS_BY_VALUE: { // needed to match MSVC object model
        int sz = t.size();
-       emit(STALC,NONE,sz/sizeof(int));  // allocate on stack (pushes object stack!)
-	   compile(e1);           // construct object
-	   emit(DOS);             // pop OS 
+       emit(STALC,NONE,vm_word_count(sz));
+       if (t.as_class()->simple_struct()) {
+         compile(e1,AS_PTR);
+         emit(PUSH_THIS,NONE,0);
+         emit(COPY,NONE,sz);
+       } else {
+	     compile(e1);         // construct object
+       }
+	   emit(DOS);             // pop OS
        // *fix 1.2.0 There was code to reverse stuff on stack, but the UC stack now grows 
        // downwards, like most processor stacks.  This stuff has been broken since 1.1.0!!
      }
@@ -598,7 +625,7 @@ void UCContext::compile(PExpr ex, int flags)
           compile(e1);
           // Special case: a function ptr
           if (t.is_function()) break;
-          emit_reference(NULL,flags,tcode); 
+          emit_reference(NULL,flags,tcode,t); 
         }
     }
     break;
@@ -607,7 +634,7 @@ void UCContext::compile(PExpr ex, int flags)
     if (t.is_object() || Parser::array_size(ex->entry()) > 1) emit( PEA, ex);
     else {
        if (t.is_reference()) tcode = POINTER_SZ;  // *fix 0.9.7 deref. double references
-       emit_reference(ex,flags,tcode);
+       emit_reference(ex,flags,tcode,t);
     }
     break;
    case ASSIGN:
@@ -615,7 +642,7 @@ void UCContext::compile(PExpr ex, int flags)
        emit(DUP);        // dup the pointer
        compile(e2);      // compile expr
        emit(is_double_number(e2->type()) ? SWAPD : SWAP);     // so ptr is TOS
-       emit_reference(NULL,LVALUE,tcode);
+       emit_reference(NULL,LVALUE,tcode,e2->type());
     } else {
     // *fix 1.2.0 Assignments were not coded correctly in lvalue situations (e.g 'int& ri = (i = 10)')
       bool do_push = !(flags & DROP_VALUE), as_ref = (flags & AS_REF);
@@ -637,20 +664,20 @@ void UCContext::compile(PExpr ex, int flags)
        Type at = e1->entry()->type;
        if (at.is_class()) {
         int sz = t.size();
-        if (sz == sizeof(int)) ttype = 2; else
+        if (sz == sizeof(VMWord)) ttype = 2; else
         if (sz == sizeof(double)) ttype = 3;
         else ttype = -1;
-       }
+       } else if (at.is_pointer() && t.size() != sizeof(VMInt)) ttype = -1;
        if (ttype != -1) {
         if (!(at.is_ref_or_ptr() && (op==INCR || op==DECR)))
          opcode = choose(op,INCR,INCC,DECR,DECC,INCR_PTR,INCPC,DECR_PTR,DECPC,0);
        } else { // ptr to struct!! Encode p = p + sizeof(T)
-          if (e2!=NULL) emit_reference(e1,0,2); // postfix
-          emit_reference(e1,0,2);
+          if (e2!=NULL) emit_reference(e1,0,2,e1->type()); // postfix
+          emit_reference(e1,0,2,e1->type());
           emit_push_int(t.size());
           emit(op==INCR_PTR ? ADD : SUB);
           if(e2==NULL) emit(DUP); // prefix
-          emit_reference(e1,LVALUE,2);
+          emit_reference(e1,LVALUE,2,e1->type());
           break;
        }
     }
@@ -662,7 +689,7 @@ void UCContext::compile(PExpr ex, int flags)
     }
     if (e2==NULL) emit(opcode + ttype, e1);  // prefix
     if (!(flags & DROP_VALUE)) { 
-      emit_reference(e1,flags,tcode);
+      emit_reference(e1,flags,tcode,e1 ? e1->type() : t);
       // w/ postfix, must keep the reference on TOS!
       if (e2!=NULL && e1==NULL) emit(SWAP,NONE,0);
     }
@@ -703,9 +730,19 @@ void UCContext::compile(PExpr ex, int flags)
      compile(e2,flags);
      break;
    case COPY_BLOCK:
-     compile(e1);
-     if (!(flags & DROP_VALUE)) emit(DUP);
-     compile(e2);
+     // COPY pops the destination first and the source second, so the source
+     // has to go on the stack first.  When the assigned object is also the
+     // value of the expression, a spare destination is buried under the
+     // source and swapped back to the top for COPY to consume.
+     if (flags & DROP_VALUE) {
+       compile(e2);                 // source
+       compile(e1);                 // destination
+     } else {
+       compile(e1);
+       emit(DUP);
+       compile(e2);
+       emit(SWAP);
+     }
      emit(COPY,NONE,e1->type().size());
      break;
    case INIT_REF: // *hack 1.1.2 Make reference init. case more explicit! (see DEREF)
@@ -722,12 +759,8 @@ void UCContext::compile(PExpr ex, int flags)
      compile(e2,AS_PTR); // push addr of temp
      break;
    default:
-     cerr << "Unrecognized opcode: " << op << std::endl;
+     cerr << "Unrecognized opcode: " << op << endl;
      //throw string("compile failed");
      break;
    }
 }
-
-
-
-

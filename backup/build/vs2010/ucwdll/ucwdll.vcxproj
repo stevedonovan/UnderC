@@ -1,0 +1,228 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{47C81881-9F04-4FC0-82E3-21DB3EE419AF}</ProjectGuid>
+    <RootNamespace>ucwdll</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_WIN32;_WINDOWS;_DEBUG;_WCON;_FAKE_IOSTREAM;_MSTRING;UCL_SHARED;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\$(ConfigurationName);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>_WIN32;_WINDOWS;NDEBUG;_WCON;_FAKE_IOSTREAM;_MSTRING;UCL_SHARED;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\$(ConfigurationName);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\src\bonzo.h" />
+    <ClInclude Include="..\..\..\src\breakpoints.h" />
+    <ClInclude Include="..\..\..\src\class.h" />
+    <ClInclude Include="..\..\..\src\classlib.h" />
+    <ClInclude Include="..\..\..\src\code.h" />
+    <ClInclude Include="..\..\..\src\common.h" />
+    <ClInclude Include="..\..\..\src\config.h" />
+    <ClInclude Include="..\..\..\src\defs.h" />
+    <ClInclude Include="..\..\..\src\directcall.h" />
+    <ClInclude Include="..\..\..\src\eh.h" />
+    <ClInclude Include="..\..\..\src\engine.h" />
+    <ClInclude Include="..\..\..\src\entry.h" />
+    <ClInclude Include="..\..\..\src\errors.h" />
+    <ClInclude Include="..\..\..\src\export.h" />
+    <ClInclude Include="..\..\..\src\expressions.h" />
+    <ClInclude Include="..\..\..\src\ex_vfscanf.h" />
+    <ClInclude Include="..\..\..\src\fblock.h" />
+    <ClInclude Include="..\..\..\src\function.h" />
+    <ClInclude Include="..\..\..\src\function_match.h" />
+    <ClInclude Include="..\..\..\src\gdi_stock.h" />
+    <ClInclude Include="..\..\..\src\hard_except.h" />
+    <ClInclude Include="..\..\..\src\ide.h" />
+    <ClInclude Include="..\..\..\src\imports.h" />
+    <ClInclude Include="..\..\..\src\input.h" />
+    <ClInclude Include="..\..\..\src\iostrm.h" />
+    <ClInclude Include="..\..\..\src\keys.h" />
+    <ClInclude Include="..\..\..\src\keywords.h" />
+    <ClInclude Include="..\..\..\src\listx.h" />
+    <ClInclude Include="..\..\..\src\loaded_module_list.h" />
+    <ClInclude Include="..\..\..\src\main.h" />
+    <ClInclude Include="..\..\..\src\mangle.h" />
+    <ClInclude Include="..\..\..\src\module.h" />
+    <ClInclude Include="..\..\..\src\mstring.h" />
+    <ClInclude Include="..\..\..\src\new-defs.h" />
+    <ClInclude Include="..\..\..\src\old-defs.h" />
+    <ClInclude Include="..\..\..\src\opcodes.h" />
+    <ClInclude Include="..\..\..\src\operators.h" />
+    <ClInclude Include="..\..\..\src\ops.h" />
+    <ClInclude Include="..\..\..\src\os.h" />
+    <ClInclude Include="..\..\..\src\parser.h" />
+    <ClInclude Include="..\..\..\src\prism.h" />
+    <ClInclude Include="..\..\..\src\program.h" />
+    <ClInclude Include="..\..\..\src\ptr_cache.h" />
+    <ClInclude Include="..\..\..\src\signature.h" />
+    <ClInclude Include="..\..\..\src\simple.h" />
+    <ClInclude Include="..\..\..\src\stack.h" />
+    <ClInclude Include="..\..\..\src\std_utils.h" />
+    <ClInclude Include="..\..\..\src\table.h" />
+    <ClInclude Include="..\..\..\src\templates.h" />
+    <ClInclude Include="..\..\..\src\test_break.h" />
+    <ClInclude Include="..\..\..\src\threads.h" />
+    <ClInclude Include="..\..\..\src\tokens.h" />
+    <ClInclude Include="..\..\..\src\tparser.h" />
+    <ClInclude Include="..\..\..\src\twl.h" />
+    <ClInclude Include="..\..\..\src\twl_misc.h" />
+    <ClInclude Include="..\..\..\src\types.h" />
+    <ClInclude Include="..\..\..\src\ucdl.h" />
+    <ClInclude Include="..\..\..\src\ucri.h" />
+    <ClInclude Include="..\..\..\src\uc_graphics.h" />
+    <ClInclude Include="..\..\..\src\uc_tokens.h" />
+    <ClInclude Include="..\..\..\src\utils.h" />
+    <ClInclude Include="..\..\..\src\version.h" />
+    <ClInclude Include="..\..\..\src\wcon.h" />
+    <ClInclude Include="..\..\..\src\winuser.h" />
+    <ClInclude Include="..\..\..\src\xtrace.h" />
+    <ClInclude Include="Debug\tparser.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Release\tparser.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\src\build\parser.y">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..\..\build\bbison.bat "$(ProjectDir)$(ConfigurationName)" "..\..\.."</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\..\build\bbison.bat "$(ProjectDir)$(ConfigurationName)" "..\..\.."</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Running parser compiler for UCWDLL</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Running parser compiler for UCWDLL</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tparser.cpp;tparser.h;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tparser.cpp;tparser.h;%(Outputs)</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\src\breakpoints.cpp" />
+    <ClCompile Include="..\..\..\src\class.cpp" />
+    <ClCompile Include="..\..\..\src\code.cpp" />
+    <ClCompile Include="..\..\..\src\common.cpp" />
+    <ClCompile Include="..\..\..\src\directcall.cpp" />
+    <ClCompile Include="..\..\..\src\dissem.cpp" />
+    <ClCompile Include="..\..\..\src\dll_entry.cpp" />
+    <ClCompile Include="..\..\..\src\engine.cpp" />
+    <ClCompile Include="..\..\..\src\errors.cpp" />
+    <ClCompile Include="..\..\..\src\expressions.cpp" />
+    <ClCompile Include="..\..\..\src\ex_fscanf.cpp" />
+    <ClCompile Include="..\..\..\src\ex_vfscanf.cpp" />
+    <ClCompile Include="..\..\..\src\function.cpp" />
+    <ClCompile Include="..\..\..\src\function_match.cpp" />
+    <ClCompile Include="..\..\..\src\hard_except.cpp" />
+    <ClCompile Include="..\..\..\src\import1.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\imports.cpp" />
+    <ClCompile Include="..\..\..\src\input.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\iostrm.cpp" />
+    <ClCompile Include="..\..\..\src\keywords.cpp" />
+    <ClCompile Include="..\..\..\src\lexer.cpp" />
+    <ClCompile Include="..\..\..\src\main.cpp" />
+    <ClCompile Include="..\..\..\src\mangle.cpp" />
+    <ClCompile Include="..\..\..\src\mstring.cpp" />
+    <ClCompile Include="..\..\..\src\operators.cpp" />
+    <ClCompile Include="..\..\..\src\os.cpp" />
+    <ClCompile Include="..\..\..\src\program.cpp" />
+    <ClCompile Include="..\..\..\src\subst.cpp" />
+    <ClCompile Include="..\..\..\src\table.cpp" />
+    <ClCompile Include="..\..\..\src\templates.cpp" />
+    <ClCompile Include="..\..\..\src\test-str.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\test.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\tests.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\threads.cpp" />
+    <ClCompile Include="..\..\..\src\tokens.cpp" />
+    <ClCompile Include="..\..\..\src\twl.cpp" />
+    <ClCompile Include="..\..\..\src\twl_misc.cpp" />
+    <ClCompile Include="..\..\..\src\types.cpp" />
+    <ClCompile Include="..\..\..\src\ucplot.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ucri.cpp" />
+    <ClCompile Include="..\..\..\src\ucw_gtk.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\uc_graphics.cpp" />
+    <ClCompile Include="..\..\..\src\uc_tokens.cpp" />
+    <ClCompile Include="..\..\..\src\utils.cpp" />
+    <ClCompile Include="..\..\..\src\wcon.cpp" />
+    <ClCompile Include="..\..\..\src\xt_int.cpp" />
+    <ClCompile Include="Debug\tparser.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Release\tparser.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

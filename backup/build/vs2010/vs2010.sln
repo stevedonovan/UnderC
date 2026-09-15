@@ -1,0 +1,81 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ucc", "ucc\ucc.vcxproj", "{15B90B24-EF9F-46EA-96D8-1B8F828640A7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uccdll", "uccdll\uccdll.vcxproj", "{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ucw", "ucw\ucw.vcxproj", "{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ucwdll", "ucwdll\ucwdll.vcxproj", "{47C81881-9F04-4FC0-82E3-21DB3EE419AF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{CF8287E7-4BBE-4F96-AB72-C85D129ED799}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\doc\compile_information_win32-64.txt = ..\..\doc\compile_information_win32-64.txt
+		..\..\doc\compile_macro_definition.txt = ..\..\doc\compile_macro_definition.txt
+		compile_with_vs2010.txt = compile_with_vs2010.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{BC39E0B9-EE71-444A-B12C-02BA81733CD8}"
+	ProjectSection(SolutionItems) = preProject
+		..\bbison.bat = ..\bbison.bat
+		..\bbison_salone.bat = ..\bbison_salone.bat
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		ucc_Debug|Win32 = ucc_Debug|Win32
+		ucc_Release|Win32 = ucc_Release|Win32
+		uccdll_Debug|Win32 = uccdll_Debug|Win32
+		uccdll_Release|Win32 = uccdll_Release|Win32
+		ucw_Debug|Win32 = ucw_Debug|Win32
+		ucw_Release|Win32 = ucw_Release|Win32
+		ucwdll_Debug|Win32 = ucwdll_Debug|Win32
+		ucwdll_Release|Win32 = ucwdll_Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucc_Debug|Win32.ActiveCfg = Debug|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucc_Debug|Win32.Build.0 = Debug|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucc_Release|Win32.ActiveCfg = Release|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucc_Release|Win32.Build.0 = Release|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.uccdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.uccdll_Release|Win32.ActiveCfg = Release|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucw_Debug|Win32.ActiveCfg = Debug|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucw_Release|Win32.ActiveCfg = Release|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucwdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{15B90B24-EF9F-46EA-96D8-1B8F828640A7}.ucwdll_Release|Win32.ActiveCfg = Release|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucc_Debug|Win32.ActiveCfg = Debug|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucc_Release|Win32.ActiveCfg = Release|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.uccdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.uccdll_Debug|Win32.Build.0 = Debug|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.uccdll_Release|Win32.ActiveCfg = Release|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.uccdll_Release|Win32.Build.0 = Release|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucw_Debug|Win32.ActiveCfg = Debug|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucw_Release|Win32.ActiveCfg = Release|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucwdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{FD52D9CF-ABA2-4AD6-91FB-0A85E9AD8629}.ucwdll_Release|Win32.ActiveCfg = Release|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucc_Debug|Win32.ActiveCfg = Debug|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucc_Release|Win32.ActiveCfg = Release|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.uccdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.uccdll_Release|Win32.ActiveCfg = Release|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucw_Debug|Win32.ActiveCfg = Debug|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucw_Debug|Win32.Build.0 = Debug|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucw_Release|Win32.ActiveCfg = Release|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucw_Release|Win32.Build.0 = Release|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucwdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{CD25E4F7-A2C1-4EE9-A8C7-F121C02EBE42}.ucwdll_Release|Win32.ActiveCfg = Release|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucc_Debug|Win32.ActiveCfg = Debug|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucc_Release|Win32.ActiveCfg = Release|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.uccdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.uccdll_Release|Win32.ActiveCfg = Release|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucw_Debug|Win32.ActiveCfg = Debug|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucw_Release|Win32.ActiveCfg = Release|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucwdll_Debug|Win32.ActiveCfg = Debug|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucwdll_Debug|Win32.Build.0 = Debug|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucwdll_Release|Win32.ActiveCfg = Release|Win32
+		{47C81881-9F04-4FC0-82E3-21DB3EE419AF}.ucwdll_Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

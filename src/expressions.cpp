@@ -10,8 +10,8 @@
  * Expr pointers.
  */
 
-#include "expressions.h"
 #include "common.h"
+#include "expressions.h"
 #include "function_match.h"
 #include "tparser.h"
 #include "operators.h"
@@ -437,7 +437,7 @@ PExpr delete_op(PExpr e1, bool is_arr)
       ed = function_op(entry_op(pe),expr_list());
 	  if (is_arr) ed = vector_context_op(ed);
 	         else ed = dynamic_context_op(ed);  
-      if (overloaded && overalloc) ed = add_const_op(t,-sizeof(void *),ed);
+      if (overloaded && overalloc) ed = add_const_op(t,-((int)sizeof(void *)),ed);
       ed = append_op(e1,ed);
     } else ed = e1;
     er = function_call(delete_fn,expr_list(ed,ez));
@@ -465,7 +465,7 @@ static PExpr array_init_op(PEntry pe, PExprList pel)
 {
 	 ExprList::iterator eli = pel->begin();
 	 PExpr arr_expr, assign_expr;
-	 int mem_unit = (pe->is_stack_relative()) ? sizeof(int) : 1; // stack-relative counts in words...
+	 int mem_unit = (pe->is_stack_relative()) ? sizeof(VMWord) : 1;
 	 for(int i = 0; eli != pel->end(); ++eli,++i) {
 		 PEntry aie = new Entry;  *aie = *pe;	   // construct an Array Item Entry
 		 aie->type.decr_pointer();				   // using base type of array
@@ -570,7 +570,7 @@ PExpr initialize_op(PEntry pe, PExpr er, PExprList pel, int ctype)
       bool succeeded = true;
       try {
          val = Parser::const_int_expr(er);
-      } catch(const string& msg) {
+      } catch(string msg) {
        // it wasn't a simple constant expression; pass through 
        // force it to be zero, however, so it will cause a clean error if
        // if used to declare an array.
@@ -881,6 +881,7 @@ PExpr function_cast_op(Type t, PExprList pel)
  if (t.is_class() && !t.is_ref_or_ptr()) { 
      return construct_temporary_op(t,pel->size() > 0 ? function_op(NULL,pel) : NULL);   
  } else {
+  if (pel->size() == 0) return typecast_op(STATIC_CAST,t,constant_op(t_int,0));
   if (pel->size() != 1) return expr_error("typecast needs one argument");
   return typecast_op(STATIC_CAST,t,pel->front());
  }
@@ -896,10 +897,13 @@ PExpr inc_dec_op(int op, PExpr e, bool is_postfix)
  // (cd easily be constant, but what the hell...
  PExpr extra = is_postfix ? constant_op(t_int,0) : NULL;
  if (t.is_reference()) { // NOTE(3) hack!!
-   if (t.is_const()) return must_be_lvalue(op);
-   else if (t.is_pointer()) { //*a special case*
+   // The compact Type representation attaches const to a pointer-to-const as
+   // well as to a const pointer.  Permit moving the pointer itself; this makes
+   // ordinary iteration through const char * work as C++ requires.
+   if (t.is_pointer()) { //*a special case*
     return make_op(op==INCR ? INCR_PTR : DECR_PTR,t,e,extra);
-   } else if (t.is_int()){
+   } else if (t.is_const()) return must_be_lvalue(op);
+   else if (t.is_int()){
      // plain ++/-- acting on variables 
      if (e->is_variable()) return make_op(op,t,e,extra); 
      // in the general case, we take the address of the argument & use it
@@ -952,7 +956,8 @@ PExpr convert_function_ptr(PFunction pf, PExpr e)
       } else { // build native code stub for this function!
         pfn = Builtin::generate_native_stub(fun_ptr);
       }
-      return constant_op(t_void_ptr,(long)pfn);
+      // long is 32 bits on LLP64 hosts; the stub address needs the VM word
+      return constant_op(t_void_ptr,vm_from_ptr(pfn));
     } else { 
      // a function ptr expression requires dynamic stub generation
 		return function_call("_native_stub",expr_list(e));
@@ -1003,6 +1008,8 @@ PExpr this_ref()
 
 PExpr pass_by_value(Type t,PExpr e)
 {
+   if (t.as_class()->simple_struct())
+      return make_op(PASS_BY_VALUE,t,e);
    PExpr ec = construct_op(t.as_class(),expr_list(e)); 
    return make_op(PASS_BY_VALUE,t,ec);
 }
@@ -1020,6 +1027,7 @@ PExpr function_op(PExpr e, PExprList args, bool suppress_error)
  
  //Extract the actual function expression (may be a method call!)
  bool was_method = e->op() == DOT;
+ PExpr method_object = was_method ? e->arg1() : NULL;
  PExpr epf = was_method ? e->arg2() : e;
 
  // If the expression isn't a function, then operator() may be overloaded...
@@ -1120,6 +1128,13 @@ PExpr function_op(PExpr e, PExprList args, bool suppress_error)
  }
 
  Type rt = fn->return_type();
+ if (!was_method && fn->is_method() && Parser::state.in_method) {
+   PEntry this_entry = Parser::symbol_lookup("this");
+   if (this_entry != NULL) {
+     was_method = true;
+     method_object = entry_op(this_entry);
+   }
+ }
  bool returns_object = rt.is_object();
  bool true_value_return = import != NULL && returns_object && import->true_return_by_value(rt); 
  if (returns_object && ! true_value_return) fn_return_object(rt,args);
@@ -1131,7 +1146,7 @@ PExpr function_op(PExpr e, PExprList args, bool suppress_error)
     gScopeContext = NULL;
  }
 
- if (was_method) args->push_back(e->arg1());  // append obj ptr to arg list
+ if (was_method) args->push_back(method_object);  // append obj ptr to arg list
  if (!was_fn_ptr) { // plain function or method
    er = new Expr(was_method ? METHOD_CALL : (plain_fun ? FUNCTION : DCALL),rt,fn,args);
  } else {          // pointer to function or method
@@ -1152,13 +1167,13 @@ PExpr function_op(PExpr e, PExprList args, bool suppress_error)
  else return er;
 }
 
-PExpr expr_not_found_error(char *name, PClass pc)
+PExpr expr_not_found_error(const char *name, PClass pc)
 {
  using Parser::quotes;
  return expr_error(quotes(name) + " is not a member of " + quotes(pc->name()));
 }
 
-PExpr selection_op(PExpr e, char *name,bool is_ptr,bool is_member_ptr)
+PExpr selection_op(PExpr e, const char *name,bool is_ptr,bool is_member_ptr)
 {
  Type t = e->type();
  bool was_pointer = t.is_pointer();
@@ -1210,12 +1225,28 @@ PExpr entry_op(PEntry pe)
   return make_op(DEREF,t,new Expr(IREF,t,pe));
 }
 
-PExpr constant_op(Type t, unsigned long val)
+PExpr constant_op(Type t, VMWord val)
 {
  PEntry pe;
  //using Parser::create_const_entry;
- unsigned long *pi = (unsigned long *)Parser::create_const_entry(t,pe);
- *pi = val;
+ void *storage = Parser::create_const_entry(t,pe);
+ // Constants occupy their declared object width.  Writing every value as a
+ // VMWord corrupts the following data-space object when, for example, a
+ // four-byte host int is used with an eight-byte VM word.
+ if (t.is_pointer() || t.is_reference())
+   *static_cast<VMWord *>(storage) = val;
+ else if (t.is_bool())
+   *static_cast<bool *>(storage) = val != 0;
+ else if (t.is_char())
+   *static_cast<char *>(storage) = static_cast<char>(val);
+ else if (t.is_short())
+   *static_cast<short *>(storage) = static_cast<short>(val);
+ else if (t.is_long())
+   *static_cast<VMLong *>(storage) = static_cast<VMLong>(val);
+ else if (t.is_int() || t.is_enum())
+   *static_cast<VMInt *>(storage) = static_cast<VMInt>(val);
+ else
+   *static_cast<VMWord *>(storage) = val;
  return entry_op(pe);
 }
 
@@ -1256,7 +1287,7 @@ PExpr clone (PExpr e)
   return er;
 }
 
-void dump(std::ostream& os, PExpr e)
+void dump(ostream& os, PExpr e)
 {
  if (!e) return;
  if (e->is_function() || e->is_expr()) {

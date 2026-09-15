@@ -15,10 +15,7 @@
 #include "input.h"
 #include "uc_tokens.h"
 #include "errors.h"
-
-#include <cctype>
-#include <cstdlib>
-#include <cstring>
+#include <ctype.h>
 
 bool interactive_mode(); // in main.cpp
 bool check_error();  // in parser.y
@@ -69,7 +66,7 @@ static int do_constant(int c)
 */
      break;
  case T_FLOAT:
-    *(float *)ptr = input.get_float();
+    *(float *)ptr = (float)input.get_float();
     pe->type = t_float;
     break;
  case T_DOUBLE:
@@ -149,6 +146,9 @@ int yylex()
 {
   static string tok;
   static string INT_ = "int";
+  static string CHAR_ = "char";
+  static string SHORT_ = "short";
+  static string LONG_ = "long";
   static bool conversion_op = false;
   static char token_buff[80];
   int ival;
@@ -156,7 +156,7 @@ int yylex()
   char *pos;
   PEntry pe;
   bool not_in_dcl = !Parser::is_in_declaration();
-  int c = input.next();  
+  int c = input.next();
   if (c == T_TOKEN) {
     tok = input.get_token();
     ival = Keywords::lookup(tok);
@@ -180,6 +180,18 @@ int yylex()
       if (ival == VIRTUAL && input.look_ahead(true)=='~') {
           Parser::state.modifier = Virtual;
           return yylex();
+      } else
+      // `signed` has no representation bit in the historical type model.
+      // Treat it as int when used alone and discard it before an explicit
+      // signed integer type.
+      if (tok == "signed" &&
+          (input.peek_next_token() == INT_ || input.peek_next_token() == CHAR_ ||
+           input.peek_next_token() == SHORT_ || input.peek_next_token() == LONG_)) {
+          input.next();
+          tok = input.get_token();
+          ival = Keywords::lookup(tok);
+          if ((ival == LONG || ival == SHORT) && input.peek_next_token() == INT_)
+            input.next();
       } else // *hack 1.1.0 support 'unsigned long int' etc
 	  if ((ival == LONG || ival == SHORT) && input.peek_next_token() == INT_) {
          input.next();  // throw away 'int'
@@ -343,14 +355,14 @@ void Input::clear()
   input.clear();   // clear the file stack
 }
 
-void Input::insert_stream(std::istream *pos, const char *name, int start_line)
+void Input::insert_stream(istream *pos, const char *name, int start_line)
 {
  input.insert_stream(pos,name,start_line);
 }
 
 // *add 1.2.7 Used to insert stuff into the input stream
 // It suffers from the limitations of TokenStream::insert_string(), i.e. it destroys existing buffer!
-void Input::insert_string(char* str)
+void Input::insert_string(const char* str)
 {
  input.insert_string(str);
 }

@@ -56,7 +56,7 @@ string::string (const string& s)
 
 string::~string()
 {
-  delete m_data;
+  delete [] m_data;
   m_data = NULL;
   nCreated--;
 }
@@ -105,7 +105,7 @@ string::substr (int start, int n)
 
 }
 int
-string::find(STR ps)
+string::find(const char *ps)
 {
    STR ss = strstr(c_str(),ps);
    return !ss ? -1 :long(ss) - long(c_str());
@@ -169,9 +169,10 @@ void string::copy(const char*str, int sz)
 int string::resize (int size)
 {
    STR new_str = alloc (size);
-   if (m_data) strncpy(new_str,m_data,size+1);
-   if (m_length > 0) { delete m_data; m_data = NULL; }
-   m_data = new_str;
+   if (m_data) strncpy(new_str,m_data,size+1); else new_str[0] = '\0';
+   new_str[size] = '\0';   // strncpy leaves a truncated copy unterminated
+   delete [] m_data;        // matched with alloc()'s new[]; the recorded length
+   m_data = new_str;        // is not a reliable indicator that a buffer exists
    return size; 
 }
 
@@ -182,27 +183,13 @@ string operator + (string s1, string s2)
    return temps;
 }
 
-//#include <iostream.h>
-char temp_buff[MAX_LINE];
-
-std::ostream& operator << (std::ostream& os, string s)
-{
-  return os << s.c_str();
-}
-
-
-//ostream& operator << (ostream& os, const string& s)
-//{
-//  return os << s.c_str();
-//}
-
-
-std::istream& operator >> (std::istream& is, string& s)
-{
-  is >> temp_buff;
-  s = temp_buff;
-  return is;
-}
+#ifdef MSTRING_STREAM_OPERATORS
+ //#include <iostream.h>
+ char temp_buff[MAX_LINE];
+ ostream& operator << (ostream& os, string s) { return os << s.c_str(); }
+ //ostream& operator << (ostream& os, const string& s) { return os << s.c_str(); }
+ istream& operator >> (istream& is, string& s) { is >> temp_buff; s=temp_buff; return is; }
+#endif
 
 /*  test code
 void do_it()
@@ -239,9 +226,5 @@ int main()
   cout << nCreated << endl;
 
   return 0;
-
 }
-
 */
-
-

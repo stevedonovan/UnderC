@@ -1,0 +1,4 @@
+string bootstrap_message = "interactive resource bootstrap loaded";
+cout << bootstrap_message << endl;
+#help
+#q

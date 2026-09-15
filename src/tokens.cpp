@@ -5,23 +5,16 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
 */
-
-#include <cctype>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
-
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#ifndef _MSC_VER
+#define _strdup strdup
+#endif
 #ifdef _USE_READLINE
-#ifdef _REALLY_USE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
-#else
-extern "C" {
-#include "linenoise.h"
-}
-#define readline linenoise
-#define add_history linenoiseHistoryAdd
-#endif
 #endif
 
 #pragma warning(disable:4786)
@@ -32,7 +25,6 @@ extern "C" {
 #include "tokens.h"
 #include "utils.h"
 #include <map>
-#include <fstream>
 
 bool tok_dbg = false;  // *TEMPORARRY**
 
@@ -42,7 +34,7 @@ char *copy_token(char *p, char *tok);
 char *massage_subst_string(char *buff, char **args, char *str);
 char *substitute(TokenStream& tok, char *buff, char **actual_args, char *subst);
 char *copy_str(char *tok, char *start, char *end);
-void insert(char *str, char *ins);
+void insert(char *str, const char *ins);
 long convert_int(char *buff, int base);
 
 static int mNoIncludePaths = 0;
@@ -151,7 +143,7 @@ char* TokenStream::get_prompt_buffer()
 
 void TokenStream::on_error(const char *msg, bool is_error)
 {
-  cerr << file() << '(' << lineno() << ") " << msg << std::endl;
+  cerr << file() << '(' << lineno() << ") " << msg << endl;
   if (is_error) exit(-1);
 }
 
@@ -170,7 +162,7 @@ TokenStream::~TokenStream()
 static WConIstream win;
 static istream *con_in = &win;
 #else
-static std::istream *con_in = &std::cin;
+static istream *con_in = &cin;
 #endif
 
 // *add 1.2.6 exported as uc_include_path
@@ -193,7 +185,7 @@ int _uc_include_path(const char *fname, char* buff, int sz)
 bool TokenStream::open(const char *fname, bool system_include)
 {
  //..try to allocate and open a file stream
- std::istream* is = NULL;
+ istream* is = NULL;
  string path,new_cwd,dir;
  int knt = 0;
  bool true_system_include = system_include;
@@ -217,7 +209,7 @@ bool TokenStream::open(const char *fname, bool system_include)
   // *fix 1.0.0L 'CON' is of course not a dev name in Linux!
   // *fix 1.2.1   (Eric) Don't create the file if it can't be found!
   if (path == "CON") is = con_in;
-  else is = new std::ifstream(path.c_str(), std::ios::in );
+  else is = new ifstream(path.c_str(),IOS_IN_FLAGS);
   if (!(*is)) {
      delete is;
      is = NULL;
@@ -282,7 +274,7 @@ void TokenStream::clear()
     set_str(buff); // and clear buffer!
 }
 
-bool TokenStream::insert_stream(std::istream *is, const char *name, int start_line, const string& new_cwd)
+bool TokenStream::insert_stream(istream *is, const char *name, int start_line, const string& new_cwd)
 {
  if (! is || !(*is) || is->eof()) return false;
 //..push our previous state onto the file stack
@@ -292,7 +284,7 @@ bool TokenStream::insert_stream(std::istream *is, const char *name, int start_li
  fs.lineno = line;
  fs.cwd = m_cwd;
  if (start_line > 0) {
-   fs.save_buff = strdup(buff);
+   fs.save_buff = _strdup(buff);
    fs.save_P = P;
  } else
  fs.save_buff = NULL;
@@ -323,7 +315,7 @@ int grab_macro_args(TokenStream& tok, char **args)
     ch = tok.next();
     while (ch != ')') {
         if (ch == T_TOKEN) {
-            *args++ = strdup(tok.get_token());
+            *args++ = _strdup(tok.get_token());
             nargs++;
         }
         else
@@ -361,7 +353,7 @@ int grab_actual_args(TokenStream& tok, char **args)
                 while (isspace(q[ 0])) q++;
 
                 // save off the arg and prepare for next time through
-                args[nargs++] = strdup(q);
+                args[nargs++] = _strdup(q);
                 q = tbuff;
 
                 // either go get the next arg or bail out cause we're done
@@ -460,8 +452,8 @@ bool do_prepro_directive(TokenStream& tok)
         subst = tok.get_upto(0,false);
         if (nargs > 0) {
              massage_subst_string(abuff,args,subst);
-             pme->subst = strdup(abuff);
-        } else  pme->subst = strdup(subst);
+             pme->subst = _strdup(abuff);
+        } else  pme->subst = _strdup(subst);
     } else
     if (ppd == "ifdef" || ppd == "ifndef" || ppd == "if" || ppd == "elif") {
       if (ppd == "elif") skipping = do_else(tok); // *add 1.2.6 implement #elif
@@ -563,8 +555,19 @@ bool TokenStream::fetch_line()
          }
 #endif
 // *fix 1.1.0 spaces after \ messes with the preprocessor's little mind!
-     char *endp = lbuff + strlen(lbuff) - 1;
-	 while (*endp && isspace(*endp)) --endp;
+     size_t line_length = strlen(lbuff);
+     if (line_length == 0) {
+       continuation = false;
+       start = P = start_P = buff;
+       continue;
+     }
+     char *endp = lbuff + line_length - 1;
+		 while (endp >= lbuff && isspace(static_cast<unsigned char>(*endp))) --endp;
+     if (endp < lbuff) {
+       continuation = false;
+       start = P = start_P = buff;
+       continue;
+     }
      continuation = (*endp == '\\');
 //     if (continuation) *endp = '\0';  // lop off '\'
      if (continuation) { *(endp+1) = '\0';  *endp = '\n'; }
@@ -659,7 +662,7 @@ void TokenStream::grab_line(char *buff)
 
 }
 
-void TokenStream::insert_string(char *str)
+void TokenStream::insert_string(const char *str)
 // stuff characters into the stream!
 // for now, it effectively discards what was _in_ the buffer;
 // this is fine for its current application, which is to execute
@@ -711,7 +714,7 @@ int grab_alias_args(char *ptr, char **args)
 void separate_alias_commands(TokenStream& tok)
 {
 // approved way to fetch the whole line
- char *line = strdup(tok.get_upto(0,true));
+ char *line = _strdup(tok.get_upto(0,true));
  char *cmds[10], buff[80];
  int k = 0;
  // break up into individual @-commands (need to do this separately)
@@ -820,15 +823,6 @@ do_it_again:
   if (! skip_whitespace()) return 0;  // means: finis, end of file, bail out.
   if (iscsymf(*P)) { //--------------------- TOKENS --------------
      start_P = P;
-      // C++11 raw strings, in the simplest form of M"(string)"
-     if (*P == 'M' && *(P+1) == '\"' && *(P+2) == '(') {
-         start_P += 3;
-        while (*P && ! (*P == ')' && *(P+1) == '\"')) P++;
-        end_P = P;
-        copy_str(sbuff,start_P,end_P);
-         P+= 2;
-        return T_STRING;
-    }
      while (iscsym(*P)) P++;
      end_P = P;
      copy_str(tbuff,start_P,end_P);
@@ -839,7 +833,10 @@ do_it_again:
          if (m_expecting_defined && strcmp(tbuff,"defined")==0) {
            m_C_str = false;
            int t = next();
-           char mname[MAX_IDEN_SIZE];
+           // get_str() copies the complete token.  Macro names in bundled
+           // headers can exceed the historical 31-character identifier
+           // buffer, so use the token buffer's actual capacity here.
+           char mname[STRSIZE];
            bool ok = (t == '(' || t == T_TOKEN);
            if (ok) {
              if (t == '(') ok = (next() == T_TOKEN);     // skip the '('
@@ -1028,7 +1025,7 @@ void TokenStream::set_include_dir(const char *s)
 {
 // *fix 1.2.2 Check for too many include paths
     if (mNoIncludePaths+1 >= MAX_INCLUDE_PATHS) {
-        cerr << "Out of room for include paths!" << std::endl;
+        cerr << "Out of room for include paths!" << endl;
         return;
     }
     string path = s;

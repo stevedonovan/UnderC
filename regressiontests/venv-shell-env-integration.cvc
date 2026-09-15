@@ -1,0 +1,10 @@
+// Manual venv_spawner integration regression for native bool constants.
+int main(int argc, char* argv) {
+    venvStartShell("cmd.exe");
+    venvSetEnv("VENV_ONE", "alpha", true);
+    venvPreEnv("VENV_ONE", "pre-", true);
+    venvAppEnv("VENV_ONE", "-post", true);
+    venvExeCommand("echo VENV_ONE=%VENV_ONE%", true);
+    venvStopShell();
+    return 0;
+}

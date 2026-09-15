@@ -1,0 +1,21 @@
+// version.h
+
+#ifndef __VERSION_H
+#define __VERSION_H
+
+#define UNDERC_VERSION "@PROJECT_VERSION@"
+#ifdef _WCON
+#define mUCVersion UNDERC_VERSION "w"
+#define mUCTitle "UnderC for Windows"
+#else
+# ifdef _WIN32
+#define mUCVersion UNDERC_VERSION "c"
+# else
+#define mUCVersion UNDERC_VERSION "L"
+# endif
+#define mUCTitle "UnderC"
+#endif
+
+#endif
+
+

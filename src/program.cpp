@@ -15,11 +15,9 @@
 #include "loaded_module_list.h"
 #include "engine.h"
 
-#include <cstring>
-
 // from main.cpp
 void get_function_module(Function *pf, char *pathname);
-char *uc_get_title();
+const char *uc_get_title();
 
 // from engine
 void  exec_message(char *msg, bool was_error, bool dont_unwind=false);
@@ -217,7 +215,8 @@ int  Program::call_main(int argc, char **argv,Program::RunType how)
  Type t_char_ptr_ptr = t_char_ptr;
  t_char_ptr_ptr.incr_pointer();
  PExpr e1 = constant_op(t_int,argc);
- PExpr e2 = constant_op(t_char_ptr_ptr,(long)argv);
+ // long is 32 bits on LLP64 hosts; argv needs the full VM word
+ PExpr e2 = constant_op(t_char_ptr_ptr,vm_from_ptr(argv));
  PExprList pel = expr_list(e1,e2);
  Function *fn = Function::lookup("main");
  if (!fn) return -2;
@@ -313,16 +312,16 @@ bool Program::run(char *cmdline, bool same_thread)
       if (fn == NULL) return false;
       // *add 0.9.4 argv[0] is now full path of module containing main()
       get_function_module(fn,pathname);
-      argc = 0;   argv[argc++] = strdup(pathname);
+      argc = 0;   argv[argc++] = _strdup(pathname);
       tok = Utils::quote_strtok(cmdline);
       while (tok != NULL) { 
-          argv[argc++] = strdup(tok);
+          argv[argc++] = _strdup(tok);
            tok = Utils::quote_strtok(NULL);
       }	 
       int retval = call_main(argc,argv,same_thread ? same_window : new_thread);      
 	  if (retval == -2) return false;
 #ifdef _CONSOLE
-	  std::cout << "Program returned " << retval << std::endl;
+	  cout << "Program returned " << retval << endl;
 #endif
 	  return true;
     }
@@ -384,7 +383,7 @@ void finish_module(Instruction* pi)
       string name = Module::from_id(s_mod_idx)->name();
       name = Utils::get_filepart(name,true);
       // shd really change _all_ exotic characters to the usu C identifier chars...
-      for(int i = 0; i < name.length(); i++)
+      for(unsigned int i = 0; i < name.length(); i++)
           if (name[i] == '-') name[i] = '_';
       name = "__" + name + "_init_";
       // is the module init function already defined?

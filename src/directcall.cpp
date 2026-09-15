@@ -5,7 +5,20 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
  */
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <new>
+#include <vector>
+#ifdef _WIN32
+# include <io.h>
+#else
+# include <unistd.h>
+# ifdef UCL_SYSV_X86_64
+#  include <sys/mman.h>
+# endif
+#endif
 #include "common.h"
 #include "opcodes.h"
 #include "directcall.h"
@@ -14,13 +27,21 @@
 #include "os.h"
 #include "ex_vfscanf.h"
 #include "main.h"
-
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
 #include <map>
-#include <fstream>
+#ifdef __GNUC__
+# include <cxxabi.h>
+#endif
+#ifdef UCL_LIBFFI
+#include <ffi.h>
+#include <vector>
+#include "function.h"
+#include "signature.h"
+# ifdef UCL_SYSV_X86_64
+// The assembly object contains both legacy entry points.  Sanitizer linkers
+// may retain the whole object even though libffi mode only needs neither.
+extern "C" void underc_sysv_callback_invoke() {}
+# endif
+#endif
 
 #ifdef _WCON
 #include "uc_graphics.h"
@@ -47,6 +68,75 @@ int _uc_exec_1(char* s) { return _uc_exec(s,0,0,0); }
 
 void __mangle(); //*DEBUG*
 
+// Keep the interpreted API portable even though Microsoft's CRT prefixes the
+// process-pipe functions with underscores.
+static FILE *uc_popen(const char *command, const char *mode)
+{
+#ifdef _WIN32
+ return _popen(command,mode);
+#else
+ return popen(command,mode);
+#endif
+}
+
+static int uc_pclose(FILE *stream)
+{
+#ifdef _WIN32
+ return _pclose(stream);
+#else
+ return pclose(stream);
+#endif
+}
+
+// The remaining character-output functions have to come from the same C
+// runtime as the rest of the stdio builtins: the FILE handles handed out by
+// _get_std_stream() belong to the host runtime and cannot be passed to a
+// separately imported C library.  putc() is a macro in C, so it is wrapped.
+static int uc_fputs(const char *s, FILE *stream)  { return fputs(s,stream); }
+static int uc_putc(int ch, FILE *stream)          { return fputc(ch,stream); }
+static int uc_putchar(int ch)                     { return putchar(ch); }
+
+typedef void (*UCExitFunction)();
+typedef std::vector<UCExitFunction> UCExitFunctionList;
+static UCExitFunctionList uc_exit_functions;
+static bool uc_exit_dispatch_registered = false;
+
+static void uc_run_exit_functions()
+{
+ while (!uc_exit_functions.empty()) {
+   UCExitFunction fn = uc_exit_functions.back();
+   uc_exit_functions.pop_back();
+   if (fn) fn();
+ }
+}
+
+static int uc_atexit(UCExitFunction fn)
+{
+ if (!fn) return -1;
+ if (!uc_exit_dispatch_registered) {
+   if (::atexit(uc_run_exit_functions) != 0) return -1;
+   uc_exit_dispatch_registered = true;
+ }
+ uc_exit_functions.push_back(fn);
+ return 0;
+}
+
+static char *uc_gcvt(double value, int digits, char *buffer)
+{
+ if (!buffer) return NULL;
+ sprintf(buffer,"%.*g",digits,value);
+ return buffer;
+}
+
+static int uc_access(const char *file, int mode)
+{
+#ifdef _WIN32
+ return ::_access(file,mode);
+#else
+ return ::access(file,mode);
+#endif
+}
+
 // from tokens.cpp; exported as uc_include_path()
 int _uc_include_path(const char *fname, char* buff, int sz);
 
@@ -56,24 +146,16 @@ typedef int (* CALL_FUN)(int, int);
 #define STDCALL __stdcall
 typedef int (*CALLFN) (void);
 
-// flags for calling callfn()
-// note that these are _not_ declared const so the variable references aren't
-// optimized away
-#if defined(_WIN32) && defined(__GNUC__)
-#define DCL(name) name asm(#name)
-#else
-#define DCL(name) name
-#endif
+// The MSVC branch below is written in 32-bit (_M_IX86) inline assembler, which
+// the x64 compiler rejects outright.  Restrict it to 32-bit MSVC; every other
+// configuration (MSVC x64 included) uses the portable fallback further down or
+// the libffi / SysV bridges.
+#if !defined(__GNUC__) && defined(_M_IX86)
 
-int DCL(DC_CDECL_) = DC_CDECL, DCL(DC_QWORD_) = DC_QWORD, DCL(DC_RET_OBJ_) = DC_RET_OBJ, DCL(DC_RET_VAL_) = DC_RET_VAL;
-int DCL(EBX), DCL(ECX);
-
-#ifndef __GNUC__
-
-void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
+static void legacy_callfn(CALLFN fn, VMWord args[], int argc, void *optr, int flags, void *buff)
 {
    int sz = sizeof(int)*argc;
-   _asm {
+  __asm {
     mov ecx, argc
     mov ebx, args
     // push the arguments onto the stack, backwards
@@ -90,7 +172,7 @@ a_out:
     call fn
     // Cleanup stack ptr if this was a cdecl call
     mov ecx, flags
-    test ecx, DC_CDECL
+    test ecx,DC_CDECL
     jz  a_over
     add  esp,sz
 a_over:
@@ -142,76 +224,103 @@ PROC(copy_array)
   ret
 ENDP
 
-#else
+#elif defined(UCL_SYSV_X86_64)
 
-/*
-// @baltasarq: This fix does not work anymore
-//  *fix 0.9.9c  Two issues here: GCC does not emit locals,
-// and 'const int' vars are optimized away.
-// *fix 1.0.0L ELF does not use underscores in front of symbols
-// used in inline asm.
-#ifndef _WIN32
-#define DC_CDECL_ _DC_CDECL_
-#define DC_QWORD_ _DC_QWORD_
-#define DC_RET_OBJ_ _DC_RET_OBJ_
-#define DC_RET_VAL_ _DC_RET_VAL_
-#endif
-*/
+extern "C" void underc_sysv_call(void *function, const uint64_t integer_args[6],
+                                  const uint64_t sse_args[8],
+                                  const uint64_t *stack_args, size_t stack_count,
+                                  unsigned int sse_count, uint64_t *integer_result,
+                                  uint64_t *sse_result);
 
-void callfn(CALLFN fn, int args[], int argc, void *optr, int flags, void *buff)
+static bool sysv_sse_type(const Type& type)
 {
+  return !type.is_ref_or_ptr() && (type.is_single() || type.is_double());
+}
 
-  // *fix 1.2.0  The RET_OBJ correction was wrong; it shd be subl $4,esp!
-  // *fix 1.2.4  Using static variables leads to disasters. Here's the offsets
-  // of the parameters:
-  //  fn 8
-  //  args 12
-  //  argc 16
-  //  optr 20
-  // flags 24
-  // buff 28
-asm(
-      "movl %ebx, EBX\t\n"
-      "movl %ecx, ECX\t\n"
-      "movl 12(%ebp),%ebx\t\n"
-      "movl 16(%ebp),%eax\t\n"
-      "imul $4,%eax\t\n"
-      "movl %eax,16(%ebp)\t\n"
-      "movl %eax,%ecx\t\n"
-      "a_loop: cmpl $0,%ecx\t\n"
-      "jz a_out\t\n"
-      "movl (%ebx,%ecx),%eax\t\n"
-      "pushl %eax\t\n"
-      "addl $-4,%ecx\t\n"
-      "jmp a_loop\t\n"
-      "a_out:  movl 20(%ebp),%ecx\t\n"
-      "movl 8(%ebp),%eax\t\n"
-      "call *%eax\t\n"
-      "movl 24(%ebp),%ecx\t\n"
-      "testl DC_CDECL_,%ecx\t\n"
-      "jz a_over\t\n"
-      "addl 16(%ebp),%esp\t\n"
-      "a_over:  testl DC_RET_OBJ_,%ecx\t\n"
-      "jz a_again\t\n"
-      "cmpl DC_RET_VAL_,%ecx\t\n"
-      "jl a_skip\t\n"
-#ifndef _WIN32
-      "movl gObjectReturnPtr,%ebx\t\n"
+static uint64_t sysv_argument_bits(const Type& type, VMWord *raw, int& slots)
+{
+  uint64_t bits = 0;
+  slots = 1;
+  if (type.is_double()) {
+    memcpy(&bits,raw,sizeof(double));
+    slots = vm_word_count(sizeof(double));
+  } else if (type.is_single()) {
+    memcpy(&bits,raw,sizeof(float));
+  } else {
+    bits = static_cast<uint64_t>(raw[0]);
+  }
+  return bits;
+}
+
+static void legacy_callfn(CALLFN fn, VMWord args[], int argc, void *optr, int,
+                          void *buff, Function *function)
+{
+  if (!function) throw Exception("native call has no signature metadata");
+  if (function->return_type().is_object())
+    throw Exception("native objects by value require libffi; use a pointer or reference");
+
+  uint64_t integer_args[6] = {0,0,0,0,0,0};
+  uint64_t sse_args[8] = {0,0,0,0,0,0,0,0};
+  std::vector<uint64_t> stack_args;
+  unsigned int integer_count = 0;
+  unsigned int sse_count = 0;
+  if (optr) integer_args[integer_count++] = reinterpret_cast<uintptr_t>(optr);
+
+  VMWord *raw = args + 1;
+  int consumed = 0;
+  Signature::iterator type = function->signature()->begin();
+  for (; type != function->signature()->end(); ++type) {
+    if (type->is_object())
+      throw Exception("native objects by value require libffi; use a pointer or reference");
+    int slots = 1;
+    uint64_t bits = sysv_argument_bits(*type,raw + consumed,slots);
+    consumed += slots;
+    if (sysv_sse_type(*type) && sse_count < 8) sse_args[sse_count++] = bits;
+    else if (!sysv_sse_type(*type) && integer_count < 6) integer_args[integer_count++] = bits;
+    else stack_args.push_back(bits);
+  }
+  while (consumed < argc) {
+    uint64_t bits = static_cast<uint64_t>(raw[consumed++]);
+    if (integer_count < 6) integer_args[integer_count++] = bits;
+    else stack_args.push_back(bits);
+  }
+
+  uint64_t integer_result = 0, sse_result = 0;
+  underc_sysv_call(reinterpret_cast<void *>(fn),integer_args,sse_args,
+                   stack_args.empty() ? NULL : &stack_args[0],stack_args.size(),
+                   sse_count,&integer_result,&sse_result);
+  Type result_type = function->return_type();
+  if (result_type.is_double()) memcpy(buff,&sse_result,sizeof(double));
+  else if (result_type.is_single()) memcpy(buff,&sse_result,sizeof(float));
+  else *reinterpret_cast<VMWord *>(buff) = static_cast<VMWord>(integer_result);
+}
+
 #else
-	  "movl _gObjectReturnPtr,%ebx\t\n"
-#endif
-      "movl (%ebx),%eax\t\n"
-      "movl 4(%ebx),%edx\t\n"
-      "jmp a_finish\t\n"
-      "a_skip: subl $4,%esp\t\n"
-      "a_again:   movl 28(%ebp),%ebx\t\n"
-      "testl DC_QWORD_,%ecx\t\n"
-      "jnz a_dbl\t\n"
-      "movl %eax,(%ebx)\t\n"
-      "jmp a_finish\t\n"
-      "a_dbl:    fstpl (%ebx)\t\n"
-      "a_finish: movl EBX,%ebx\t\n"
-      "movl ECX,%ecx\t\n");
+
+static void legacy_callfn(CALLFN fn, VMWord args[], int argc, void *optr, int flags, void *buff)
+{
+  VMWord a[6] = {0, 0, 0, 0, 0, 0};
+  for (int i = 0; i < argc && i < 6; ++i) a[i] = args[i + 1];
+  if (flags & DC_QWORD) {
+    double *d = reinterpret_cast<double *>(a);
+    double result = argc == 0 ? (reinterpret_cast<double (*)()>(fn))()
+      : argc == 1 ? (reinterpret_cast<double (*)(double)>(fn))(d[0])
+      : (reinterpret_cast<double (*)(double, double)>(fn))(d[0], d[1]);
+    *reinterpret_cast<double *>(buff) = result;
+    return;
+  }
+  VMWord result = 0;
+  switch (argc + (optr ? 1 : 0)) {
+    case 0: result = (reinterpret_cast<VMWord (*)()>(fn))(); break;
+    case 1: result = optr ? (reinterpret_cast<VMWord (*)(void *)>(fn))(optr) : (reinterpret_cast<VMWord (*)(VMWord)>(fn))(a[0]); break;
+    case 2: result = optr ? (reinterpret_cast<VMWord (*)(void *, VMWord)>(fn))(optr, a[0]) : (reinterpret_cast<VMWord (*)(VMWord, VMWord)>(fn))(a[0], a[1]); break;
+    case 3: result = optr ? (reinterpret_cast<VMWord (*)(void *, VMWord, VMWord)>(fn))(optr, a[0], a[1]) : (reinterpret_cast<VMWord (*)(VMWord, VMWord, VMWord)>(fn))(a[0], a[1], a[2]); break;
+    case 4: result = (reinterpret_cast<VMWord (*)(VMWord, VMWord, VMWord, VMWord)>(fn))(a[0], a[1], a[2], a[3]); break;
+    case 5: result = (reinterpret_cast<VMWord (*)(VMWord, VMWord, VMWord, VMWord, VMWord)>(fn))(a[0], a[1], a[2], a[3], a[4]); break;
+    case 6: result = (reinterpret_cast<VMWord (*)(VMWord, VMWord, VMWord, VMWord, VMWord, VMWord)>(fn))(a[0], a[1], a[2], a[3], a[4], a[5]); break;
+    default: throw Exception("native calls with more than six arguments are unsupported");
+  }
+  *reinterpret_cast<VMWord *>(buff) = result;
 }
 // *fix 1.2.9 sorted out a nasty in the above code! We were
 // testing against EDX  and trying to move stuff from [ECX]
@@ -220,8 +329,8 @@ asm(
 void copy_array(int sz, ArgBlock *xargs)
 {
   int k,i;
-  int *args = xargs->values;
-  int *p = (int *)&xargs + 1;
+  VMWord *args = xargs->values;
+  VMWord *p = reinterpret_cast<VMWord *>(&xargs) + 1;
   xargs->no = sz;
   // *fix 1.2.0L Copy these args backwards!
   for(k = sz-1,i=0; k >= 0; k--,i++)
@@ -229,6 +338,345 @@ void copy_array(int sz, ArgBlock *xargs)
 }
 
 #endif
+
+#ifdef UCL_LIBFFI
+namespace {
+
+union FFIValue {
+  VMWord word;
+  void *pointer;
+  signed char schar_value;
+  unsigned char uchar_value;
+  short short_value;
+  unsigned short ushort_value;
+  int int_value;
+  unsigned int uint_value;
+  long long_value;
+  unsigned long ulong_value;
+  float float_value;
+  double double_value;
+};
+
+struct FFIAggregateType {
+  ffi_type type;
+  std::vector<ffi_type *> elements;
+  FFIAggregateType()
+  {
+    memset(&type,0,sizeof(type));
+    type.type = FFI_TYPE_STRUCT;
+  }
+};
+
+typedef std::map<Class *,FFIAggregateType *> FFIAggregateMap;
+FFIAggregateMap ffi_aggregate_types;
+
+ffi_type *ffi_type_for(const Type& type);
+
+ffi_type *ffi_aggregate_type_for(const Type& type)
+{
+  Class *aggregate_class = type.as_class();
+  FFIAggregateMap::iterator found = ffi_aggregate_types.find(aggregate_class);
+  if (found != ffi_aggregate_types.end()) return &found->second->type;
+  if (!aggregate_class->simple_struct() || aggregate_class->is_union())
+    throw Exception("only plain non-union aggregates may be passed by value");
+
+  FFIAggregateType *aggregate = new FFIAggregateType;
+  ffi_aggregate_types[aggregate_class] = aggregate;
+  EntryList fields;
+  aggregate_class->list_entries(fields,FIELDS | NON_STATIC | DO_PARENT);
+  for (EntryList::iterator field = fields.begin(); field != fields.end(); ++field) {
+    if ((*field)->is_bitfield())
+      throw Exception("bit-field aggregates cannot be passed by value");
+    Type field_type = (*field)->type;
+    int repetitions = 1;
+    if (field_type.is_array()) {
+      repetitions = (*field)->size;
+      field_type.strip_array();
+      field_type.decr_pointer();
+    }
+    for (int i = 0; i < repetitions; ++i)
+      aggregate->elements.push_back(ffi_type_for(field_type));
+  }
+  aggregate->elements.push_back(NULL);
+  aggregate->type.elements = &aggregate->elements[0];
+  return &aggregate->type;
+}
+
+ffi_type *ffi_type_for(const Type& type)
+{
+  if (type.is_ref_or_ptr() || type.is_function()) return &ffi_type_pointer;
+  if (type.is_object()) return ffi_aggregate_type_for(type);
+  if (type.is_void()) return &ffi_type_void;
+  if (type.is_double()) return &ffi_type_double;
+  if (type.is_single()) return &ffi_type_float;
+  if (type.is_bool() || type.is_char())
+    return type.is_unsigned() ? &ffi_type_uchar : &ffi_type_schar;
+  if (type.is_short())
+    return type.is_unsigned() ? &ffi_type_ushort : &ffi_type_sshort;
+  if (type.is_long())
+    return type.is_unsigned() ? &ffi_type_ulong : &ffi_type_slong;
+  return type.is_unsigned() ? &ffi_type_uint : &ffi_type_sint;
+}
+
+void set_ffi_value(FFIValue& value, const Type& type, VMWord *raw, int& slots)
+{
+  slots = 1;
+  if (type.is_ref_or_ptr() || type.is_function())
+    value.pointer = vm_to_ptr(raw[0]);
+  else if (type.is_double()) {
+    value.double_value = *reinterpret_cast<double *>(raw);
+    slots = vm_word_count(sizeof(double));
+  } else if (type.is_single())
+    value.float_value = *reinterpret_cast<float *>(raw);
+  else if (type.is_bool() || type.is_char()) {
+    if (type.is_unsigned()) value.uchar_value = static_cast<unsigned char>(raw[0]);
+    else value.schar_value = static_cast<signed char>(raw[0]);
+  } else if (type.is_short()) {
+    if (type.is_unsigned()) value.ushort_value = static_cast<unsigned short>(raw[0]);
+    else value.short_value = static_cast<short>(raw[0]);
+  } else if (type.is_long()) {
+    if (type.is_unsigned()) value.ulong_value = static_cast<unsigned long>(raw[0]);
+    else value.long_value = static_cast<long>(raw[0]);
+  } else if (type.is_unsigned()) value.uint_value = static_cast<unsigned int>(raw[0]);
+  else value.int_value = static_cast<int>(raw[0]);
+}
+
+void store_ffi_result(const FFIValue& result, const Type& type, void *buff)
+{
+  VMWord *word = reinterpret_cast<VMWord *>(buff);
+  *word = 0;
+  if (type.is_ref_or_ptr() || type.is_function()) *word = vm_from_ptr(result.pointer);
+  else if (type.is_void()) return;
+  else if (type.is_double()) *reinterpret_cast<double *>(buff) = result.double_value;
+  else if (type.is_single()) *reinterpret_cast<float *>(buff) = result.float_value;
+  else if (type.is_bool() || type.is_char())
+    *word = type.is_unsigned() ? result.uchar_value : result.schar_value;
+  else if (type.is_short())
+    *word = type.is_unsigned() ? result.ushort_value : result.short_value;
+  else if (type.is_long())
+    *word = type.is_unsigned() ? static_cast<VMWord>(result.ulong_value)
+                               : static_cast<VMWord>(result.long_value);
+  else *word = type.is_unsigned() ? result.uint_value : result.int_value;
+}
+
+struct CallbackDescriptor {
+  Function *function;
+  ffi_cif cif;
+  ffi_closure *closure;
+  void *entry;
+  std::vector<ffi_type *> argument_types;
+  CallbackDescriptor() : function(NULL), closure(NULL), entry(NULL) {}
+};
+
+typedef std::list<CallbackDescriptor *> CallbackList;
+CallbackList callback_list;
+
+void append_callback_value(std::vector<VMWord>& words, const Type& type, void *value)
+{
+  if (type.is_ref_or_ptr() || type.is_function())
+    words.push_back(vm_from_ptr(*reinterpret_cast<void **>(value)));
+  else if (type.is_double()) {
+    VMWord slots[vm_word_count(sizeof(double))];
+    memset(slots,0,sizeof(slots));
+    memcpy(slots,value,sizeof(double));
+    for (int i = 0; i < vm_word_count(sizeof(double)); ++i) words.push_back(slots[i]);
+  } else if (type.is_single()) {
+    VMWord word = 0;
+    memcpy(&word,value,sizeof(float));
+    words.push_back(word);
+  } else if (type.is_bool() || type.is_char())
+    words.push_back(type.is_unsigned() ? *reinterpret_cast<unsigned char *>(value)
+                                       : *reinterpret_cast<signed char *>(value));
+  else if (type.is_short())
+    words.push_back(type.is_unsigned() ? *reinterpret_cast<unsigned short *>(value)
+                                       : *reinterpret_cast<short *>(value));
+  else if (type.is_long())
+    words.push_back(type.is_unsigned() ? static_cast<VMWord>(*reinterpret_cast<unsigned long *>(value))
+                                       : static_cast<VMWord>(*reinterpret_cast<long *>(value)));
+  else
+    words.push_back(type.is_unsigned() ? *reinterpret_cast<unsigned int *>(value)
+                                       : *reinterpret_cast<int *>(value));
+}
+
+void ffi_callback(ffi_cif *, void *result, void **arguments, void *user_data)
+{
+  CallbackDescriptor *descriptor = static_cast<CallbackDescriptor *>(user_data);
+  Function *function = descriptor->function;
+  ArgBlock block;
+  memset(&block,0,sizeof(block));
+  unsigned int argument_index = 0;
+  if (function->is_method()) block.OPtr = static_cast<char *>(*reinterpret_cast<void **>(arguments[argument_index++]));
+
+  std::vector<VMWord> words;
+  Signature::iterator type = function->signature()->begin();
+  for (; type != function->signature()->end(); ++type, ++argument_index)
+    append_callback_value(words,*type,arguments[argument_index]);
+  if (words.size() > sizeof(block.values)/sizeof(block.values[0]))
+    return;
+  block.no = static_cast<int>(words.size());
+  for (size_t i = 0; i < words.size(); ++i) block.values[words.size()-i-1] = words[i];
+
+  Type return_type = function->return_type();
+  int flags = Engine::ARGS_PASSED;
+  if (function->is_method()) flags |= Engine::METHOD_CALL;
+  if (return_type.is_double()) flags |= Engine::RETURN_64;
+  else if (!return_type.is_void()) flags |= Engine::RETURN_32;
+  if (Engine::stub_execute(function->fun_block(),flags,&block) != OK) return;
+
+  if (return_type.is_void()) return;
+  if (return_type.is_double()) *reinterpret_cast<double *>(result) = block.ret2;
+  else if (return_type.is_ref_or_ptr() || return_type.is_function())
+    *reinterpret_cast<void **>(result) = vm_to_ptr(block.ret1);
+  else if (return_type.is_single()) {
+    VMWord word = block.ret1;
+    memcpy(result,&word,sizeof(float));
+  } else if (return_type.is_bool() || return_type.is_char()) {
+    if (return_type.is_unsigned()) *reinterpret_cast<unsigned char *>(result) = static_cast<unsigned char>(block.ret1);
+    else *reinterpret_cast<signed char *>(result) = static_cast<signed char>(block.ret1);
+  } else if (return_type.is_short()) {
+    if (return_type.is_unsigned()) *reinterpret_cast<unsigned short *>(result) = static_cast<unsigned short>(block.ret1);
+    else *reinterpret_cast<short *>(result) = static_cast<short>(block.ret1);
+  } else if (return_type.is_long()) {
+    if (return_type.is_unsigned()) *reinterpret_cast<unsigned long *>(result) = static_cast<unsigned long>(block.ret1);
+    else *reinterpret_cast<long *>(result) = static_cast<long>(block.ret1);
+  } else if (return_type.is_unsigned()) *reinterpret_cast<unsigned int *>(result) = static_cast<unsigned int>(block.ret1);
+  else *reinterpret_cast<int *>(result) = static_cast<int>(block.ret1);
+}
+
+} // namespace
+#endif
+
+void callfn(NFBlock *native, VMWord args[], int argc, void *optr, void *buff)
+{
+#ifndef UCL_LIBFFI
+# ifdef UCL_SYSV_X86_64
+  legacy_callfn(native->pfn,args,argc,optr,native->flags,buff,native->function);
+# else
+  legacy_callfn(native->pfn,args,argc,optr,native->flags,buff);
+# endif
+#else
+  Function *function = native->function;
+  Signature *signature = function->signature();
+  Type return_type = function->return_type();
+
+  if ((native->flags & DC_RET_OBJ) && !return_type.is_object())
+    throw Exception("invalid native object-return metadata");
+  if (return_type.is_object() && return_type.size() > 64 * 1024)
+    throw Exception("native aggregate return exceeds the 64 KiB return buffer");
+
+  VMWord *raw = args + 1;
+  void *object_result_destination = NULL;
+  const bool indirect_object_result = return_type.is_object() && function->return_object() != NULL;
+  if (indirect_object_result) {
+    if (argc < 1) throw Exception("native aggregate return has no destination");
+    object_result_destination = vm_to_ptr(*raw++);
+    if (!object_result_destination)
+      throw Exception("native aggregate return destination is null");
+    --argc;
+  }
+
+  unsigned int declared = signature->size();
+  int declared_slots = 0;
+  bool has_aggregate_argument = false;
+  Signature::iterator slot_type = signature->begin();
+  for (; slot_type != signature->end(); ++slot_type) {
+    if (slot_type->is_object()) {
+      has_aggregate_argument = true;
+      declared_slots += vm_word_count(slot_type->size());
+    }
+    else if (slot_type->is_double() && !slot_type->is_ref_or_ptr())
+      declared_slots += vm_word_count(sizeof(double));
+    else ++declared_slots;
+  }
+  // Aggregate layout is interpreted through the import scheme below and may
+  // include ABI-specific staging.  Scalar signatures, including bool/enum
+  // promotions, must have an exact and deterministic VM-slot count.
+  if (!has_aggregate_argument && !indirect_object_result &&
+      ((!signature->stdarg() && argc != declared_slots) ||
+       (signature->stdarg() && argc < declared_slots))) {
+    char slot_error[128];
+    sprintf(slot_error,"native call has %d VM argument slots; signature requires %d",
+            argc,declared_slots);
+    throw Exception(slot_error);
+  }
+
+  unsigned int capacity = declared + (optr ? 1 : 0) + argc;
+  std::vector<ffi_type *> arg_types;
+  std::vector<FFIValue> values(capacity);
+  std::vector< std::vector<VMWord> > aggregate_values(capacity);
+  std::vector<void *> value_ptrs;
+  arg_types.reserve(capacity);
+  value_ptrs.reserve(capacity);
+
+  unsigned int value_index = 0;
+  if (optr) {
+    values[value_index].pointer = optr;
+    arg_types.push_back(&ffi_type_pointer);
+    value_ptrs.push_back(&values[value_index].pointer);
+    ++value_index;
+  }
+
+  int consumed = 0;
+  Signature::iterator it = signature->begin();
+  for (; it != signature->end(); ++it) {
+    int slots = 1;
+    if (it->is_object()) {
+      slots = vm_word_count(it->size());
+      aggregate_values[value_index].resize(slots);
+      memset(&aggregate_values[value_index][0],0,slots * sizeof(VMWord));
+      memcpy(&aggregate_values[value_index][0],raw + consumed,it->size());
+    } else {
+      set_ffi_value(values[value_index],*it,raw + consumed,slots);
+    }
+    consumed += slots;
+    arg_types.push_back(ffi_type_for(*it));
+    value_ptrs.push_back(it->is_object()
+      ? static_cast<void *>(&aggregate_values[value_index][0])
+      : static_cast<void *>(&values[value_index]));
+    ++value_index;
+  }
+
+  // A variadic tail has no declared type information in the historical VM.
+  // Preserve every remaining VM word as a machine-width integer argument.
+  while (signature->stdarg() && consumed < argc) {
+    values[value_index].word = raw[consumed++];
+    arg_types.push_back(sizeof(VMWord) == 8 ? &ffi_type_sint64 : &ffi_type_sint32);
+    value_ptrs.push_back(&values[value_index].word);
+    ++value_index;
+  }
+
+  ffi_cif cif;
+  ffi_status status;
+  unsigned int fixed_count = declared + (optr ? 1 : 0);
+  ffi_type **types = arg_types.empty() ? NULL : &arg_types[0];
+  void **arguments = value_ptrs.empty() ? NULL : &value_ptrs[0];
+  if (signature->stdarg())
+    status = ffi_prep_cif_var(&cif,FFI_DEFAULT_ABI,fixed_count,arg_types.size(),
+                              ffi_type_for(return_type),types);
+  else
+    status = ffi_prep_cif(&cif,FFI_DEFAULT_ABI,arg_types.size(),
+                          ffi_type_for(return_type),types);
+  if (status != FFI_OK) throw Exception("libffi could not prepare native call");
+
+  FFIValue result;
+  memset(&result,0,sizeof(result));
+  std::vector<VMWord> aggregate_result;
+  void *result_pointer = &result;
+  if (return_type.is_object()) {
+    aggregate_result.resize(vm_word_count(return_type.size()));
+    memset(&aggregate_result[0],0,aggregate_result.size() * sizeof(VMWord));
+    result_pointer = &aggregate_result[0];
+  }
+  ffi_call(&cif,FFI_FN(native->pfn),result_pointer,arguments);
+  if (return_type.is_object()) {
+    memcpy(object_result_destination ? object_result_destination : gObjectReturnPtr,
+           result_pointer,return_type.size());
+    *reinterpret_cast<VMWord *>(buff) = vm_from_ptr(
+      object_result_destination ? object_result_destination : gObjectReturnPtr);
+  } else
+    store_ffi_result(result,return_type,buff);
+#endif
+}
 
 using namespace Parser;
 
@@ -261,14 +709,14 @@ void __break(int icode)
 
 Sig& Sig::operator << (Type t)
 {
- char *name;
+ const char *name;
  if(m_arg_name) { name = m_arg_name; m_arg_name = NULL; }
  else name = "*";
  Parser::state.add_to_arg_list(t,name,NULL);
  return *this;
 }
 
-Sig& Sig::operator << (char *arg_name)
+Sig& Sig::operator << (const char *arg_name)
 {
  m_arg_name = arg_name;
  return *this;
@@ -317,7 +765,11 @@ void *_new_vect(int n,int sz)
 #else
  void *p = malloc(sz*n);
 #endif
- if (Parser::debug.ptr_check) mPtrMap[p] = n;
+ // *fix 1.5.0 The count must be recorded for every array, not only when the
+ // pointer checker is on: CCALLV reads it back to drive the constructor and
+ // destructor loops.  Without it alloc_size() fell back to 1, so only element
+ // zero of a "new T[n]" was ever constructed.
+ mPtrMap[p] = n;
  return p;
 }
 
@@ -326,55 +778,84 @@ void _delete(char *ptr,int sz)
   if (Parser::debug.ptr_check && Builtin::alloc_size(ptr) == 0) {
       if (! Parser::debug.suppress_link_errors && gPtrCheckStart)
 	     cerr << (void *)ptr << " is not allocated by us!\n";
-  } else
+  } else {
+// *fix 1.5.0 Retire the entry before the block goes away.  A stale count left
+// behind here is found again once the allocator recycles the address, and the
+// ctor/dtor loops would then run over the wrong number of elements.
+  mPtrMap.erase(ptr);
 // *ch 1.2.9 patch
+// *fix 1.5.0 the block comes from new char[], so it takes delete[]
 #ifdef _WIN32
-  delete ptr;
+  delete [] ptr;
 #else
  free(ptr);
 #endif
+  }
 }
 
 // *change 1.1.0 Overallocation to make room for the VMT now done by builtins...
+// *fix 1.5.0 The hidden slot is one VM word, not one int.  VMT() in engine.h
+// reads it at (char *)obj - sizeof(VMWord), so reserving sizeof(int) left the
+// slot four bytes short on a 64-bit build, and "*VMT(mOP) = vtable" wrote
+// across the front of the heap block.  The two have to agree; both say VMWord.
 void* _new_ex(int sz)
 {
- int *p = (int *)_new(sz+sizeof(int));
+ VMWord *p = (VMWord *)_new(sz+sizeof(VMWord));
+ if (p == NULL) return NULL;
  *p = 0;   // to flag the VMT as NOT being created...
  return p+1;
 }
 
 void* _new_vect_ex(int n, int sz)
 {
- int *p = (int *)_new_vect(n,sz+sizeof(int));
+ // Elements sit at a stride of sz, and Class::size() already counts the hidden
+ // VMT word for a class that has one, so element i's VMT slot is its own
+ // leading word and only the word in front of element zero is strictly extra.
+ // The per-element word kept here is slack at the tail of the block; it is
+ // retained deliberately so the layout stays no tighter than it was in 1.2.9.
+ VMWord *p = (VMWord *)_new_vect(n,sz + (int)sizeof(VMWord));
+ if (p == NULL) return NULL;
  *p = 0;
- return p+1;
+ void *obj = p+1;
+ // *fix 1.5.0 Key the count on the pointer the VM actually holds.  _new_vect
+ // recorded it against the block base, but CCALLV and delete[] both see
+ // base + one word, so that lookup never matched.
+ mPtrMap[obj] = n;
+ return obj;
 }
 
 void _delete_ex(char *ptr, int sz)
 {
-  if (ptr != NULL) { _delete(ptr-sizeof(int),sz); }
+  if (ptr != NULL) {
+    mPtrMap.erase(ptr);               // the object-pointer key
+    _delete(ptr-sizeof(VMWord),sz);   // _delete drops the block-base key
+  }
 }
 
 // *ch 1.2.9 patch
 #ifndef _WIN32
 void* operator new(size_t sz)
 {
-  return _new_ex(sz);
+  void *p = malloc(sz);
+  if (p == NULL) throw std::bad_alloc();
+  return p;
 }
 
-void operator delete(void *p)
+void operator delete(void *p) throw()
 {
- _delete_ex((char *)p,0);
+ free(p);
 }
 
 void* operator new[](size_t sz)
 {
-  return _new_ex(sz);
+  void *p = malloc(sz);
+  if (p == NULL) throw std::bad_alloc();
+  return p;
 }
 
-void operator delete[](void *p)
+void operator delete[](void *p) throw()
 {
-  _delete_ex((char *)p,0);
+  free(p);
 }
 
 #endif
@@ -383,7 +864,7 @@ const int CDECL = Function::CDECL;
 
 namespace Builtin {
 
-void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg = false, int ftype=CDECL);
+void add(const Sig& sig,const char *name, CALLFN fn, bool is_stdarg = false, int ftype=CDECL);
 
 // this is used to find out how big allocated object arrays were....
 int alloc_size(void *p)
@@ -503,16 +984,28 @@ int _range_check(int sz, int i)
 
 static int mRangeCheck;
 
-typedef double (*MFun)(double);
-typedef double (*MFun2)(double,double);
-
-template <class T>
-MFun dfun(T (*f)(T)) {  return f; }
-template <class T>
-MFun2 dfun2(T (*f)(T,T)) {  return f; }
-
-#define D(f) (dfun<double>(f))
-#define D2(f) (dfun2<double>(f))
+double sin(double x) { return ::sin(x); }
+double cos(double x) { return ::cos(x); }
+double tan(double x) { return ::tan(x); }
+double exp(double x) { return ::exp(x); }
+double log(double x) { return ::log(x); }
+double sqrt(double x ) { return ::sqrt(x); }
+double atan2(double x,double y) { return ::atan2(x,y); }
+double pow(double x,double y) { return ::pow(x,y); }
+const char* strstr(const char*s1,const char*s2) { return ::strstr(s1,s2); }
+const char* strchr(const char*s,int c) { return ::strchr(s,c); }
+const char* strrchr(const char*s,int c) { return ::strrchr(s,c); }
+int _fprint_double(void *stream, double value)
+{
+  static char format[] = "%g";
+  return ::fprintf(static_cast<FILE *>(stream),format,value);
+}
+#if defined(UCL_LIBFFI) || defined(UCL_SYSV_X86_64)
+int _ffi_sum8(int a, int b, int c, int d, int e, int f, int g, int h)
+{ return a+b+c+d+e+f+g+h; }
+int _ffi_order8(int a, int b, int c, int d, int e, int f, int g, int h)
+{ return a+2*b+4*c+8*d+16*e+32*f+64*g+128*h; }
+#endif
 
 void init()
 {
@@ -520,41 +1013,56 @@ void init()
  Type t_int_ptr = t_int;
  t_ccp.make_const();
  t_int_ptr.incr_pointer();
- Signature *sig = new Signature(t_int);
- sig->push_back(t_int);
- sig->push_back(t_int);
- Type st(sig);
- st.incr_pointer();
- add(Sig(t_void_ptr) << t_void_ptr,"_native_stub",(CALLFN)_native_stub);
+ Signature *exit_signature = new Signature(t_void);
+ Type exit_function(exit_signature);
+ exit_function.incr_pointer();
+
+ add(Sig(t_void_ptr) << t_void_ptr,     "_native_stub",(CALLFN)_native_stub);
  add(Sig(t_void_ptr) << t_int,          "_new",(CALLFN)&_new);
  add(Sig(t_void_ptr) << t_int << t_int, "_new_vect",(CALLFN)&_new_vect);
- add(Sig(t_void) << t_void_ptr << t_int,"_delete",(CALLFN)&_delete);
+ add(Sig(t_void) << t_char_ptr << t_int,"_delete",(CALLFN)&_delete);
  add(Sig(t_void_ptr) << t_int,          "_new_ex",(CALLFN)&_new_ex);
  add(Sig(t_void_ptr) << t_int << t_int, "_new_vect_ex",(CALLFN)&_new_vect_ex);
- add(Sig(t_void) << t_void_ptr << t_int,"_delete_ex",(CALLFN)&_delete_ex);
+ add(Sig(t_void) << t_char_ptr << t_int,"_delete_ex",(CALLFN)&_delete_ex);
 
- add(Sig(t_double) << t_double,"sin",(CALLFN)D(sin));
- add(Sig(t_double) << t_double,"cos",(CALLFN)D(cos));
- add(Sig(t_double) << t_double,"tan",(CALLFN)D(tan));
- add(Sig(t_double) << t_double << t_double,"atan2",(CALLFN)D2(atan2));
- add(Sig(t_double) << t_double << t_double,"pow",(CALLFN)D2(pow));
- add(Sig(t_double) << t_double,"exp",(CALLFN)D(exp));
- add(Sig(t_double) << t_double,"log",(CALLFN)D(log));
- add(Sig(t_double) << t_double,"sqrt",(CALLFN)D(sqrt));
+ add(Sig(t_double) << t_double,"sin",(CALLFN)&sin);
+ add(Sig(t_double) << t_double,"cos",(CALLFN)&cos);
+ add(Sig(t_double) << t_double,"tan",(CALLFN)&tan);
+ add(Sig(t_double) << t_double << t_double,"atan2",(CALLFN)&atan2);
+ add(Sig(t_double) << t_double << t_double,"pow",(CALLFN)&pow);
+ add(Sig(t_double) << t_double,"exp",(CALLFN)&exp);
+ add(Sig(t_double) << t_double,"log",(CALLFN)&log);
+ add(Sig(t_double) << t_double,"sqrt",(CALLFN)&sqrt);
  add(Sig(t_double) << t_ccp,"atof",(CALLFN)&atof);
  add(Sig(t_long) << t_ccp,"atoi",(CALLFN)&atoi);
- add(Sig(t_char_ptr) << t_int << t_char_ptr << t_int, "itoa", (CALLFN)&itoa);
- add(Sig(t_long),"rand",(CALLFN)&rand);
+ add(Sig(t_char_ptr) << t_int << t_char_ptr << t_int, "itoa", (CALLFN)&_itoa);
+ add(Sig(t_int) << t_void,"rand",(CALLFN)&rand);
+ add(Sig(t_int) << t_void_ptr << t_double,
+     "_fprint_double",(CALLFN)&_fprint_double);
+ add(Sig(t_char_ptr) << t_ccp,"getenv",(CALLFN)&getenv);
+ add(Sig(t_int) << t_ccp,"system",(CALLFN)&system);
+ add(Sig(t_char_ptr) << t_double << t_int << t_char_ptr,
+     "_gcvt",(CALLFN)&uc_gcvt);
+ add(Sig(t_int) << exit_function,"atexit",(CALLFN)&uc_atexit);
+ add(Sig(t_int) << t_ccp << t_int,"_access",(CALLFN)&uc_access);
+#if defined(UCL_LIBFFI) || defined(UCL_SYSV_X86_64)
+ add(Sig(t_int) << t_int << t_int << t_int << t_int
+                << t_int << t_int << t_int << t_int,
+     "_ffi_sum8",(CALLFN)&_ffi_sum8);
+ add(Sig(t_int) << t_int << t_int << t_int << t_int
+                << t_int << t_int << t_int << t_int,
+     "_ffi_order8",(CALLFN)&_ffi_order8);
+#endif
 
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp,"strcpy",(CALLFN)&strcpy);
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp << t_int,"strncpy",(CALLFN)&strncpy);
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp,"strcat",(CALLFN)&strcat);
  add(Sig(t_int) << t_ccp << t_ccp,"strcmp",(CALLFN)&strcmp);
- add(Sig(t_char_ptr) << t_ccp,"strdup",(CALLFN)&strdup);
+ add(Sig(t_char_ptr) << t_ccp,"strdup",(CALLFN)&_strdup);
  add(Sig(t_char_ptr) << t_char_ptr << t_ccp,"strtok",(CALLFN)&strtok);
- add(Sig(t_char_ptr) << t_char_ptr << t_ccp,"strstr",(CALLFN)(char * (*)(char *, const char *))&strstr);
- add(Sig(t_ccp) << t_ccp << t_int,"strchr",(CALLFN)(const char * (*)(const char *, int))&strchr);
- add(Sig(t_ccp) << t_ccp << t_int,"strrchr",(CALLFN)(const char * (*)(const char *, int))&strrchr);
+ add(Sig(t_char_ptr) << t_char_ptr << t_char_ptr,"strstr",(CALLFN)&strstr);
+ add(Sig(t_char_ptr) << t_char_ptr << t_int,"strchr",(CALLFN)&strchr);
+ add(Sig(t_char_ptr) << t_char_ptr << t_int,"strrchr",(CALLFN)&strrchr);
  add(Sig(t_int) << t_ccp,"strlen",(CALLFN)&strlen);
  add(Sig(t_void_ptr) << t_void_ptr << t_void_ptr << t_int,
       "memmove",(CALLFN)&memmove);
@@ -582,9 +1090,14 @@ void init()
  add(Sig(t_void_ptr) << t_char_ptr << t_char_ptr,"fopen",(CALLFN)&fopen);
  add(Sig(t_int) << t_void_ptr, "fclose",(CALLFN)&fclose);
  add(Sig(t_int) << t_void_ptr, "fflush",(CALLFN)&fflush);
+ add(Sig(t_void_ptr) << t_ccp << t_ccp, "popen",(CALLFN)&uc_popen);
+ add(Sig(t_int) << t_void_ptr, "pclose",(CALLFN)&uc_pclose);
  add(Sig(t_int) << t_char_ptr << t_char_ptr, "rename", (CALLFN)&rename);
  add(Sig(t_int) << t_void_ptr, "fgetc", (CALLFN)&fgetc);
  add(Sig(t_int) << t_int << t_void_ptr, "fputc", (CALLFN)&fputc);
+ add(Sig(t_int) << t_ccp << t_void_ptr, "fputs", (CALLFN)&uc_fputs);
+ add(Sig(t_int) << t_int << t_void_ptr, "putc", (CALLFN)&uc_putc);
+ add(Sig(t_int) << t_int, "putchar", (CALLFN)&uc_putchar);
  add(Sig(t_int) << t_void_ptr << t_long << t_int, "fseek", (CALLFN)&fseek);
  add(Sig(t_long) << t_void_ptr, "ftell", (CALLFN)&ftell);
 
@@ -605,7 +1118,7 @@ void init()
  add(Sig(t_int) << t_ccp << t_char_ptr << t_int,"uc_include_path",(CALLFN)&_uc_include_path);
 
 // These support the specialization map<string,int> (see <map> in the pocket library)
- add(Sig(t_void_ptr),                                     "_map_create",  (CALLFN)&_map_create);
+ add(Sig(t_void_ptr) << t_void,                           "_map_create",  (CALLFN)&_map_create);
  add(Sig(t_void)    << t_void_ptr,                        "_map_destroy", (CALLFN)&_map_destroy);
  add(Sig(t_int)     << t_void_ptr,                        "_map_size",    (CALLFN)&_map_size);
  add(Sig(t_int_ptr) << t_void_ptr << t_void_ptr,          "_map_find",    (CALLFN)&_map_find);
@@ -618,7 +1131,7 @@ void init()
  add(Sig(t_void)     << t_void_ptr << t_int,              "_map_iter_next", (CALLFN)&_map_iter_next);
 
  add(Sig(t_void) << t_int,"__break",(CALLFN)__break);
- add(Sig(t_void),"__mangle",(CALLFN)__mangle);
+ add(Sig(t_void) << t_void,"__mangle",(CALLFN)__mangle);
 
  // UCW Graphics
  #ifdef _WCON
@@ -669,7 +1182,7 @@ void insert_ptr_map(CALLFN fn, Function *pfn)
 }
 #pragma optimize( "", on )
 
-void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg, int ftype)
+void add(const Sig& sig,const char *name, CALLFN fn, bool is_stdarg, int ftype)
 // Builtin::add() assumes that the Signature has been collected in the proper way.
 // It's usually called from state.declare_function(), but also from add_dll_function().
 // In both cases the class Sig acts as a interface to the common signature stuff.
@@ -687,6 +1200,7 @@ void add(const Sig& sig,char *name, CALLFN fn, bool is_stdarg, int ftype)
 #else
  insert_ptr_map(fn,pfn);
 #endif
+
  fe->finalize();
  state.pop_context(); // usually done by block-end!
 }
@@ -756,6 +1270,13 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
   PClass pc = pfn->class_context();
   CALLFN proc;
 
+#ifdef UCL_LIBFFI
+  // Direct host imports use the maintained compiler ABI adapter even when no
+  // dynamic-library directive established a historical import scheme.
+  if (modifier == UseAddr && !pfn->import_scheme())
+    pfn->import_scheme(Import::create_scheme(2));
+#endif
+
   // *change 0.9.4  Need explicit extern "C" now - (used to simply be class context)
   // *add    1.1.4  Implicit self-link for those systems which need it...
   if (modifier == UseAddr) proc = (CALLFN) mDirectAddr;
@@ -766,8 +1287,13 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
   }
 #endif
   else if(! Parser::in_extern_C()) { // mangled C++ name
+#ifndef UCL_LEGACY_CPP_IMPORTS
+    name = "?C++ imports are disabled; use extern C or UCL_LEGACY_CPP_IMPORTS";
+    return false;
+#else
     proc = (CALLFN)Import::load_method_entry(pfn,name);
 	if (name=="") name = "?" + pfn->name();
+#endif
   } else { // extern "C"
     name = pfn->name();
     if (modifier == Stdcall) name = "_" + name + "@" + itos(pfn->signature()->byte_size());
@@ -802,7 +1328,7 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
     if (pc->import_scheme()->uses_stdmethod()) calling_convention = Function::STDMETHOD;
   }
 
-  add(ssig,pfn->name().c_str(),proc,false,calling_convention);
+  add(ssig,(char*)pfn->name().c_str(),proc,false,calling_convention);
 
   return true;
 }
@@ -810,6 +1336,127 @@ bool add_dll_function(Function *pfn, int modifier, string& name)
 
 
 //----------------------- generating native stubs -------------------------
+#ifndef UCL_LIBFFI
+#if defined(UCL_SYSV_X86_64)
+
+struct LegacyCallbackResult {
+  uint64_t integer_value;
+  uint64_t sse_value;
+};
+
+struct LegacyCallbackDescriptor {
+  Function *function;
+  void *entry;
+  size_t allocation_size;
+  LegacyCallbackDescriptor() : function(NULL), entry(NULL), allocation_size(0) {}
+};
+
+typedef std::list<LegacyCallbackDescriptor *> LegacyCallbackList;
+static LegacyCallbackList legacy_callback_list;
+
+extern "C" void underc_sysv_callback_entry();
+
+static void legacy_append_callback_value(std::vector<VMWord>& words,
+                                         const Type& type, uint64_t bits)
+{
+  if (type.is_double()) {
+    VMWord slots[vm_word_count(sizeof(double))];
+    memset(slots,0,sizeof(slots));
+    memcpy(slots,&bits,sizeof(double));
+    for (int i = 0; i < vm_word_count(sizeof(double)); ++i) words.push_back(slots[i]);
+  } else if (type.is_single()) {
+    VMWord word = 0;
+    memcpy(&word,&bits,sizeof(float));
+    words.push_back(word);
+  } else {
+    words.push_back(static_cast<VMWord>(bits));
+  }
+}
+
+extern "C" void underc_sysv_callback_invoke(void *opaque,
+                                             const uint64_t integer_args[6],
+                                             const uint64_t sse_args[8],
+                                             const uint64_t *stack_args,
+                                             LegacyCallbackResult *result)
+{
+  LegacyCallbackDescriptor *descriptor = static_cast<LegacyCallbackDescriptor *>(opaque);
+  Function *function = descriptor->function;
+  ArgBlock block;
+  memset(&block,0,sizeof(block));
+  unsigned int integer_index = 0, sse_index = 0, stack_index = 0;
+  if (function->is_method())
+    block.OPtr = reinterpret_cast<char *>(static_cast<uintptr_t>(integer_args[integer_index++]));
+
+  std::vector<VMWord> words;
+  Signature::iterator type = function->signature()->begin();
+  for (; type != function->signature()->end(); ++type) {
+    uint64_t bits;
+    if (sysv_sse_type(*type) && sse_index < 8) bits = sse_args[sse_index++];
+    else if (!sysv_sse_type(*type) && integer_index < 6) bits = integer_args[integer_index++];
+    else bits = stack_args[stack_index++];
+    legacy_append_callback_value(words,*type,bits);
+  }
+  if (words.size() > sizeof(block.values)/sizeof(block.values[0])) return;
+  block.no = static_cast<int>(words.size());
+  for (size_t i = 0; i < words.size(); ++i) block.values[words.size()-i-1] = words[i];
+
+  Type return_type = function->return_type();
+  int flags = Engine::ARGS_PASSED;
+  if (function->is_method()) flags |= Engine::METHOD_CALL;
+  if (return_type.is_double()) flags |= Engine::RETURN_64;
+  else if (!return_type.is_void()) flags |= Engine::RETURN_32;
+  if (Engine::stub_execute(function->fun_block(),flags,&block) != OK) return;
+  if (return_type.is_double()) memcpy(&result->sse_value,&block.ret2,sizeof(double));
+  else if (return_type.is_single()) memcpy(&result->sse_value,&block.ret1,sizeof(float));
+  else result->integer_value = static_cast<uint64_t>(block.ret1);
+}
+
+void *generate_native_stub(Function *pfn)
+{
+  if (!pfn || pfn->signature()->stdarg()) return NULL;
+  if (pfn->return_type().is_object())
+    throw Exception("interpreted objects by value require libffi callbacks");
+  Signature::iterator type = pfn->signature()->begin();
+  for (; type != pfn->signature()->end(); ++type)
+    if (type->is_object())
+      throw Exception("interpreted objects by value require libffi callbacks");
+
+  for (LegacyCallbackList::iterator existing = legacy_callback_list.begin();
+       existing != legacy_callback_list.end(); ++existing)
+    if ((*existing)->function == pfn) return (*existing)->entry;
+
+  LegacyCallbackDescriptor *descriptor = new LegacyCallbackDescriptor;
+  descriptor->function = pfn;
+  descriptor->allocation_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  descriptor->entry = mmap(NULL,descriptor->allocation_size,PROT_READ | PROT_WRITE,
+                           MAP_PRIVATE | MAP_ANONYMOUS,-1,0);
+  if (descriptor->entry == MAP_FAILED) {
+    delete descriptor;
+    throw Exception("could not allocate x86-64 callback trampoline");
+  }
+
+  unsigned char code[] = {
+    0x49,0xBA, 0,0,0,0,0,0,0,0,       // movabs descriptor,%r10
+    0x49,0xBB, 0,0,0,0,0,0,0,0,       // movabs callback entry,%r11
+    0x41,0xFF,0xE3                      // jmp *%r11
+  };
+  uint64_t descriptor_address = reinterpret_cast<uintptr_t>(descriptor);
+  uint64_t callback_address = reinterpret_cast<uintptr_t>(&underc_sysv_callback_entry);
+  memcpy(code + 2,&descriptor_address,sizeof(descriptor_address));
+  memcpy(code + 12,&callback_address,sizeof(callback_address));
+  memcpy(descriptor->entry,code,sizeof(code));
+  if (mprotect(descriptor->entry,descriptor->allocation_size,PROT_READ | PROT_EXEC) != 0) {
+    munmap(descriptor->entry,descriptor->allocation_size);
+    delete descriptor;
+    throw Exception("could not make x86-64 callback trampoline executable");
+  }
+  __builtin___clear_cache(static_cast<char *>(descriptor->entry),
+                          static_cast<char *>(descriptor->entry) + sizeof(code));
+  legacy_callback_list.push_back(descriptor);
+  return descriptor->entry;
+}
+
+#else
 // Basically this is a mad (and v. limited) x86 macro assembler.
 
 typedef unsigned long ulong;
@@ -848,7 +1495,12 @@ void *generate_native_stub(Function *pfn)
 
   int no_args = sig->byte_size()/sizeof(int);
   void *rra = new ulong;
+  // copy_array fills in OPtr/no, but it is only called when the callback
+  // actually takes arguments.  A zero-argument callback would otherwise reach
+  // Engine::execute with an uninitialized argument count and push that many
+  // words off the end of values[].
   ArgBlock *xargs = new ArgBlock;
+  memset(xargs,0,sizeof(ArgBlock));
   int flags = Engine::ARGS_PASSED;
   char *pc = cde_buff;
   // *fix 1.1.4     Plain function callbacks are often cdecl...but think about this!
@@ -904,11 +1556,80 @@ void *generate_native_stub(Function *pfn)
   pushv(pc,rra);                                                  // restore return addr & return
   ret(pc);
 
-  // and copy the code block
-  int sz = (ulong)pc - (ulong)cde_buff;
-  char *cp = new char[sz+1];
-  memcpy(cp,cde_buff,sz+1);
-  return cp;
+  // and copy the code block into a page the host will let us execute; the
+  // C++ heap is no-execute on every current desktop OS, so the historical
+  // new char[] here faulted as soon as the native caller entered the stub.
+  size_t sz = static_cast<size_t>(pc - cde_buff);
+  void *entry = alloc_executable(cde_buff,sz);
+  if (entry == NULL) throw Exception("could not allocate a native callback stub");
+  return entry;
+}
+#endif
+#else
+void *generate_native_stub(Function *pfn)
+{
+  if (!pfn || pfn->signature()->stdarg()) return NULL;
+  if (pfn->return_type().is_object())
+    throw Exception("interpreted objects by value cannot be exported as callbacks");
+
+  for (CallbackList::iterator existing = callback_list.begin();
+       existing != callback_list.end(); ++existing)
+    if ((*existing)->function == pfn) return (*existing)->entry;
+
+  CallbackDescriptor *descriptor = new CallbackDescriptor;
+  descriptor->function = pfn;
+  if (pfn->is_method()) descriptor->argument_types.push_back(&ffi_type_pointer);
+  Signature::iterator type = pfn->signature()->begin();
+  for (; type != pfn->signature()->end(); ++type) {
+    if (type->is_object()) {
+      delete descriptor;
+      throw Exception("interpreted objects by value cannot be callback arguments");
+    }
+    descriptor->argument_types.push_back(ffi_type_for(*type));
+  }
+  ffi_type **arguments = descriptor->argument_types.empty() ? NULL : &descriptor->argument_types[0];
+  if (ffi_prep_cif(&descriptor->cif,FFI_DEFAULT_ABI,descriptor->argument_types.size(),
+                   ffi_type_for(pfn->return_type()),arguments) != FFI_OK) {
+    delete descriptor;
+    throw Exception("libffi could not prepare interpreted callback");
+  }
+  descriptor->closure = static_cast<ffi_closure *>(ffi_closure_alloc(sizeof(ffi_closure),&descriptor->entry));
+  if (!descriptor->closure ||
+      ffi_prep_closure_loc(descriptor->closure,&descriptor->cif,ffi_callback,descriptor,
+                           descriptor->entry) != FFI_OK) {
+    if (descriptor->closure) ffi_closure_free(descriptor->closure);
+    delete descriptor;
+    throw Exception("libffi could not allocate interpreted callback");
+  }
+  callback_list.push_back(descriptor);
+  return descriptor->entry;
+}
+#endif
+
+void release_native_stubs(Function *pfn)
+{
+  if (!pfn) return;
+#ifdef UCL_LIBFFI
+  CallbackList::iterator callback = callback_list.begin();
+  while (callback != callback_list.end()) {
+    if ((*callback)->function == pfn) {
+      ffi_closure_free((*callback)->closure);
+      delete *callback;
+      callback = callback_list.erase(callback);
+    } else ++callback;
+  }
+#elif defined(UCL_SYSV_X86_64)
+  LegacyCallbackList::iterator callback = legacy_callback_list.begin();
+  while (callback != legacy_callback_list.end()) {
+    if ((*callback)->function == pfn) {
+      munmap((*callback)->entry,(*callback)->allocation_size);
+      delete *callback;
+      callback = legacy_callback_list.erase(callback);
+    } else ++callback;
+  }
+#else
+  (void)pfn;
+#endif
 }
 
 
@@ -938,7 +1659,8 @@ bool set_current_lib_file(char *file)
 #ifdef _WIN32
     file = Main::uc_exec_name();
 #else
-    file = "";
+    static char empty_self[] = "";
+    file = empty_self;
 #endif
 	explicit_link = ! sNoSelfLink;
   } else
@@ -997,15 +1719,16 @@ void set_dll_handle(void *dl)
 	s_lib = (Handle)dl;
 }
 
-// Looking up DLL entries using ordinal lookup
-typedef std::map<string,int> SIMap;
+// Looking up DLL entries through legacy ordinal/address maps or UC3 symbols.
+typedef std::map<string,uintptr_t> SIMap;
 static SIMap *s_ord_lookup;
 static bool s_lookup_is_ordinal;
+static bool s_lookup_is_symbol;
 
 bool using_ordinal_lookup()
 { return s_ord_lookup != NULL; }
 
-int lookup_ordinal(const char *name)
+uintptr_t lookup_ordinal(const char *name)
 {
     SIMap::iterator simi = s_ord_lookup->find(name);
     if (simi != s_ord_lookup->end()) return simi->second;
@@ -1017,45 +1740,98 @@ int lookup_ordinal(const char *name)
 // (b) everything after the mangled name
 // *add 1.2.4 Will look in UC LIB directory a la .DLLs
 // *add 1.2.4 UC2 type means that value is not ordinal but address
-int convert_ordinal(char *buf)
+// UC3 stores symbol names only and resolves them in the current process.
+uintptr_t convert_ordinal(char *buf)
 {
   if (s_lookup_is_ordinal)
-    return atoi(buf);
-  else {
-    unsigned int l;
-    sscanf(buf,"%x",&l);
-    return (int)l;
-  }
+    return static_cast<uintptr_t>(strtoull(buf,NULL,10));
+  return static_cast<uintptr_t>(strtoull(buf,NULL,16));
 }
 
 bool lookup_is_ordinal()
 { return s_lookup_is_ordinal; }
 
-bool generate_ordinal_lookup(const char *index_file)
+static string demangled_function_name(const char *symbol)
 {
-  string name,magic,compiler;
-  char buf[1024];
-  std::ifstream in;
-  in.open(index_file);
-  if (! in || in.eof()) {
-    string  sfile = Main::uc_lib_dir() + index_file;
-    in.open(sfile.c_str());
-    if (! in || in.eof()) {
-      cerr << "cannot find '" << sfile << "'\n";
-      return false;
+#ifdef __GNUC__
+  int status = 0;
+  char *demangled = abi::__cxa_demangle(symbol,NULL,NULL,&status);
+  if (status != 0 || !demangled) {
+    free(demangled);
+    return "";
+  }
+  char *arguments = demangled;
+  while (*arguments && *arguments != '(') ++arguments;
+  if (*arguments) *arguments = '\0';
+  string result(demangled);
+  free(demangled);
+  return result;
+#else
+  return "";
+#endif
+}
+
+const char *lookup_symbol_alias(const char *name)
+{
+  static string match;
+  match = "";
+  if (!s_lookup_is_symbol || !s_ord_lookup) return NULL;
+  const string wanted = demangled_function_name(name);
+  if (wanted == "") return NULL;
+  for (SIMap::const_iterator entry = s_ord_lookup->begin();
+       entry != s_ord_lookup->end(); ++entry) {
+    if (demangled_function_name(entry->first.c_str()) == wanted) {
+      if (match != "") return NULL; // An overloaded name is not a safe alias.
+      match = entry->first;
     }
   }
-  in >> magic >> compiler;
-  if (magic != "UC1" && magic != "UC2") return false;
+  return match == "" ? NULL : match.c_str();
+}
+
+bool generate_ordinal_lookup(const char *index_file)
+{
+  string magic,compiler;
+  char buf[1024];
+  char name[1024];
+  ifstream in;
+  const bool self_manifest = strcmp(index_file,"self.imp") == 0 ||
+                             strcmp(index_file,"uclr/self.imp") == 0;
+  string sfile;
+  if (self_manifest) {
+    sfile = Main::uc_lib_dir() + "uclr/self.imp";
+    in.open(sfile.c_str());
+  } else {
+    in.open(index_file);
+    if (! in || in.eof()) {
+      sfile = Main::uc_lib_dir() + index_file;
+      in.open(sfile.c_str());
+    }
+  }
+  if (! in || in.eof()) {
+    cerr << "cannot find '" << (self_manifest ? sfile : string(index_file)) << "'\n";
+    return false;
+  }
+  in >> buf;
+  magic = buf;
+  in >> buf;
+  compiler = buf;
+  if (magic != "UC1" && magic != "UC2" && magic != "UC3") return false;
   s_lookup_is_ordinal = magic == "UC1";
+  s_lookup_is_symbol = magic == "UC3";
   if (! Import::set_scheme(compiler)) return false;
+  delete s_ord_lookup;
   s_ord_lookup = new SIMap;
   // *fix 1.2.3a (Eric) Attempted to read ordinal twice
   while (! in.eof()) {
+    buf[0] = '\0';
     in >> buf;
     if (*buf && *buf != '#') {
-      in >> name;
-      (*s_ord_lookup)[name] = convert_ordinal(buf);
+      if (s_lookup_is_symbol) {
+        (*s_ord_lookup)[buf] = 0;
+      } else {
+        in >> name;
+        (*s_ord_lookup)[name] = convert_ordinal(buf);
+      }
     }
     in.getline(buf,sizeof(buf));
   }
@@ -1071,6 +1847,25 @@ void cleanup_ordinal_lookup()
 // *fix 1.2.3 Under Win32, it is a Bad Idea to try free the process handle.
 void finis()
 {
+ uc_run_exit_functions();
+#ifdef UCL_LIBFFI
+ for(CallbackList::iterator callback = callback_list.begin(); callback != callback_list.end(); ++callback) {
+     ffi_closure_free((*callback)->closure);
+     delete *callback;
+ }
+ callback_list.clear();
+ for(FFIAggregateMap::iterator aggregate = ffi_aggregate_types.begin();
+     aggregate != ffi_aggregate_types.end(); ++aggregate)
+     delete aggregate->second;
+ ffi_aggregate_types.clear();
+#elif defined(UCL_SYSV_X86_64)
+ for(LegacyCallbackList::iterator callback = legacy_callback_list.begin();
+     callback != legacy_callback_list.end(); ++callback) {
+     munmap((*callback)->entry,(*callback)->allocation_size);
+     delete *callback;
+ }
+ legacy_callback_list.clear();
+#endif
  Handle process_handle = get_process_handle();
  HandleList::iterator ili;
  for(ili = lib_list.begin(); ili != lib_list.end(); ++ili) {
@@ -1085,4 +1880,3 @@ CALLFN lookup_self_link(PClass pc,const string& name) { return NULL; }
 
 
 }  // namespace Builtin
-

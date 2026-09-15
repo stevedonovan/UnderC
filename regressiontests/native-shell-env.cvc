@@ -1,0 +1,16 @@
+// Driven by native-shell-env.cpp.  Every optional flag is written as the
+// language literal `true`, which is how a real configuration file spells it.
+int main(int argc, char* argv)
+{
+    envStartShell("cmd.exe");
+    envSet("VENV_ONE", "alpha", true);
+    envPrepend("VENV_ONE", "pre-", true);
+    envAppend("VENV_ONE", "-post", true);
+    envCommand("echo VENV_ONE=%VENV_ONE%", true);
+    envSet("VENV_TWO", "beta");
+    envPrepend("VENV_TWO", "pre-");
+    envAppend("VENV_TWO", "-post");
+    envCommand("echo VENV_TWO=%VENV_TWO%");
+    envStopShell();
+    return 0;
+}

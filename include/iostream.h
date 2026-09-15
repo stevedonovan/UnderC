@@ -1,9 +1,0 @@
-#include <iostream>
-using std::istream;
-using std::ostream;
-using std::ifstream;
-using std::ofstream;
-using std::cout;
-using std::cerr;
-using std::cin;
-using std::endl;

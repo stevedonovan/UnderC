@@ -1,0 +1,19 @@
+// venv - Windows example: MSVC build environment + snapshot diff
+//
+// `->` is gone: a .cvc file is just C++. venvSnapShotEnv / venvCompareSnapshotEnv
+// bracket the vcvars64.bat call so you see what it changed.
+
+int main(int argc, char* argv) {
+    venvRootDir("L:\\bin");
+
+    venvSetEnv("PATH", "C:\\Windows\\System32;C:\\Windows;C:\\Apps\\MySandbox\\bin");
+    venvSetEnv("MY_APP_ENV", "staging");
+    venvSetEnv("LOG_LEVEL", "debug");
+
+    venvStartShell("cmd.exe");
+    venvSnapShotEnv();
+    venvExeCommand("call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"", true);
+    venvCompareSnapshotEnv();
+    venvStopShell();
+    return 0;
+}

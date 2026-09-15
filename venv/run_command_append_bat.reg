@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+; Context menu entry for .bat files
+[HKEY_CLASSES_ROOT\batfile\shell\VENVmsvc2026]
+@="VENV msvc2026"
+
+[HKEY_CLASSES_ROOT\batfile\shell\VENVmsvc2026\command]
+@="cmd.exe /k \"venv.exe win_msvc2026_auto.cvc -ac \"cmd.exe /c call %1\"\""

@@ -12,7 +12,6 @@
 #include "tokens.h"
 #include "std_utils.h"
 #include "os.h"
-#include <cstring>
 // for remove_if()
 #include <ctype.h>
 #include <algorithm>
@@ -22,7 +21,7 @@
 //#include <sys/types.h>
 //#include <sys/stat.h>
 // *ch 1.2.9 patch
-#ifdef __BEOS__
+#ifdef _BEOS_
 /* where did you get this one ??? */
 #define _stricmp strcasecmp
 #endif
@@ -90,7 +89,7 @@ Module::function_from_file(const string& file, int lineno)
   bool is_equal(const string& s1, const string& s2)
   //*shouldn't be case sensitive for Win32....
   {
-    return stricmp(s1.c_str(),s2.c_str()) == 0;
+    return _stricmp(s1.c_str(),s2.c_str()) == 0;
   }
 #endif
 
@@ -207,7 +206,7 @@ Module::function_from_file(const string& file, int lineno)
 
 
   void
-  Module::dump_entries(std::ostream& os, int flags)
+  Module::dump_entries(ostream& os, int flags)
   {
     ModuleList::iterator mli;
     FORALL(mli, mg_module_list) {
@@ -216,18 +215,18 @@ Module::function_from_file(const string& file, int lineno)
     }
   }
 
-  void Module::dump(std::ostream& os, int flags)
+  void Module::dump(ostream& os, int flags)
   {
-   os << name() << ' ' << id() << ' ' << refcount() << std::endl;
+   os << name() << ' ' << id() << ' ' << refcount() << endl;
    if (flags & FUNS) {
     entry_iterator ei;
     os << "Functions:\n";
     FORALL(ei, m_entry_list)
-	  if (ei->type()==FUNCTION)	os << ei->function()->name() << std::endl;
+	  if (ei->type()==FUNCTION)	os << ei->function()->name() << endl;
    }
    if (flags & DEPEND) {
        ModuleList::iterator mli;
-       FORALL(mli,m_dependencies) os << (*mli)->name() << std::endl;
+       FORALL(mli,m_dependencies) os << (*mli)->name() << endl;
    }
   }
 
@@ -327,7 +326,7 @@ Module::function_from_file(const string& file, int lineno)
    long file_time = get_file_time(name().c_str());
    bool trace = Parser::debug.verbose;
    if (file_time > m_modified_time) {
-      if (trace) cmsg << "changed " << name() << std::endl;
+      if (trace) cmsg << "changed " << name() << endl;
       m_modified_time = file_time;
       m_modified = true;
 
@@ -335,7 +334,7 @@ Module::function_from_file(const string& file, int lineno)
       clean_macros_and_typedefs();
       return true;
    } else {
-     if (trace) cmsg << "unchanged " << name() << std::endl;
+     if (trace) cmsg << "unchanged " << name() << endl;
      return false;
    }
   }
@@ -404,7 +403,7 @@ Module::function_from_file(const string& file, int lineno)
   }
 
   Breakpoint *
-  Breakpoint::create(const string& filename, int lineno, bool persist) {
+  Breakpoint::create(string filename, int lineno, bool persist) {
     Function *pf = Module::function_from_file(filename,lineno);
     if (pf == NULL) return NULL;  // didn't succeed....
 
@@ -443,7 +442,7 @@ Module::function_from_file(const string& file, int lineno)
   }
 
   Breakpoint::iterator
-  Breakpoint::find_in_file(const string& file)
+  Breakpoint::find_in_file(string file)
   {
      mg_temp_list.clear();
      Module *pm = Module::from_name(file);
@@ -460,7 +459,7 @@ Module::function_from_file(const string& file, int lineno)
   }
 
   Breakpoint *
-  Breakpoint::exists_at(const string& filename, int lineno)
+  Breakpoint::exists_at(string filename, int lineno)
   {
     Function *pf = Module::function_from_file(filename,lineno);
     if (pf == NULL) return NULL;  // didn't succeed....
@@ -537,7 +536,7 @@ Breakpoint:: execute() {
  }
 
 void
-Breakpoint::toggle(char *file, int lineno, bool is_persistent, std::ostream& out)
+Breakpoint::toggle(string file, int lineno, bool is_persistent, ostream& out)
 {
  if (Module::from_name(file) == NULL) {
         out << "module '" << file << "' not found\n";
@@ -565,7 +564,7 @@ Breakpoint::toggle(char *file, int lineno, bool is_persistent, std::ostream& out
 }
 
 void
-Breakpoint::group(char *file, int *lines, int& sz, bool do_get)
+Breakpoint::group(string file, int *lines, int& sz, bool do_get)
 {
     int i = 0;
     iterator bli = find_in_file(file);

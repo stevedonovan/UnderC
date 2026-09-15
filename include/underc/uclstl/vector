@@ -1,0 +1,88 @@
+// A compact std::vector subset for interpreted UnderC programs.
+#ifndef _VECTOR_H
+#define _VECTOR_H
+#ifndef NULL
+#define NULL 0
+#endif
+#ifdef _RANGE_CHECK
+#define _RC(sz,i) _range_check(sz,i)
+#else
+#define _RC(sz,i)
+#endif
+namespace std {
+template <class T> class vector {
+  T *m_begin; T *m_end; int m_size; int m_cap;
+  void replace_storage(int new_cap, int new_size) {
+    T *tmp = new_cap ? new T[new_cap] : NULL;
+    int ncopy = m_size < new_size ? m_size : new_size;
+    for (int i=0; i<ncopy; ++i) tmp[i]=m_begin[i];
+    if (m_begin != NULL) delete[] m_begin;
+    m_begin=tmp; m_size=new_size; m_cap=new_cap;
+    m_end=m_begin == NULL ? NULL : m_begin+m_size;
+  }
+ public:
+  typedef T *iterator; typedef const T *const_iterator; typedef T value_type;
+  vector(int sz=0): m_begin(NULL),m_end(NULL),m_size(0),m_cap(0) {
+    if (sz>0) replace_storage(sz,sz);
+  }
+  vector(const vector& v): m_begin(NULL),m_end(NULL),m_size(0),m_cap(0) {
+    if (v.m_cap>0) {
+      m_begin=new T[v.m_cap];
+      for (int i=0;i<v.m_size;++i) m_begin[i]=v.m_begin[i];
+      m_size=v.m_size; m_cap=v.m_cap; m_end=m_begin+m_size;
+    }
+  }
+  ~vector() { if (m_begin != NULL) delete[] m_begin; }
+  vector& operator=(const vector& v) {
+    if (this==&v) return *this;
+    T *tmp=v.m_cap ? new T[v.m_cap] : NULL;
+    for (int i=0;i<v.m_size;++i) tmp[i]=v.m_begin[i];
+    if (m_begin != NULL) delete[] m_begin;
+    m_begin=tmp; m_size=v.m_size; m_cap=v.m_cap;
+    m_end=m_begin == NULL ? NULL : m_begin+m_size; return *this;
+  }
+  iterator begin() const { return m_begin; }
+  iterator end() const { return m_end; }
+  int size() const { return m_size; }
+  int capacity() const { return m_cap; }
+  T& operator[](int i) const { _RC(m_size,i); return m_begin[i]; }
+  T front() const { _RC(m_size,0); T value=m_begin[0]; return value; }
+  T back() const { _RC(m_size,m_size-1); T value=m_end[-1]; return value; }
+  void clear() {
+    if (m_begin != NULL) delete[] m_begin;
+    m_begin=m_end=NULL; m_size=m_cap=0;
+  }
+  void reserve(int sz) {
+    if (sz<=m_cap) return;
+    T *tmp=new T[sz];
+    for (int i=0;i<m_size;++i) tmp[i]=m_begin[i];
+    if (m_begin != NULL) delete[] m_begin;
+    m_begin=tmp; m_cap=sz; m_end=m_begin+m_size;
+  }
+  void resize(int sz) {
+    if (sz>m_cap) replace_storage(sz,sz);
+    else { m_size=sz; m_end=m_begin == NULL ? NULL : m_begin+sz; }
+  }
+  void push_back(const T& value) {
+    if (m_size==m_cap) reserve(m_cap ? m_cap*2 : 10);
+    m_begin[m_size]=value; ++m_size; m_end=m_begin+m_size;
+  }
+  void pop_back() {
+    _RC(m_size,m_size-1); if (m_size==0) return;
+    --m_size; m_end=m_begin+m_size;
+  }
+  template <class It> void assign(It first,It last) {
+    int sz=last-first; T *tmp=sz ? new T[sz] : NULL; int i=0;
+    for (;first!=last;++first,++i) tmp[i]=*first;
+    if (m_begin != NULL) delete[] m_begin;
+    m_begin=tmp; m_size=m_cap=sz;
+    m_end=m_begin == NULL ? NULL : m_begin+sz;
+  }
+  bool operator==(const vector& v) const {
+    if (m_size!=v.m_size) return false;
+    for (int i=0;i<m_size;++i) if (!(m_begin[i]==v.m_begin[i])) return false;
+    return true;
+  }
+};
+}
+#endif

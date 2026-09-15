@@ -1,0 +1,22 @@
+// venv - minimal test configuration (Linux)
+//
+// The commands run inside one persistent /bin/bash, so the environment set by
+// the first command is still in effect for the second one. The first sources a
+// script that exports VENV_TEST; the second prints it and must show
+// VENV_TEST=somevar.
+//
+// Sourcing matters: running the script instead of sourcing it would export the
+// variable inside a short-lived child shell, where nothing else can see it.
+//
+//   Run: ./venv examples/linux_test_env.cvc
+
+int main(int argc, char* argv) {
+    // venvRootDir left unset => no chroot, child starts in the current dir.
+    venvSetEnv("VENV_LOCAL", "somelocaltest");
+
+    venvStartShell("/bin/bash");
+    venvExeCommand("source ./examples/env_set_test.sh", true);
+    venvExeCommand("echo VENV_TEST=$VENV_TEST", true);
+    venvStopShell();
+    return 0;
+}

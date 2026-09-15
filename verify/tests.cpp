@@ -102,7 +102,6 @@ int main()
   compare("t3.txt","t3c.txt");
 
   test_html();
-  puts("that's all");
   compare("first.htm","first_c.htm");
   return 0;
 }

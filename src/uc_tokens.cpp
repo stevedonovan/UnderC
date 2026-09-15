@@ -10,17 +10,13 @@
  * The user_cmd() virtual method is overriden in main.cpp
  */
 
+#include <stdlib.h>
+#include <time.h>
 #include "common.h"
 #include "module.h"
 #include "uc_tokens.h"
 #include "version.h"
 #include "errors.h"
-
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <strstream>
-
 
 // *fix 1.2.7 full strftime() flags not supported with MSC++ 6.0
 #ifndef _MSC_VER
@@ -49,11 +45,12 @@ void UCTokenStream::init()
   macro_builtin("__TIME__",BM_TIME);
   macro_builtin("__UNDERC__",BM_UNDERC);
   macro_builtin("__cplusplus",BM_NOVALUE);
+  macro_subst("NULL","0");
 #ifdef _CONSOLE
   macro_builtin("_CONSOLE",BM_NOVALUE);
 #endif
-#ifdef _USRDLL
-  macro_builtin("_USRDLL",BM_NOVALUE);
+#ifdef UCL_SHARED
+  macro_builtin("UCL_SHARED",BM_NOVALUE);
 #endif
 #ifdef __unix__
 # ifdef __linux__
@@ -61,7 +58,7 @@ void UCTokenStream::init()
 # endif
 # ifdef __FreeBSD__
    macro_builtin("__FreeBSD__",BM_NOVALUE);
-# endif
+# endif   
   macro_builtin("__unix__",BM_NOVALUE);
 #else
 # ifdef __BEOS__
@@ -79,12 +76,27 @@ void UCTokenStream::init()
   if (Parser::debug.range_check)
       macro_builtin("_RANGE_CHECK",BM_NOVALUE);
 
-// *hack 1.0.0 Until these keywords are implemented...
+// Accepted declaration specifiers whose semantics do not alter the historical
+// UnderC object model.
   macro_builtin("mutable", BM_EMPTY);
   macro_builtin("inline",  BM_EMPTY);
   macro_builtin("typename",BM_EMPTY);
   macro_builtin("register",BM_EMPTY);
   macro_builtin("volatile",BM_EMPTY);
+
+  // ISO C++ alternative operator spellings are tokens, not library helpers.
+  // Token substitution lets them share the existing symbolic-operator grammar.
+  macro_subst("and",   "&&");
+  macro_subst("and_eq","&=");
+  macro_subst("bitand","&");
+  macro_subst("bitor", "|");
+  macro_subst("compl", "~");
+  macro_subst("not",   "!");
+  macro_subst("not_eq","!=");
+  macro_subst("or",    "||");
+  macro_subst("or_eq", "|=");
+  macro_subst("xor",   "^");
+  macro_subst("xor_eq","^=");
 }
 
 void UCTokenStream::handle_builtin_macro(char *tbuff, int id)
@@ -93,26 +105,26 @@ void UCTokenStream::handle_builtin_macro(char *tbuff, int id)
     char buff[120];
     switch(id) {
     case BM_LINE:
-      itoa(lineno(),tbuff,10);
+      _itoa(lineno(),tbuff,10);
       break;
     case BM_FILE:
       quote_str(tbuff,file().c_str());
       break;
     case BM_DATE: // *fix 1.2.6 same format as CPP
-      time(&t);
-      strftime(buff,sizeof(buff),DATE_FORMAT,localtime(&t));
+      time(&t);      
+      strftime(buff,sizeof(buff),DATE_FORMAT,localtime(&t));      
       quote_str(tbuff,buff);
-      break;
+      break; 
     case BM_TIME:
-      time(&t);
-      strftime(buff,sizeof(buff),TIME_FORMAT,localtime(&t));
+      time(&t);      
+      strftime(buff,sizeof(buff),TIME_FORMAT,localtime(&t));      
       quote_str(tbuff,buff);
       break;
     case BM_EMPTY:
       strcpy(tbuff," ");
       break;
     case BM_UNDERC:
-      quote_str(tbuff,mUCVersion);
+      quote_str(tbuff,mUCVersion); 
       break;
     case BM_NOVALUE:
       strcpy(tbuff,"1");
@@ -141,26 +153,27 @@ void UCTokenStream::do_prompt()
 {
  Parser::state.context().add_line_no(file(),lineno());
  if(is_interactive()) {
- #ifdef _USE_READLINE
-    std::ostrstream out (get_prompt_buffer(),MAX_PROMPT_SIZE);
+ #ifdef _USE_READLINE  
+    char prompt[64];
+    ostr out(prompt, sizeof(prompt));
  #else
-    std::ostream& out = std::cout;
- #endif
+    ostream& out = cout;
+ #endif   
   int bdepth = Parser::block_depth();
-  out << ';';
+  out << ';'; 
   if (is_in_comment()) out << "*/";
 #ifdef _DEBUG
-  else if (Parser::is_in_declaration()) out << "DCL> ";
+  else if (Parser::is_in_declaration()) out << "DCL> "; 
 #endif
   else if (bdepth > 0) out << bdepth << '}';
-  else if (s_hanging_statement) out << ';';
+  else if (s_hanging_statement) out << ';'; 
   else { out << '>'; s_hanging_statement = true; }
   out << ' ';
 #ifdef _USE_READLINE
-  out << std::ends;
-#else
-  std::cout.flush(); // iostream.h requires this!
-#endif
+  strcpy(get_prompt_buffer(),prompt);
+#else  
+  cout.flush(); // iostream.h requires this!
+#endif  
  }
 }
 
@@ -188,16 +201,16 @@ int  UCTokenStream::eval_const_expr(const char* expr)
     int ret = _uc_exec(buff,0,0,0);
     Parser::set_expression_handler(NULL);
     if (ret != 0) {
-        cerr << "Can't evaluate " << expr << " in #if" << std::endl;
+        cerr << "Can't evaluate " << expr << " in #if" << endl;
         return 1;
-    } else
+    } else 
     return sResult;
 }
 
 static std::list<string> s_file_targets;
 static std::list<RESTOREFN> s_restore_fn;
 
-void UCTokenStream::set_restore_op(RESTOREFN fn) {
+void UCTokenStream::set_restore_op(RESTOREFN fn) { 
     s_file_targets.push_back(m_original_file);
 	s_restore_fn.push_back(m_restore);
     m_restore = fn;
@@ -215,7 +228,7 @@ void UCTokenStream::on_open()
  if (m_openfn) {
    (*m_openfn)();
    m_openfn = NULL;
- }
+ } 
 }
 
 void UCTokenStream::on_restore()
@@ -244,7 +257,7 @@ void dump_module_traceback()
 {
     while (mModuleTraceList.size() > 0) {
         FileRef& fr = mModuleTraceList.front();
-        cmsg << fr.filename << ' ' << fr.lineno << ": (included from)" << std::endl;
+        cmsg << fr.filename << ' ' << fr.lineno << ": (included from)" << endl;
         mModuleTraceList.pop_front();
     }
 }
@@ -252,7 +265,7 @@ void dump_module_traceback()
 void UCTokenStream::on_clear(const string& filename, int line)
 {
  if (! Parser::debug.interactive_debugging)
-   cerr << "included from " << filename << ' ' << line << std::endl;
+   cerr << "included from " << filename << ' ' << line << endl;
  else
  {
    FileRef fr;
@@ -266,7 +279,7 @@ void UCTokenStream::on_clear(const string& filename, int line)
 
 void UCTokenStream::on_error(const char *msg, bool is_error)
 {
- if (is_error) {
+ if (is_error) { 
      error(msg);
      check_error();
      throw string(msg);
@@ -274,7 +287,7 @@ void UCTokenStream::on_error(const char *msg, bool is_error)
  else  warning(msg);
 }
 
-bool UCTokenStream::next_two(char *ts, bool skip)
+bool UCTokenStream::next_two(const char *ts, bool skip)
 {
   if (look_ahead()==ts[0] && peek_ahead(1)==ts[1]) {
             if (skip) { next(); next(); }

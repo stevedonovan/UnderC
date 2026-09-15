@@ -1,0 +1,328 @@
+================================================================================
+ UnderC: vector<string> crashes  -  diagnosis and fix plan
+================================================================================
+ Written for the UnderC source tree at  L:\wrk\cpp\underc
+ Found while implementing parseEnvironment() / findAddedEntriesEnvironment()
+ for venv_spawner (see HISTORY.md, "Blocked: the environment-diff API").
+ All observations below were reproduced with venv_spawner's Release build of
+ UnderC 1.2.9 on Windows x64.
+
+
+--------------------------------------------------------------------------------
+1. THE ERROR
+--------------------------------------------------------------------------------
+
+A vector<string> holding more than one element corrupts the heap and usually
+segfaults:
+
+    int main(int argc, char* argv) {
+        vector<string> v;
+        v.push_back("a");
+        v.push_back("b");      // dies here, or later, depending on the size
+        venvPrint("reached");
+        return 0;
+    }
+
+"reached" is never printed; the process dies with a segmentation fault. Whether
+it dies at the second push_back, at the vector's destruction, or not at all,
+depends on the allocation size - a classic symptom of writing to memory that
+was never initialised.
+
+vector<int> is fine. list<string> is fine. The interpreted container itself
+(include/underc/uclstl/vector) is correct C++: it uses new T[cap], element-wise
+assignment and delete[]. The defect is one level below it, in the engine.
+
+
+--------------------------------------------------------------------------------
+2. THE REAL DEFECT:  new T[n] CONSTRUCTS ONLY ELEMENT 0
+--------------------------------------------------------------------------------
+
+    struct Probe {
+        int tag;
+        Probe() { tag = 7; venvPrint("  ctor"); }
+        ~Probe() { venvPrint("  dtor"); }
+    };
+    int main(int argc, char* argv) {
+        Probe* p = new Probe[4];
+        // prints "  ctor" exactly ONCE
+        // p[0].tag == 7,  p[1..3].tag == 0   (raw, unconstructed memory)
+        delete[] p;
+        // prints "  dtor" exactly ONCE
+        return 0;
+    }
+
+Storage is allocated correctly (stride == sizeof(T), every element is
+addressable and writable). Only the constructor and destructor loops are wrong:
+they run exactly one iteration regardless of n.
+
+That is why vector<string> dies. Every element from index 1 up is raw memory
+that std::string has never initialised, so string::operator= runs
+
+    void resize(size_type sz) {
+      if (m_len > sz) { ... }        // m_len is garbage
+      char *tmp = new char[sz+1];
+      if (m_str) strcpy(tmp, m_str); // m_str is a garbage pointer -> boom
+      ...
+    }
+
+on it. When the fresh block happens to be zero-filled the assignment survives
+(m_str == NULL is benign) and the crash is deferred to the next reused block -
+which is exactly the size-dependent behaviour observed: new string[4], [6], [8]
+survive, new string[5], [10], [16] crash.
+
+
+--------------------------------------------------------------------------------
+3. ROOT CAUSE  (three lines of code)
+--------------------------------------------------------------------------------
+
+The element count for a dynamically allocated array is never recorded in a
+Release build, and the one place that reads it back looks at the wrong address.
+
+(a) src/directcall.cpp:761  -  the count is only recorded when pointer
+    checking is switched on:
+
+        void *_new_vect(int n,int sz)
+        {
+          void *p = (void *)new char[sz*n];
+          if (Parser::debug.ptr_check) mPtrMap[p] = n;    // <-- conditional
+          return p;
+        }
+
+    src/common.cpp:2363-2369 sets debug.ptr_check = false for every non-_DEBUG
+    build, so mPtrMap stays empty in the shipped interpreter.
+
+(b) src/directcall.cpp:841  -  and the reader silently invents the answer 1:
+
+        int alloc_size(void *p)
+        {
+         PointerMap::iterator pmi = mPtrMap.find(p);
+         if (pmi != mPtrMap.end()) return pmi->second;
+         if (Parser::debug.ptr_check) return 0;
+         else return 1;                                   // <-- the bug's face
+        }
+
+(c) src/engine.cpp:1098-1108  -  CCALLV, the vector ctor/dtor opcode, drives
+    its loop from that value:
+
+        case CCALLV: {
+            ...
+            if (pcb->dynamic()) {                    // new T[n] / delete[]
+               char *ptr = mOP - sizeof(void *);     // <-- wrong key, see below
+               num = Builtin::alloc_size(ptr);
+            } else num = pcb->num();                 // static arrays: correct
+            for(int i = 0, sz = pcb->size(); i < num; i++) {
+              ...
+              if (Engine::execute(pcb->fblock())==CRASHED) ...
+              mOP += sz;
+            }
+
+    So num == 1 always: one constructor call, one destructor call, n-1
+    uninitialised elements. Static arrays ("T a[10];" as a variable) take the
+    pcb->num() branch and are unaffected - which matches the observed
+    behaviour.
+
+The address arithmetic in (c) is wrong as well, and independently so. With
+debug.do_overalloc (true by default, src/common.cpp:2374) a new T[n] goes
+through
+
+        void* _new_vect_ex(int n, int sz)          // src/directcall.cpp:794
+        {
+         int *p = (int *)_new_vect(n,sz+sizeof(int));
+         *p = 0;
+         return p+1;                                // object ptr = base + 4
+        }
+
+so the object pointer is base + sizeof(int), while CCALLV computes
+base = mOP - sizeof(void *) = mOP - 8 on x64. The key never matches what
+_new_vect recorded. This code was correct in 2003, when sizeof(int) ==
+sizeof(void*) == 4; the 64-bit port broke it. src/directcall.cpp:801
+(_delete_ex) still uses sizeof(int), so the engine is the outlier.
+
+Both halves are confirmed by switching pointer checking on. With "#opt p+" at
+the top of the source, mPtrMap IS populated, the CCALLV lookup still misses,
+alloc_size() returns 0 instead of 1, and the Probe above prints NO ctor line at
+all and leaves tags 0 0 0 0. Off: one construction. On: none. Never four.
+
+
+--------------------------------------------------------------------------------
+4. FIX - STEP 1 (recommended, ~8 lines, fixes the crash)
+--------------------------------------------------------------------------------
+
+Record the count unconditionally, key it on the pointer the VM actually holds,
+and drop the entry when the block is freed.
+
+  src/directcall.cpp, _new_vect():
+      - if (Parser::debug.ptr_check) mPtrMap[p] = n;
+      + mPtrMap[p] = n;                       // needed by CCALLV, not just by
+                                              // the pointer checker
+
+  src/directcall.cpp, _new_vect_ex():
+        int *p = (int *)_new_vect(n,sz+sizeof(int));
+        *p = 0;
+      + mPtrMap[p+1] = n;                     // the pointer the VM sees
+        return p+1;
+
+  src/engine.cpp, case CCALLV:
+      - char *ptr = mOP - sizeof(void *);
+      - num = Builtin::alloc_size(ptr);
+      + num = Builtin::alloc_size(mOP);       // mOP is the object pointer,
+                                              // which is what we recorded
+
+  src/directcall.cpp, _delete() and _delete_ex():
+      + mPtrMap.erase(ptr);                   // before freeing, for both keys
+                                              // (_delete_ex erases the object
+                                              //  ptr, _delete the base ptr)
+
+Notes
+  * Keep the "else return 1" fallback in alloc_size(): it is still the right
+    answer for a pointer that did not come from _new_vect (an imported or
+    placement pointer). After this change the map is authoritative for every
+    array UnderC allocated itself.
+  * The erase() calls matter beyond tidiness: without them the map grows for
+    the life of the session and a recycled address can be found with a stale
+    count, which would construct or destroy past the end of the new block.
+  * Cost is one std::map insert/erase per array allocation. vector growth is
+    amortised doubling, so this is not a hot path.
+
+
+--------------------------------------------------------------------------------
+5. FIX - STEP 2 (follow-up, removes the side map entirely)
+--------------------------------------------------------------------------------
+
+A side map keyed on addresses is fragile. The standard solution is an array
+cookie: store n in the allocation itself, immediately before the VMT slot.
+
+  layout:   [ count ][ VMT slot ][ elem 0 ][ elem 1 ] ...
+  returned: base + 2 * sizeof(VMWord)
+
+  * _new_vect_ex() reserves two header words and writes the count into the
+    first; alloc_size(obj) becomes ((VMWord*)obj)[-2] with no lookup.
+  * delete[] must then subtract the same two words, so it needs its own
+    builtin: add _delete_vect_ex() alongside _delete_ex(), register it in
+    src/directcall.cpp:993-997, and select it in Expressions::delete_op()
+    (src/expressions.cpp:421) using the is_arr flag it already receives but
+    currently only uses to pick vector_context_op().
+  * While in that code, replace the sizeof(int) header arithmetic in
+    _new_ex/_new_vect_ex/_delete_ex with sizeof(VMWord), so the header matches
+    what VMT() in include/engine.h reads (see defect 6.1 below).
+
+Step 1 and Step 2 are independent; Step 1 alone makes vector<string> correct.
+
+
+--------------------------------------------------------------------------------
+6. RELATED DEFECTS FOUND IN THE SAME CODE (worth fixing, not the cause here)
+--------------------------------------------------------------------------------
+
+6.1  Header size mismatch on 64-bit.
+     include/engine.h:59 places the hidden VMT pointer at
+     (char*)obj - sizeof(VMWord), which is 8 bytes on x64, but
+     _new_ex/_new_vect_ex (src/directcall.cpp:787,794) reserve only
+     sizeof(int) == 4. For a class with a true VMT, "*VMT(mOP) = vtable" in
+     CCALLV therefore writes 8 bytes into a 4-byte hole and clobbers 4 bytes of
+     heap metadata in front of the allocation. Classes without virtual methods
+     take the attach_VMT() branch and are unaffected, which is why this has not
+     surfaced yet. Fix with sizeof(VMWord) throughout (see Step 2).
+
+6.2  Per-element VMT slots in arrays.
+     _new_vect_ex() allocates n * (sz + sizeof(int)) - i.e. a header word per
+     element - but the compiler indexes p[i] by sizeof(T) and CCALLV steps
+     mOP += pcb->size(). The extra n words are slack at the end and the
+     language-visible layout is consistent, so Step 1 is safe. But once
+     constructors really run for every element, a class with a true VMT will
+     write element i's VMT word into element i-1's tail. Either drop the
+     per-element word for arrays (arrays are homogeneous - one VMT for the
+     whole block is enough), or make the compiler index by sz + header. This
+     must be settled before "new Derived[n]" with virtual methods is supported.
+
+6.3  new[]/delete mismatch.
+     src/directcall.cpp:772 _delete() frees memory from "new char[sz*n]" with
+     scalar "delete ptr". Should be "delete[] ptr" (or malloc/free on both
+     sides, as the non-Windows branch already does).
+
+
+--------------------------------------------------------------------------------
+7. VERIFICATION
+--------------------------------------------------------------------------------
+
+After Step 1, all of these must hold. They currently all fail.
+
+  (1) Constructor and destructor counts.
+      The Probe program in section 2 must print "  ctor" four times and
+      "  dtor" four times, and p[1..3].tag must be 7.
+
+  (2) The original crash.
+      vector<string> with two push_backs must print "reached" and exit 0.
+      Repeat for 5, 10, 16 and 100 elements: no crash, no corruption.
+
+  (3) The default-constructed elements are real objects.
+      string* p = new string[5]; p[1] = "b"; must be safe for every size, and
+      p[i].c_str() must be a valid empty string before assignment, not NULL.
+
+  (4) Both allocator paths.
+      Run (1)-(3) with "#opt p+" as well as the default. With pointer checking
+      on the count now comes from the same map, so the results must be
+      identical - today they differ (one construction vs none).
+
+  (5) No regression in static arrays.
+      "T a[10];" as a local and as a global must still construct and destroy
+      exactly 10 objects (the pcb->num() branch, which was always correct).
+
+  (6) No leak in the map.
+      Allocate and free 100000 arrays in a loop; mPtrMap.size() must return to
+      its starting value.
+
+  (7) Downstream.
+      In venv_spawner, examples/win_msvc2026_auto.cvc must get past
+      parseEnvironment() once that function is written against
+      map<string, vector<string> >.
+
+  Regression tests live in L:\wrk\cpp\underc\regressiontests - a case built
+  from (1) and (2) belongs there.
+
+
+--------------------------------------------------------------------------------
+8. SECOND, INDEPENDENT BLOCKER (same feature, different bug)
+--------------------------------------------------------------------------------
+
+Fixing the above is necessary but not sufficient for the venv_spawner work:
+std::map has no copy constructor, so a map cannot be returned by value.
+
+    map<string,string> build() { map<string,string> m; m["A"]="x"; return m; }
+    map<string,string> m = build();
+
+    map<std::string,std::string>::map<std::string,std::string>(
+        const std::map<std::string,std::string>& ) is not defined yet
+
+This one is not an engine bug but a deliberate hole in the header.
+include/underc/uclstl/map ends with
+
+    private:
+     map(const map&);
+     map& operator=(const map&);
+
+i.e. the C++98 noncopyable idiom: both are declared, neither is defined, so
+the engine correctly reports "is not defined yet". uclstl/vector, by contrast,
+implements both. The map's tree (m_root, _destroy() recursing over m_left /
+m_right) owns raw nodes, so a default member-wise copy would double-free -
+which is presumably why copying was suppressed rather than written.
+
+The fix is to move the two declarations into the public section and implement
+them with a recursive deep copy of the node tree, mirroring _destroy():
+
+    map(const map& m) : m_root(NULL), m_size(0) { _copy(m.m_root); }
+    map& operator=(const map& m) {
+      if (this != &m) { _destroy(m_root); m_root=NULL; m_size=0;
+                        _copy(m.m_root); }
+      return *this;
+    }
+    // _copy(p): if (p) { insert(p->key,p->value); _copy(p->m_left);
+    //                    _copy(p->m_right); }
+
+Inserting in pre-order keeps the tree shape; a balanced rebuild would be
+better but is not required for correctness. A map<...>& out-parameter is the
+working alternative until then.
+
+Also note the parser needs "map<string, list<string> > " with a space; the
+">>" spelling is a syntax error.
+
+================================================================================

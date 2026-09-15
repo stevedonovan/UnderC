@@ -1,0 +1,20 @@
+// venv - Windows example configuration
+//
+// venvPreEnv prepends verbatim to the current value of a variable (no
+// separator is inserted, so include the ';' yourself). Here it puts an
+// intended CMake ahead of the copy that ships inside Visual Studio, then
+// vcvars64.bat sets up the compiler environment inside a persistent cmd.exe so
+// the commands that follow inherit it.
+
+int main(int argc, char* argv) {
+    venvRootDir("L:\\bin");
+
+    venvPreEnv("PATH", "L:\\pkg\\bin\\cmake-4.3.2-windows-x86_64\\bin;");
+
+    venvStartShell("cmd.exe");
+    venvExeCommand("call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"", true);
+    venvExeCommand("cl /help", true);
+    venvExeCommand("cmake --help", true);
+    venvStopShell();
+    return 0;
+}

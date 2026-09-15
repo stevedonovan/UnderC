@@ -1,0 +1,21 @@
+Compiling underc with visual studio 2010.
+
+Dependencies:
+	* Any Visual Studio 2010 version
+	* gnu bison
+		You can download bison from this site:
+		http://gnuwin32.sourceforge.net/packages/bison.htm
+		The easiest way is to extract everything to C:\gnuwin32,
+		becouse if you do not you have to change the PATH environment
+		locations in build/bbison.bat
+		You can alternatively download this prepacked version:
+		<Link follows>
+
+Setup:
+	You need to modify the UC_HOME in the projects you want to debug
+	with Visual Studio. To do so, right click onto a project within
+	the solution explorer and select Properties.
+	Select Debugging on the left and modify the UC_HOME variable
+	wich is stored in the Environment option.
+	The UC_HOME variable should point to the root directory of the
+	underc source.

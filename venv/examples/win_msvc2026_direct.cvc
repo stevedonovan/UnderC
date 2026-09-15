@@ -1,0 +1,42 @@
+// Template to run direct calls in an MSVC 2026 setup.
+//
+// A .cvc file is C++: build the portable-tools PATH fragment with std::string,
+// set the Visual Studio environment variables explicitly, then prepend both to
+// PATH and run a plain command (no persistent shell needed here because every
+// variable vcvars64.bat would set is provided directly).
+
+int main(int argc, char* argv) {
+    string sevenzip = "C:\\pkg\\bin\\7z2501-x64";
+    string cmake    = "C:\\pkg\\bin\\cmake-4.4.3-windows-x86_64\\bin";
+    string ninja    = "C:\\pkg\\bin\\ninja-win-1.1.3.2";
+    string nasm     = "C:\\pkg\\bin\\nasm-3.02rc9";
+    string git      = "C:\\pkg\\bin\\PortableGit-2.55.0.5-64-bit\\mingw64\\bin;C:\\pkg\\bin\\PortableGit-2.55.0.5-64-bit\\bin";
+    string python   = "C:\\pkg\\bin\\python-3.13.15-embed-amd64";
+    string perl     = "C:\\pkg\\bin\\strawberry-perl-5.42.2.1-64bit-portable\\perl\\site\\bin;C:\\pkg\\bin\\strawberry-perl-5.42.2.1-64bit-portable\\perl\\bin;C:\\pkg\\bin\\strawberry-perl-5.42.2.1-64bit-portable\\c\\bin";
+    string llvm     = "C:\\pkg\\bin\\clang+llvm-21.1.7-x86_64-pc-windows-msvc\\bin";
+
+    string tools = sevenzip + ";" + cmake + ";" + ninja + ";" + nasm + ";" +
+                   git + ";" + python + ";" + perl + ";" + llvm;
+
+    string msvc = "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231";
+
+    venvSetEnv("VCINSTALLDIR", "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\");
+    venvSetEnv("VCToolsInstallDir", (msvc + "\\").c_str());
+    venvSetEnv("VCToolsVersion", "14.51.36231");
+    venvSetEnv("VisualStudioVersion", "18.0");
+    venvSetEnv("Platform", "x64");
+    venvSetEnv("VSCMD_ARG_TGT_ARCH", "x64");
+    venvSetEnv("VSCMD_ARG_HOST_ARCH", "x64");
+    venvSetEnv("WindowsSdkDir", "C:\\Program Files (x86)\\Windows Kits\\10\\");
+    venvSetEnv("WindowsSDKVersion", "10.0.26100.0\\");
+    venvSetEnv("UCRTVersion", "10.0.26100.0");
+
+    venvSetEnv("INCLUDE", (msvc + "\\include;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\um;C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\shared").c_str());
+    venvSetEnv("LIB", (msvc + "\\lib\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\lib\\10.0.26100.0\\ucrt\\x64;C:\\Program Files (x86)\\Windows Kits\\10\\lib\\10.0.26100.0\\um\\x64").c_str());
+
+    // Portable tools first, then the MSVC compiler bin, then the inherited PATH.
+    venvPreEnv("PATH", (tools + ";" + msvc + "\\bin\\HostX64\\x64;").c_str());
+
+    venvExeCommand("cmake --help");
+    return 0;
+}

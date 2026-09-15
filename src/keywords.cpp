@@ -35,7 +35,7 @@ string find(int id)
  return "<unknown>";
 }
 
-void add(char *name, int val)
+void add(const char *name, int val)
 { 
     kmap[name] = val;
 }
@@ -47,6 +47,7 @@ void init()
  add("int",INT);
  add("short",SHORT);
  add("long",LONG);
+ add("signed",INT);
  add("float",FLOAT);
  add("double",DOUBLE);
  add("bool",BOOL);
@@ -89,12 +90,23 @@ void init()
  add("extern",EXTERN);
  add("explicit",EXPLICIT);
  add("friend",FRIEND);
- add("decltype",TYPEOF);
+ add("typeof",TYPEOF);
  add("__stdcall",STDCALL);
  add("__API",API);
  add("__lambda",LAMBDA);
  add("goto",GOTO);     // *add 1.2.5 
  add("union",UNION);   // *add 1.2.6
+ // Reserved C++98 words whose semantics are outside UnderC's maintained
+ // dialect must still not be accepted as ordinary identifiers.
+ add("asm",YYUNDEF);
+ add("typeid",YYUNDEF);
+ add("auto",YYUNDEF);
+ add("export",YYUNDEF);
+ add("inline",YYUNDEF);
+ add("mutable",YYUNDEF);
+ add("register",YYUNDEF);
+ add("typename",YYUNDEF);
+ add("volatile",YYUNDEF);
  add("__init_block__",FAKE_INIT_LIST); // *add 1.2.7 A syntactical hack; see ParserState::handle_method_body
 
 

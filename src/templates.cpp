@@ -13,16 +13,15 @@
 #include "input.h"
 #include "directcall.h"
 
-#include <cstring>
-#include <strstream>
-
 const int TEMPL_BUFFSIZE = 20000;
 
  // in main.cpp
  
-int uc_eval(char *expr, bool append_semicolon, bool synchronous, char *name, int lineno);
+int uc_eval(const char *expr, bool append_semicolon, bool synchronous, const char *name, int lineno);
 
+#ifndef YYEMPTY
 #define YYEMPTY (-2)
+#endif
 extern int yychar;
 int	save_yychar;
 YYSTYPE	save_yylval;	
@@ -42,7 +41,7 @@ void restore_parser_state()
 
 int count(char *, char);  // at end of this file.
 string build_qualified_name(const string& name, const TypeList& tl);
-std::ostream& operator<< (std::ostream& outs, const TypeList& tl);
+ostream& operator<< (ostream& outs, const TypeList& tl);
 void massage_type_list(TypeList& tl);
 void copy_type_list(TypeList& tlp, const TypeList& tlt);
 
@@ -64,12 +63,12 @@ bool DummyType::bind_to(Type t)
    // *fix 1.2.9 indicates that we are properly bound! 
    m_type = entry()->type;  
    // *change 1.2.4 no longer function_trace
-   if (Parser::debug.verbose) std::cout << "*bound (const) " << name() << ' ' << *(int *)pe->global_ptr() << std::endl;
+   if (Parser::debug.verbose) cout << "*bound (const) " << name() << ' ' << *(int *)pe->global_ptr() << endl;
  } else {
    if (! unbound() && t != m_type) return false;
    m_type = t;
    if (entry()) entry()->type = t;
-   if (Parser::debug.verbose) std::cout << "*bound " << name() << ' ' << t << std::endl;
+   if (Parser::debug.verbose) cout << "*bound " << name() << ' ' << t << endl;
  }
  return true;
 }
@@ -161,14 +160,14 @@ void Template::instantiate(TemplateInstance *instance)
     instance->instantiated(true);
 	// can't call type() until the data is set!
     if (Parser::debug.verbose) { //*change 1.2.4 no longer function_trace
-	  std::cout << "instantiated: ";
+	  cout << "instantiated: ";
 	  Signature::set_fun_name(instance->name()); // only for function templates, of course!
 	  try {
-	   if (instance->data() != NULL) std::cout << instance->type();
+	   if (instance->data() != NULL) cout << instance->type();
       } catch(...) {
-        std::cout << "<unknown>";
+        cout << "<unknown>";
 	  }
-	  std::cout << std::endl;
+	  cout << endl;
 	}
   }
 }
@@ -261,7 +260,7 @@ void Template::do_function_template()
 	if (was_method) ptmpl->set_method();
 	pfun->set_template(ptmpl);
 	pe->type = Type(sig);
-    pe->data = (int)pfun;
+    pe->data = vm_from_ptr(pfun);
     if (was_method) 
        PClass(cntxt)->get_template()->get_template()->get_entry()->add_method_entry(pe);
   } else if (! pe->type.is_function()) {
@@ -298,7 +297,8 @@ void Template::do_function_template()
   }
 
 // and grab the function!! 
-  generate_function_header(name,sig,true);
+  string header = generate_function_header(name,sig,true);
+  strcpy(mIBuffer,header.c_str());
   pnt->grab();
 
   //*fix 1.2.0L Should not have deleted the signature! 
@@ -309,24 +309,40 @@ void Template::do_function_template()
 
 }
 
-char* Template::generate_function_header(Function* pf, bool plain_method, bool qualified_names)
-{ 
- *mIBuffer = 0;
-  std::ostrstream outs(mIBuffer,TEMPL_BUFFSIZE);
+string Template::generate_function_header(Function* pf, bool plain_method, bool qualified_names)
+{
+ #ifdef _FAKE_IOSTREAM
+  *mIBuffer = 0;
+  ostringstream outs(mIBuffer,TEMPL_BUFFSIZE);
+ #else
+  ostringstream outs;
+ #endif
   Signature::write_qualified_names(qualified_names);
   pf->dump(outs);
-  outs << ' ' << (plain_method ? '{' : ':') << std::ends;
+  outs << ' ' << (plain_method ? '{' : ':'); //!!que? << ends;
   Signature::write_qualified_names(true); // maintain the default setting!
-  return mIBuffer;
+  #ifdef _FAKE_IOSTREAM
+   return mIBuffer;
+  #else
+   return outs.str();
+  #endif
 }
 
-char* Template::generate_function_header(string name, Signature* sig, bool plain_method)
+string Template::generate_function_header(string name, Signature* sig, bool plain_method)
 {
+ #ifdef _FAKE_IOSTREAM
   *mIBuffer = 0;
-  std::ostrstream outs(mIBuffer,TEMPL_BUFFSIZE);
+  ostringstream outs(mIBuffer,TEMPL_BUFFSIZE);
+ #else
+  ostringstream outs;
+ #endif
   Signature::set_fun_name(name);
-  outs << *sig << " {" << std::ends;
-  return mIBuffer;
+  outs << *sig << " {" << ends;
+  #ifdef _FAKE_IOSTREAM
+   return mIBuffer;
+  #else
+   return outs.str();
+  #endif
 }
 
 void Template::do_class_template(int s_or_c, string name, int look_ahead, TypeList *ptl)
@@ -352,24 +368,32 @@ void Template::do_class_template(int s_or_c, string name, int look_ahead, TypeLi
    pe = state.context().add(name);
    pe->type = t_template_type;
    pte = new TemplateEntry(pe,true);
-   pe->data = (int)pte;
+   pe->data = vm_from_ptr(pte);
    pe->m_typename = true;
  } else pte = (TemplateEntry *)pe->data;
 
  Template *pct = new Template(pte,formal_args,ic);
  pte->add_template(pct);
 
- *mIBuffer = 0;
- std::ostrstream outs(mIBuffer,TEMPL_BUFFSIZE);
+ #ifdef _FAKE_IOSTREAM
+  *mIBuffer = 0;
+  ostringstream outs(mIBuffer,TEMPL_BUFFSIZE);
+ #else
+  ostringstream outs;
+ #endif
  outs << (s_or_c == CLASS_X ? "class " : "struct ") << name;
  //* -2 (Obscure Bison number) means that there's no lookahead token...    
  //* in this case the look-ahead can be either '{' or ':'  
  if (look_ahead != -2) outs << (char)look_ahead;
- outs << std::endl;
- outs << std::ends;
-
+ #ifdef _FAKE_IOSTREAM
+  outs << endl;
+  outs << ends;
+ #else
+  outs << endl;
+  //!!que? outs << ends;
+  strcpy(mIBuffer,outs.str().c_str());
+ #endif
  pct->grab();
-
 }
 
 bool Template::type_contains(Type t1, Type t2)
@@ -462,8 +486,8 @@ void Template::grab()
   //brace_count += count(buff,'{') - count(buff,'}'); 
  } while (brace_count > 0);      
 
-if (Parser::debug.verbose) std::cout << "*buff: " << mIBuffer << std::endl;
- m_buffer = strdup(mIBuffer);
+if (Parser::debug.verbose) cout << "*buff: " << mIBuffer << endl;
+ m_buffer = _strdup(mIBuffer);
  *mIBuffer = '\0'; 
 }
 
@@ -472,27 +496,26 @@ if (Parser::debug.verbose) std::cout << "*buff: " << mIBuffer << std::endl;
 // interfere with stuff that already works.
 // *fix 1.2.4 If this is a ctor with an init list, handle the special case by always
 // grabbing everything up to '{'
-void Template::grab_function_body(bool plain_method, char* body)
+string Template::grab_function_body(bool plain_method)
 {
  int brace_count = plain_method ? 1 : 0;
  bool grabbing_init = ! plain_method;
- char* ptr;
+ *mIBuffer = '\0';
+ char* ptr = mIBuffer;
  char buff[MAX_LINE_SIZE];
  int open_kount, close_kount;
- if (body) ptr = body + strlen(body);
  do { 
    Input::grab_next_line(buff);
    open_kount = count(buff,'{');
    close_kount = count(buff,'}');
    brace_count += open_kount - close_kount; 
    if (open_kount) grabbing_init = false;
-   if (body) {
-     if (*buff != '\0') strcpy(ptr,buff);
-     ptr += strlen(buff);
-     strcpy(ptr,"\n"); //*I suspect we need this because we cannot handle very long lines!
-     ptr ++;
-   }
+   if (*buff != '\0') strcpy(ptr,buff);
+   ptr += strlen(buff);
+   strcpy(ptr,"\n"); //*I suspect we need this because we cannot handle very long lines!
+   ptr ++;
  } while (brace_count > 0 || grabbing_init);  
+ return mIBuffer;
 }
 
 Template *Template::as_template(Type t)
@@ -624,7 +647,7 @@ int TemplateEntry::simple_match(const TypeList& tl, bool use_args)
   FORALL(tili,m_instances) {
     TemplateInstance *ti = *tili;
     const TypeList& tlinst = use_args ? ti->type_list() : ti->type_parms();
-	if (Parser::debug.verbose) std::cout << "*cmp " << tl << ' ' << tlinst << std::endl;
+	if (Parser::debug.verbose) cout << "*cmp " << tl << ' ' << tlinst << endl;
     if (tl == tlinst) return i;
 	i++;
   }
@@ -751,6 +774,7 @@ bool TemplateEntry::match(const TypeList& actual_parms)
      NamedTable* tbl = static_cast<NamedTable*>(templ->context()->parent_context());
 	 PEntry pe = tbl->lookup(qualified_name);   // wuz state.context().
 	 Class *pc = pe->type.as_class();
+	 templ->context()->dump_entries(cout,ALL_ENTRIES);
      instance->data(pc);
 	 instance->entry(pe);
 	 pc->set_template(instance);
@@ -795,7 +819,7 @@ char *get_method_name(char *line)
 }
 
 
-std::ostream& operator<< (std::ostream& outs, const TypeList& tl)
+ostream& operator<< (ostream& outs, const TypeList& tl)
 {
   outs << '<';
   TLCI tli, tl_last = tl.end();
@@ -810,19 +834,36 @@ std::ostream& operator<< (std::ostream& outs, const TypeList& tl)
 
 string build_qualified_name(const string& name, const TypeList& tl)
 {
+ #ifdef _FAKE_IOSTREAM
   char buff[512];
-  std::ostrstream outs(buff,512);
+  ostrstream outs(buff,512);
+ #else
+  //char buff[512];
+  ostringstream outs;
+ #endif
   outs << name << tl;
-  outs << std::ends;
-  return buff;
+  #ifdef _FAKE_IOSTREAM
+   return buff;
+  #else
+   return outs.str();
+  #endif
+  
 }
 
 char *sh_tlistc(const TypeList& tl)  /*DEBUG*/
 {
  static char buff[128];
- std::ostrstream outs(buff,128);
- outs << tl << std::ends;
- return buff;
+  #ifdef _FAKE_IOSTREAM
+   ostrstream outs(buff,128);
+  #else
+   ostringstream outs;
+  #endif
+ outs << tl << ends;
+  #ifdef _FAKE_IOSTREAM
+   return buff;
+  #else
+   return (char*)outs.str().c_str(); //WARNING: This was uuuhm I do not remember but buffer was returned instead of str.
+  #endif
 }
 
 char *sh_tlist(TypeList& tl)

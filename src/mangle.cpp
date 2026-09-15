@@ -15,10 +15,7 @@
 #include "common.h"
 #include "std_utils.h"
 #include "mangle.h"
-
-#include <cstdio>
-#include <cstring>
-
+#include <stdio.h>
 
 template <class T>
 int find_index(const std::list<T>& ls, T t)
@@ -50,7 +47,7 @@ const int MAX_SIG_LEN = 25, BUFF_SIZE = 256;
  struct OpNames { const char* cname; const char* mname; }; 
  char *i2a(int i);  // at the end of this file...
  char *i2ax(int i);
- char *lookup_opname(OpNames *popn, const char *n);
+ const char *lookup_opname(const OpNames *popn, const char *n);
 
  static char buff[BUFF_SIZE];
  std::list<Class *> mClassList;
@@ -127,31 +124,31 @@ public:
 	
 class Mangler: public OutputBuffer {
 protected:
-  char *m_begin_name;
-  char *m_rpt_type;
-  char *m_void_args;  
-  char *m_end_stdarg; 
-  char *m_end_args;
-  char *m_plain_function;
-  char *m_function_ptr;
-  char *m_method_ptr;
-  char *m_enum;
-  char *m_end_function_ptr;
+  const char *m_begin_name;
+  const char *m_rpt_type;
+  const char *m_void_args;  
+  const char *m_end_stdarg; 
+  const char *m_end_args;
+  const char *m_plain_function;
+  const char *m_function_ptr;
+  const char *m_method_ptr;
+  const char *m_enum;
+  const char *m_end_function_ptr;
   bool m_use_return_type;
-  char *m_plain_obj;
-  char *m_const_attrib;
-  char *m_plain_attrib;
+  const char *m_plain_obj;
+  const char *m_const_attrib;
+  const char *m_plain_attrib;
   char  m_ref_chr;
   char  m_array_char;
   char  m_ptr_char;
   bool m_method_type_first;
   bool m_convention_first;
-  char *m_namespace;
-  char *m_collect_repeats;
+  const char *m_namespace;
+  const char *m_collect_repeats;
   const char *m_template_name;
-  char *m_template_args;
-  char *m_end_class;
-  char *m_method_ptr_type;
+  const char *m_template_args;
+  const char *m_end_class;
+  const char *m_method_ptr_type;
   Function *m_fn;
   bool  m_dont_lookup_class;
   bool m_within_signature;
@@ -466,7 +463,7 @@ public:
      if (m_fn->is_constructor()) outs("?0");  else
      if (m_fn->is_destructor()) outs("?1"); else 
      {
-      char *mn = lookup_opname(ms_funs,name);
+      const char *mn = lookup_opname(ms_funs,name);
 	  if (mn != NULL) { out('?'); outs(mn); }
 	  else { 
 	  // methods (as op. to operators & constructors) refer to the class as #1, not #0.
@@ -481,7 +478,7 @@ public:
    void out_method_type(int access) // MSMangler
    {
 	char ch;
-	char *pch;
+   const char *pch;
 	switch(access) {
 	case Public:    pch = "SUQ"; break;
 	case Protected: pch = "KMI"; break;
@@ -624,7 +621,7 @@ public:
      if (m_fn->is_constructor()) outs("__");  else
      if (m_fn->is_destructor()) outs(GCC_DTOR);
      else {
-   	   char *mn = lookup_opname(gcc2_fns,name);
+   	   const char *mn = lookup_opname(gcc2_fns,name);
 	   if (mn != NULL) { outs("__"); outs(mn); }
 	   else { 
          outs(name);
@@ -853,7 +850,7 @@ public:
    {
       if (sig->begin() == sig->end()) out('v');
       else {
-        int arg_idx, type_idx,start_type_idx,start_arg_idx = 0;
+        int arg_idx, type_idx,/*start_type_idx,*/start_arg_idx = 0;
         Signature::iterator sigi;
         for (sigi = sig->begin(); sigi != sig->end(); ++sigi) {
            m_t = *sigi;           
@@ -902,7 +899,7 @@ public:
          wuz_inside_ns = out_namespace(cntxt->parent_context());
      }
      // the actual name
-     char *mn = lookup_opname(gcc3_fns,name);
+     const char *mn = lookup_opname(gcc3_fns,name);
      if (mn != NULL) outs(mn);
      else 
          out_name(name);
@@ -1008,16 +1005,10 @@ char *i2ax(int i)
      return buff;
 }
 
-char *lookup_opname(OpNames *popn, const char *n)
+const char *lookup_opname(const OpNames *popn, const char *n)
 {
-  char * toret = NULL;
-	
-  for(; popn->cname != NULL; popn++) {
-	if (strcmp(popn->cname,n)==0) {
-	    toret = (char *) popn->mname;
-	}
-  }
-  
-  return toret;
+  for(; popn->cname != NULL; popn++) 
+    if (strcmp(popn->cname,n)==0) return popn->mname;
+  return NULL;
 }
 

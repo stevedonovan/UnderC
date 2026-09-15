@@ -32,7 +32,7 @@ void dissemble(PFBlock fb)
         if (pi->data < MAX_BREAKPOINTS) {
           Breakpoint *pb = Breakpoint::from_id(pi->data);
           Instruction ai = pb->saved_instruction();
-          std::cout << "*";
+          cout << "*";
           opcode = (Opcodes)ai.opcode;
           rmode = ai.rmode;  rdata = ai.data;
         } else { opcode = NOP; rdata = pi->data; }
@@ -40,37 +40,37 @@ void dissemble(PFBlock fb)
       rmode  = pi->rmode;  rdata  = pi->data;
     }
     name =  get_opcode_name(opcode);
-    std::cout << k++ << ' ' <<  name << '\t';
+    cout << k++ << ' ' <<  name << '\t';
     if (opcode == CCALL || opcode == CALL || opcode == CALLD || opcode == CALLN) {
        FBlock* pfb;
        void *data = data_ptr(rdata);
        if (opcode == CALLN)
            pfb = Builtin::imported_fblock_from_function((void*)((NFBlock *)data)->pfn);
        else pfb = PFBlock(data_ptr(rdata));     
-      if (pfb) Function::from_fun_block(pfb)->dump(std::cout);      
+      if (pfb) Function::from_fun_block(pfb)->dump(cout);      
     } else 
     if (opcode == JSWITCH) {
       int *swb = (int *)data_ptr(rdata);
       int sz = *swb++;
       int def = *swb++;
-      std::cout << '(' << sz << ',' << def << ") ";
-      for (int i = 0; i < sz; i++) std::cout << *swb++ << ' ' << *swb++ << ' ';
+      cout << '(' << sz << ',' << def << ") ";
+      for (int i = 0; i < sz; i++) cout << *swb++ << ' ' << *swb++ << ' ';
     }
     else
     if (opcode == TOSD || opcode == TPODS) {
        PClass pc = *(PClass *)data_ptr(rdata);
-       std::cout << pc->name();
+       cout << pc->name();
     }
     else {
      if (rmode) 
       switch(rmode) {
-      case DIRECT: std::cout << "D ";  break;
-      case SREL:   std::cout << "R ";  break;
-      case OREL:   std::cout << "S ";  break;
+      case DIRECT: cout << "D ";  break;
+      case SREL:   cout << "R ";  break;
+      case OREL:   cout << "S ";  break;
      }
-     if (rdata != 0) std::cout << rdata;
+     if (rdata != 0) cout << rdata;
    }
-   std::cout << std::endl;  
+   cout << endl;  
    if (opcode == RET || opcode == RETI || opcode == RETD) break;
    pi++;
  }
@@ -85,7 +85,7 @@ string get_opcode_name(int op)
  return opc_map[op];
 }
 
-void opcode_add(char *name, int id)
+void opcode_add(const char *name, int id)
 {
   opc_map[id] = name;
 }

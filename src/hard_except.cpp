@@ -16,7 +16,7 @@
 #include <float.h>
 #include <assert.h>
 
-void trans_func( unsigned int u, _EXCEPTION_POINTERS* pExp )
+void trans_func( unsigned int u, EXCEPTION_POINTERS* pExp )
 {
    //*fix 1.2.4 Reset floating point after exceptions - otherwise we may lose further fp exceptions!
    _fpreset();
@@ -32,6 +32,7 @@ void trans_func( unsigned int u, _EXCEPTION_POINTERS* pExp )
 // from Matt Pietrek (_Under the Hood) article from MSJ, 1997)
 void UnmaskFPExceptionBits( void )
 {
+#if defined(_M_IX86)
     unsigned short cw;
 
     __asm   fninit      // Initialize the coprocessor
@@ -39,7 +40,12 @@ void UnmaskFPExceptionBits( void )
     cw &= 0xFFE0;       // Turn off the most of the exception bits (except the
                         // the precision exception)
     __asm   fldcw [cw]
-
+#else
+    // x64 has no inline x87 assembler and uses SSE for floating point.
+    // Match the non-Win32 build, which leaves the FP environment untouched;
+    // the structured-exception translator installed below still maps any
+    // hardware FP fault that does occur onto a C++ exception.
+#endif
 }
 
 int check_mem();
@@ -88,13 +94,10 @@ void throw_range_error(char* msg)
 #ifndef _WIN32
  #include <setjmp.h>
  jmp_buf here_in_execute;
-int global_last_signal = 0;
 
  void handler(int signl)
  {
    longjmp(here_in_execute,signl);
-   //  global_last_signal = signl;
-   //  signal(signl,SIG_IGN);
  }
 #else
  void handler(int signl)

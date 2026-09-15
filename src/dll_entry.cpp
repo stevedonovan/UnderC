@@ -1,3 +1,11 @@
+// This file implements the exported UnderC embedding API, so it must be built
+// with WITHIN_UC before "export.h" (pulled in transitively by "common.h") is
+// seen - otherwise EXPORT resolves to __declspec(dllimport) and the
+// definitions below clash with the plain declarations in "ucembed.h".
+#ifndef WITHIN_UC
+ #define WITHIN_UC 1
+#endif
+
 #include "common.h"
 #include "engine.h"
 #include "main.h"
@@ -6,21 +14,24 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "module.h"
 #include "input.h"
+#include "keywords.h"
 
 #include "ucri.h"
+#include "ucembed.h"
 
 #ifdef _WCON
-#include "wcon.h"
-#include "threads.h"
+ #include "wcon.h"
+ #include "threads.h"
 #endif
 
 
 // from main.cpp
 int uc_eval(char *expr, bool append_semicolon=true, bool synchronous=false, char *name=NULL, int lineno=0);
 int ext_uc_eval(char *expr, char *output, int sz);
-int redirected_eval(char *buffer,bool semicolon, char *name=NULL, int lineno=0);
+int redirected_eval(const char *buffer,bool semicolon, const char *name=NULL, int lineno=0);
 
 const int EXPR_BUFF_SIZE = 1024;
 
@@ -50,7 +61,7 @@ void set_main_thread(unsigned long id);
 CEXPORT void XAPI uc_interactive_loop()
 {
 #ifdef _WCON
-   Thread::local(1);
+   Thread::local(1);   
    sConThread = new ConsoleThread();
    sConThread->resume();
    set_main_thread((long)sConThread->handle());
@@ -61,6 +72,12 @@ void wcon_set_parent(void *defs_file);
 
 CEXPORT int XAPI uc_init(char *defs_file, bool use_defs)
 {
+#ifdef UCL_COMPILE_ONLY_NARROW_VM
+    fprintf(stderr,"This build is compile-only: UNDERC_VM_BITS cannot transport host pointers\n");
+    return 0;
+#else
+    if (!vm_can_transport_host_pointers()) return 0;
+#endif
 // *fix 1.2.2b Change in signature of process_command_line()
     int argc = 1;
     char **argv = NULL;
@@ -81,13 +98,13 @@ CEXPORT int XAPI uc_init(char *defs_file, bool use_defs)
     if (use_defs) {
 #ifdef _WCON
         sConThread->suspend();
-#endif
+#endif	  
       redirected_eval("#include <classlib.h>",false);
       redirected_eval("using namespace std;",false);
-#ifdef _WCON
+#ifdef _WCON	  
       sConThread->resume();
-#endif
-    }
+#endif      
+    } 
 
 	return ret;
 }
@@ -97,6 +114,11 @@ int pgm_main(int argc,char **argv);
 CEXPORT int XAPI uc_main(int argc, char **argv)
 {
   return pgm_main(argc,argv);
+}
+
+CEXPORT void XAPI uc_set_home_dir(const char *path)
+{
+  Main::set_home_dir(path ? string(path) : string());
 }
 
 CEXPORT void XAPI uc_finis()
@@ -113,10 +135,10 @@ CEXPORT void *XAPI uc_main_window()
  return NULL;
 #endif
 }
-
+	
 // UC_exec() can be passed _any_ UC command or
 // expression
-CEXPORT int XAPI uc_exec(char* buffer)
+CEXPORT int XAPI uc_exec(const char *buffer)
 {
     int ret = redirected_eval(buffer,false);
     return ret == OK;
@@ -171,7 +193,7 @@ CEXPORT int XAPI uc_eval(char *expr, char *res, int sz)
     }
 	// *fix 1.1.4 nasty extra line feed!
 	int len = strlen(res);
-    if (res[len-1]=='\n') { res[len-1] = '\0'; len--; }
+    if (res[len-1]=='\n') { res[len-1] = '\0'; len--; }    
 
     // removed quoted strings...
     if (*res == '\'' || *res == '\"') {
@@ -189,11 +211,54 @@ CEXPORT void XAPI uc_set_quote(char *var, char *val)
  uc_exec(buff);
 }
 
-CEXPORT void XAPI uc_init_ref(char *type, char *var, void *addr)
+static bool valid_identifier(const char *name)
 {
- char buff[EXPR_BUFF_SIZE];
- sprintf(buff,"%s& %s = *(%s *)0x%X;",type,var,type,addr);
- uc_exec(buff);
+ if (!name || (!isalpha((unsigned char)*name) && *name != '_')) return false;
+ for (++name; *name; ++name)
+   if (!isalnum((unsigned char)*name) && *name != '_') return false;
+ return true;
+}
+
+static bool variable_type(uc_variable_type requested, Type& type)
+{
+ switch (requested) {
+ case UC_TYPE_BOOL:           type = t_bool;   return true;
+ case UC_TYPE_CHAR:           type = t_char;   return true;
+ case UC_TYPE_UNSIGNED_CHAR:  type = t_uchar;  return true;
+ case UC_TYPE_SHORT:          type = t_short;  return true;
+ case UC_TYPE_UNSIGNED_SHORT: type = t_ushort; return true;
+ case UC_TYPE_INT:            type = t_int;    return true;
+ case UC_TYPE_UNSIGNED_INT:   type = t_uint;   return true;
+ case UC_TYPE_LONG:           type = t_long;   return true;
+ case UC_TYPE_UNSIGNED_LONG:  type = t_ulong;  return true;
+ case UC_TYPE_FLOAT:          type = t_float;  return true;
+ case UC_TYPE_DOUBLE:         type = t_double; return true;
+ default: return false;
+ }
+}
+
+CEXPORT uc_status XAPI uc_bind_variable(const char *name,
+                                        uc_variable_type requested,
+                                        void *address)
+{
+ if (!valid_identifier(name) || !address) return UC_STATUS_INVALID_ARGUMENT;
+ if (!uc_global()) return UC_STATUS_NOT_INITIALIZED;
+ if (Keywords::lookup(name)) return UC_STATUS_INVALID_ARGUMENT;
+
+ Type type;
+ if (!variable_type(requested,type)) return UC_STATUS_UNSUPPORTED_TYPE;
+ if (Parser::global().lookup(name,false)) return UC_STATUS_ALREADY_EXISTS;
+
+ PEntry entry = Parser::global().add(name);
+ entry->type = type;
+ entry->type.make_reference();
+ entry->rmode = DIRECT;
+ entry->size = 1;
+ entry->m_typename = false;
+ entry->m_access = Public;
+ entry->context = &Parser::global();
+ entry->data = Parser::global().alloc(sizeof(address),&address);
+ return UC_STATUS_OK;
 }
 
 static Function * XAPI make_function(const char *args, const char *expr)
@@ -202,7 +267,7 @@ static Function * XAPI make_function(const char *args, const char *expr)
  char buff[EXPR_BUFF_SIZE];
  char fn_name[10];
  sprintf(fn_name,"__T%03d",++mFn);
- sprintf(buff,"auto %s(%s) { return %s; }",fn_name,args,expr);
+ sprintf(buff,"__declare %s(%s) { return %s; }",fn_name,args,expr);
  if (uc_exec(buff)) {  // function defined successfully!
 	 return Function::lookup(fn_name);
  } else return NULL;
@@ -248,8 +313,8 @@ CEXPORT void * XAPI uc_compile_fn(char *parm, char *expr)
   return Builtin::generate_native_stub(fun_ptr);
 }
 
-// *add 1.1.4
-CEXPORT int  XAPI uc_load(char *path)
+// *add 1.1.4 
+CEXPORT int  XAPI uc_load(const char *path)
 {
  char buff[EXPR_BUFF_SIZE];
  sprintf(buff,"#l %s",path);
@@ -258,7 +323,7 @@ CEXPORT int  XAPI uc_load(char *path)
 
 CEXPORT int  XAPI uc_run()
 {
-  return uc_exec("#r");
+  return uc_exec("#r"); 
 }
 
 CEXPORT int XAPI uc_import(char *dcl, void *fn)

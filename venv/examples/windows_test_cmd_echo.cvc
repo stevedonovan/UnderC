@@ -1,0 +1,10 @@
+// venv - Windows example: three commands in one persistent cmd.exe.
+
+int main(int argc, char* argv) {
+    venvStartShell("cmd.exe");
+    venvExeCommand("echo \"This is the first command\"", true);
+    venvExeCommand("echo \"This is the second command\"", true);
+    venvExeCommand("echo \"This is the third command\"", true);
+    venvStopShell();
+    return 0;
+}

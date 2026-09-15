@@ -7,28 +7,24 @@
  * 
  * 
  */
-
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
 #include "module.h"
 #include "directcall.h"
 #include "program.h"
 #include "imports.h"
-#include "ucri.h"
-
 #include <map>
-#include <cstdarg>
-#include <cstddef>
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
-#include <strstream>
+
+#include "ucri.h"
 
 // found in directcall.cpp
 void *_new_ex(int sz);
 void _delete_ex(char *ptr, int sz);
 
 // found in main.cpp
-int uc_eval(char *expr, bool append_semicolon=true, bool synchronous=false, char *name=NULL, int lineno=0);
-bool do_str_to_val(Type t,char *buff,void *ptr); // at end of this module
+int uc_eval(const char *expr, bool append_semicolon=true, bool synchronous=false, const char *name=NULL, int lineno=0);
+bool do_str_to_val(Type t,const char *buff,void *ptr); // at end of this module
 
 // found in code.cpp
 bool is_double_number(const Type& t); 
@@ -213,7 +209,7 @@ XClass* XType::as_class() const
 	return wrap_XClass(m_type->as_class());
 }
 
-char*   XType::as_str() const
+const char*   XType::as_str() const
 {  
 	static string s;
 	m_type->as_string(s);
@@ -225,7 +221,7 @@ void XType::val_as_str(string& s, void *ptr) const
   s = m_type->value_as_string(ptr,false);
 } 
 
-void  XType::str_to_val(char *buff, void *ptr)
+void  XType::str_to_val(const char *buff, void *ptr)
 {
  do_str_to_val(*m_type,buff,ptr);
 }
@@ -233,7 +229,7 @@ void  XType::str_to_val(char *buff, void *ptr)
 Type*  XType::type()
 { return m_type; }
 
-XType*  XType::from_str(char *str)
+XType*  XType::from_str(const char *str)
 {
  char buff[200];
  sprintf(buff,"%s %s;",str,TEMP_VAR);
@@ -280,7 +276,7 @@ XEntry *XEntry::base_entry()
  return xe;
 }
 
-char* XEntry::name()
+const char* XEntry::name()
 { return m_entry->name.c_str(); }
 
 int XEntry::data()
@@ -325,7 +321,7 @@ void XEntry::val_as_str(string& s, void *base)
   type()->val_as_str(s,ptr(base));
 }
 
-void XEntry::str_to_val(char *buff, void *base)
+void XEntry::str_to_val(const char *buff, void *base)
 {
   type()->str_to_val(buff,ptr(base));
 }
@@ -350,14 +346,14 @@ int XEntry::addr_mode()
 XNTable::XNTable(NamedTable *tbl)
 : m_table(tbl) { }
 
-XEntry* XNTable::lookup(char *name,bool in_parent)
+XEntry* XNTable::lookup(const char *name,bool in_parent)
 {
   PEntry pe = m_table->lookup(name,in_parent);
   if (!pe) return NULL;   // not found!
   return wrap_XEntry(pe);
 }
 
-XClass* XNTable::lookup_class(char *name, bool in_parent)
+XClass* XNTable::lookup_class(const char *name, bool in_parent)
 {
   PEntry pe = m_table->lookup(name,in_parent);
   if (!pe) return NULL;  // not found!
@@ -365,7 +361,7 @@ XClass* XNTable::lookup_class(char *name, bool in_parent)
   else return NULL;
 }
 
-XTemplateFun* XNTable::lookup_template(char *name, bool in_p)
+XTemplateFun* XNTable::lookup_template(const char *name, bool in_p)
 {
   PEntry pe = m_table->lookup(name,in_p);
   if (!pe) return NULL;  // not found!
@@ -377,7 +373,7 @@ XTemplateFun* XNTable::lookup_template(char *name, bool in_p)
   } else return NULL;  // not a function at all
 }
 
-char* XNTable::name()
+const char* XNTable::name()
 {
   return m_table->entry()->name.c_str();
 }
@@ -397,7 +393,7 @@ NamedTable* XNTable::table()
 // this creates an entry with a given name and (opt)
 // type. Just as with variables added with Parser::add_variable(),
 // we allocate some direct data space as well.
-XEntry* XNTable::create(char *nm, XType *xt)
+XEntry* XNTable::create(const char *nm, XType *xt)
 {
   PEntry pe = m_table->new_entry(nm);
   if (xt) pe->type = *xt->type();
@@ -407,7 +403,7 @@ XEntry* XNTable::create(char *nm, XType *xt)
 
 // issue: who deallocates these lists of ptrs?
 
-void XNTable::get_functions(XFunctions& flist, int flags, char *pattern)
+void XNTable::get_functions(XFunctions& flist, int flags, const char *pattern)
 {
   EntryList ls;
   EntryList::iterator eli;
@@ -423,7 +419,7 @@ void XNTable::get_functions(XFunctions& flist, int flags, char *pattern)
   }
 }
 
-void XNTable::get_variables(XEntries& vlist, int flags, char *pattern)
+void XNTable::get_variables(XEntries& vlist, int flags, const char *pattern)
 {
   EntryList ls;
   EntryList::iterator eli;
@@ -550,7 +546,7 @@ XFunction::XFunction(Function *fun)
 
 }
 
-char* XFunction::name()
+const char* XFunction::name()
 {
   return m_ref->name.c_str();
 }
@@ -634,9 +630,8 @@ void *XFunction::fblock()
 // by a C++ program; otherwise, from a UC script itself.
 void *XFunction::fun()
 {
-#ifndef _USRDLL
-    return fblock();
-#else
+    if (m_fun->builtin()) return m_fun->fun_block()->native_addr();
+#ifdef UCL_SHARED
     if (m_fun->import_scheme() == NULL) {
       m_fun->import_scheme(mUC_import_scheme);
 	  if (m_fun->is_method())
@@ -645,6 +640,8 @@ void *XFunction::fun()
 	void *fptr = Builtin::generate_native_stub(m_fun);
 	m_fun->import_scheme(NULL);
 	return fptr;
+#else
+    return Builtin::generate_native_stub(m_fun);
 #endif
 }
 
@@ -652,6 +649,30 @@ void *XFunction::fun()
 XInstruction* XFunction::pcode()
 {
  return (XInstruction*)m_fun->fun_block()->pstart;
+}
+
+size_t XFunction::instruction_count()
+{
+ Instruction *instruction = m_fun->fun_block()->pstart;
+ size_t count = 0;
+ if (!instruction) return 0;
+ while (instruction[count].opcode != 0) ++count;
+ return count;
+}
+
+int XFunction::instruction_at(size_t index, XInstructionInfo *output)
+{
+ if (!output || output->structure_size < sizeof(XInstructionInfo)) return 0;
+ Instruction *instructions = m_fun->fun_block()->pstart;
+ size_t count = instruction_count();
+ if (!instructions || index >= count) return 0;
+ output->version = XINSTRUCTION_INFO_VERSION;
+ output->opcode = instructions[index].opcode;
+ output->rmode = instructions[index].rmode;
+ output->signed_value = static_cast<intptr_t>(instructions[index].data);
+ output->pointer_value = static_cast<uintptr_t>(
+   static_cast<VMUWord>(instructions[index].data));
+ return 1;
 }
 
 // *add 1.1.3 Evaluate a general function or method
@@ -684,7 +705,7 @@ XFunction* XFunction::from_fb(void* fb)
   return pf ? wrap_XFunction(pf) : NULL;
 }
 
-XEntry* XFunction::lookup_local(char* name)
+XEntry* XFunction::lookup_local(const char* name)
 {
   return wrap_XEntry(m_fun->context()->lookup(name,false));
 }
@@ -720,7 +741,7 @@ XModules&   XModule::lists()
  return mlist;   
 }
 
-char*       XModule::filename()
+const char*       XModule::filename()
 {
   static string s;
   s = m_mod->name();
@@ -755,7 +776,7 @@ XTemplateFun::XTemplateFun(TemplateEntry *te)
 
 static void  copy_to_tlist(TypeList& type_parms, const XTList& tl)
 {
- XTList::const_iterator xtli;
+ XTList::iterator xtli;
  for(xtli = tl.begin(); xtli != tl.end(); ++xtli)
 	 type_parms.push_back(*(*xtli)->type());
 }
@@ -826,7 +847,7 @@ void* XTemplateFun::instantiate(const XTList& tl)
  }
 }
 
-char* XTemplateFun::name()
+const char* XTemplateFun::name()
 {
   return m_templ->entry()->name.c_str();
 }
@@ -880,7 +901,7 @@ CEXPORT int XAPI uc_eval_method(void *sc, void *obj, void *arguments, void *resu
      }
  }	 
  // and now copy the buffer into the args array, backwards!
- int *args_ptr = args.values;
+ VMWord *args_ptr = args.values;
  for (int i = 0, n = args.no; i < n; i++) 
 	 args.values[n-i-1] = temp_args[i];
  int flags = Engine::ARGS_PASSED;
@@ -903,15 +924,15 @@ CEXPORT int XAPI uc_eval_method(void *sc, void *obj, void *arguments, void *resu
 }
 
 
-bool do_str_to_val(Type t,char *buff,void *ptr)
+bool do_str_to_val(Type t,const char *buff,void *ptr)
 {
- std::istrstream in(buff);
+ istringstream in((char*)buff);
  if (t.is_pointer()) {
    if (t.is_char()) strcpy((char *)ptr,buff);
     else {
      unsigned int ui;
      in >> ui;
-     *(void**)ptr = (void *)ui;
+     *(void**)ptr = reinterpret_cast<void *>(static_cast<uintptr_t>(ui));
     }
  } else
  if (t.is_int()) {

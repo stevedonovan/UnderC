@@ -11,8 +11,6 @@
 #include "operators.h"
 #include "tparser.h"
 
-#include <cstring>
-
 void Operators::init()
 {
   init_lookup(); 
@@ -42,7 +40,7 @@ void Operators::init()
 
 // private to this module...
 #include <map>
-typedef std::map<int,char *> NameMap;
+typedef std::map<int,const char *> NameMap;
 
 namespace {
  struct LookupItem {
@@ -68,9 +66,9 @@ void init_lookup()
  memset(ch_lookup,0,sizeof(void *)*256);
 }
 
-void add(char *first, int id,...)
+void add(const char *first, int id,...)
 {
- char *str;
+ const char *str;
  va_list ap;
  va_start(ap,id);
  static LookupItem ibuff[6];
@@ -81,7 +79,7 @@ void add(char *first, int id,...)
  name_map[id] = first;
  // pick up the second chars, if any!!
  int i = 0;
- while ((str = va_arg(ap,char *)) != NULL) {
+ while ((str = va_arg(ap,const char *)) != NULL) {
    id = va_arg(ap,int);
    name_map[id] = str;
    if (str[2] != '\0') break;   // we hit a 3-char op!
@@ -125,7 +123,7 @@ string name_from_id(int id)
   NameMap::iterator nmi = name_map.find(id);
   if (nmi != name_map.end()) return nmi->second; // "operator" + string(nmi->second);
   // otherwise, is either a 'token' operator or a formal operator
-  char *s;
+  const char *s;
   switch(id) {
   case NEW: s = "new"; break;
   case DELETE: s =  "delete"; break;

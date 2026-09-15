@@ -13,31 +13,14 @@
 // get rid of nasty & irrevalent messages about debug map names
 #pragma warning(disable:4786)
 #define IN_TABLE_CPP
+#include "common.h"
 #include "table.h"
 #include "std_utils.h"
 
-#include <cstring>
-
 //------------------ CLASS Allocator
 
-int Allocator::dword_align(int sz)
-//--------------------------------
-{ 
-  if (sz % 4 == 0) return sz;
-  else return sz + 4 - sz%4;
-}
-
-// *add 1.2.0 Support for 8-byte alignment of doubles (MS default)
-
-int Allocator::qword_align(int sz)
-//--------------------------------
-{ 
-  if (sz % 8 == 0) return sz;
-  else return sz + 8 - sz%8;
-}
-
 Allocator::Allocator(void *buff, int sz)
-: m_dword_align(true),m_reserved(0),m_own_ptr(false),m_mem_unit(1),m_move_to_next(-1)
+: m_pack_alignment(1),m_max_alignment(1),m_reserved(0),m_own_ptr(false),m_mem_unit(1),m_move_to_next(-1)
 //-------------------------------------------------------------------------------------
 { 
   m_buff = (char *)buff;
@@ -56,39 +39,45 @@ inline int max(int i, int j)
 int Allocator::alloc(int sz, void *data)
 //--------------------------------------
 {
+  int alignment = sz < m_pack_alignment ? sz : m_pack_alignment;
+  return alloc_aligned(sz,alignment,data);
+}
+
+int Allocator::alloc_aligned(int sz, int alignment, void *data)
+{
   int ret;
   char *start;
+  if (alignment == 0) alignment = 1;
+  if (alignment > m_pack_alignment) alignment = m_pack_alignment;
+  if (alignment > m_max_alignment) m_max_alignment = static_cast<unsigned char>(alignment);
  // *add 1.2.6 allocators for unions are reset on each new allocation
   if (m_move_to_next > -1) {
-	  m_move_to_next = max(sz,m_move_to_next); 
-	  m_data = (char*) m_move_to_next;
-	  return 0;
+	  m_move_to_next = max(sz,m_move_to_next);
+	  m_data = reinterpret_cast<char *>(static_cast<uintptr_t>(m_move_to_next));
+  	  return 0;
   } else {
+    uintptr_t address = reinterpret_cast<uintptr_t>(m_data);
+    if (alignment > 1 && address % alignment != 0)
+      m_data += alignment - address % alignment;
     start = m_data;
-    // *fix 1.2.3 Since the alignment flag redefinition, we've not been respecting pack(1)
-    if (m_dword_align > 1) sz = dword_align(sz);
     if (data && m_data) memcpy(m_data, data, sz); 
     m_data += sz;
-    ret = (long)start - (long)m_buff;
+    ret = static_cast<int>(start - m_buff);
     return ret/m_mem_unit;
   } 
 }
 
-int Allocator::alloc_qword()
+VMWord Allocator::alloc_qword()
 //---------------------------
 {
-  if (m_move_to_next > -1) return alloc(8,NULL);
-// *add 1.2.0 this is specialized to return proper 8-byte aligned offsets...
-  m_data = (char *)qword_align((int)m_data);
-  char *start = m_data;
-  m_data += 8;
-  return (int)start;
+  int offset = alloc_aligned(8,8,NULL);
+  return m_mem_unit == 1 ? vm_from_ptr(m_buff + offset) : offset;
 }
 
 int Allocator::current_offset()
 //-----------------------------
 {
-  return ((long)m_data - (long)m_buff)/m_mem_unit;
+  return static_cast<int>((m_data - m_buff)/m_mem_unit);
 }
 
 
@@ -173,7 +162,7 @@ Table::add(const string& name)
  return se;
 }
 
-void Table::dump_entries(std::ostream& os,int flags)
+void Table::dump_entries(ostream& os,int flags)
 {
   EntryMap::iterator ei;
   const char *sep = (flags & SEMICOLON_SEP) ? "; " : " ";
@@ -184,9 +173,9 @@ void Table::dump_entries(std::ostream& os,int flags)
     // note; we exclude _temporaries_ in this enumeration!
     if (do_vars && (pe->type.is_const() || pe->type.is_signature() || pe->m_typename==true || pe->name[0]=='$')) continue;
     os << (string)ei->first << sep;
-    if (i % 4 == 0) os << std::endl;
+    if (i % 4 == 0) os << endl;
   }
-  os << std::endl;
+  os << endl;
   // for now...idea is to have more control later
   if ((flags & ALL) && m_parent && m_parent->m_type == m_type) m_parent->dump_entries(os,flags);
 }
@@ -203,28 +192,28 @@ bool Table::check_entry(PEntry pe, int flags)
          // *fix 1.2.3 Template function entries are often empty
          if (pfe->size() == 0) return false;
          Function *pf = pfe->back() ;
-		 if ((flags & NON_STATIC) && ! pf->is_method())   return false;
-		 if ((flags & VIRTUALS)   && ! pf->is_virtual())  return false;
-		 if ((flags & BUILTINS)   && ! pf->builtin())     return false;
-		 if ((flags & CTORS)      && ! pf->is_constructor()) return false;
-		 if ((flags & DTORS)      && ! pf->is_destructor())  return false;
-         if ((flags & CONSTS)     && ! pf->is_const())       return false;
-         if ((flags & IMPORTS)    && ! pf->import_scheme())  return false;
-         if ((flags & UNDEFINED)  && ! pf->undefined())      return false;
+		 if (flags & NON_STATIC && ! pf->is_method())   return false;
+		 if (flags & VIRTUALS   && ! pf->is_virtual())  return false;
+		 if (flags & BUILTINS   && ! pf->builtin())     return false;
+		 if (flags & CTORS      && ! pf->is_constructor()) return false;
+		 if (flags & DTORS      && ! pf->is_destructor())  return false;  
+         if (flags & CONSTS     && ! pf->is_const())       return false;
+         if (flags & IMPORTS    && ! pf->import_scheme())  return false;
+         if (flags & UNDEFINED  && ! pf->undefined())      return false;
 		 return true;  // plain ordinary function...
      } else { 
 		 if (flags & FUNCTIONS)  return false; // this isn't a function!
 		 if (pe->is_typename()) {
-		   if ((flags & TYPEDEFS)   && pe->is_typedef())   return true;
-		   if ((flags & NAMESPACES) && pe->is_namespace()) return true;
-		   if ((flags & CLASSES)    && pe->is_class())     return true;
+		   if (flags & TYPEDEFS   && pe->is_typedef())   return true;
+		   if (flags & NAMESPACES && pe->is_namespace()) return true;
+		   if (flags & CLASSES    && pe->is_class())     return true;
 		   return false;
 		 }
-		 else if ((flags & NON_STATIC) && pe->is_direct()) return false;
+		 else if (flags & NON_STATIC && pe->is_direct()) return false;
 		 else {
           if (! (flags & FIELDS)) return false;
-	      if ((flags & TEMPS)  && pe->name[0] != '$')  return false;
-	      if ((flags & CONSTS) && ! t.is_const())      return false;
+	      if (flags & TEMPS  && pe->name[0] != '$')  return false;
+	      if (flags & CONSTS && ! t.is_const())      return false;
 		  return true;
          }
      } 	 
@@ -289,7 +278,7 @@ PEntry Table::search_entries(const char *pat,EntryList* el,int flags)
   if (pat[0]=='*') {
       tsearch = new PostMatcher(pat+1);
   } else {
-	  char *buff = strdup(pat);
+	  char *buff = _strdup(pat);
 	  char *s = strchr(buff,'*');
       if (s != NULL)  {
         *s = '\0';
@@ -314,7 +303,7 @@ PEntry Table::search_entries(TableSearcher *search,EntryList* el,int flags)
 {
   PEntry pe;  
   // look in the parent context if requested
-  if ((flags & DO_PARENT) && m_parent != NULL) {
+  if (flags & DO_PARENT && m_parent != NULL) {
 	  pe = m_parent->search_entries(search,el,flags);
 	  if (pe && ! el) return pe;
   }  
@@ -493,6 +482,7 @@ const int GLOBAL = TABLE+1;
 Global::Global(int sz)
  : Namespace(NULL,sz) //Table(NULL,DIRECT,sz)
 {
+  set_pack_alignment(sizeof(VMWord));
   m_type = GLOBAL;
   PEntry pe = new Entry;
   pe->name = "$G$";

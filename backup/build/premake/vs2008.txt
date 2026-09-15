@@ -1,0 +1,13 @@
+solution "vs2008"
+   configurations { "Debug", "Release" }
+
+project "ucc"
+  language "C++"
+  kind     "ConsoleApp"
+  files  { "**.h", "**.cpp" }
+  configuration { "Debug*" }
+    defines { "_DEBUG" }
+    flags   { "Symbols" }
+  configuration { "Release*" }
+    defines { "NDEBUG" }
+    flags   { "Optimize" }

@@ -1,0 +1,96 @@
+*** engine.cpp	Thu Mar 21 10:42:23 2002
+--- new/engine.cpp	Sat Mar 23 12:27:15 2002
+***************
+*** 21,31 ****
+  #endif
+  
+  // #define TRACK_ODS
+! #ifndef __linux__
+  #define EXPORT extern "C" __declspec(dllexport)
+- #else
+- #define EXPORT extern "C" __attribute__((dllexport))
+- #endif
+  EXPORT char *sh_fun();  // debug function
+  
+  int current_ip();  
+--- 21,28 ----
+  #endif
+  
+  // #define TRACK_ODS
+! //
+  #define EXPORT extern "C" __declspec(dllexport)
+  EXPORT char *sh_fun();  // debug function
+  
+  int current_ip();  
+***************
+*** 290,302 ****
+    Instruction *ppcode;
+    FBlock *fb;
+    int *baseSP;
+!   bool cntxt_pushed;
+  
+    void set(Instruction *_ppcode, FBlock *_fb, int *_baseSP, bool cpushed)
+    { ppcode = _ppcode; fb = _fb;  baseSP = _baseSP; cntxt_pushed = cpushed; }
+  
+!   void get(Instruction *&_ppcode, FBlock *&_fb, int *&_baseSP, bool& cpushed)
+!   { _ppcode = ppcode; _fb = fb;  _baseSP = baseSP; cpushed = cntxt_pushed; }
+  
+  };
+  
+--- 287,300 ----
+    Instruction *ppcode;
+    FBlock *fb;
+    int *baseSP;
+!   bool cntxt_pushed;
+!   ArgBlock *xargs;  
+  
+    void set(Instruction *_ppcode, FBlock *_fb, int *_baseSP, bool cpushed)
+    { ppcode = _ppcode; fb = _fb;  baseSP = _baseSP; cntxt_pushed = cpushed; }
+  
+!   void get(Instruction *&_ppcode, FBlock *&_fb, int *&_baseSP, bool& cpushed, ArgBlock *&args)
+!   { _ppcode = ppcode; _fb = fb;  _baseSP = baseSP; cpushed = cntxt_pushed; args = xargs; }
+  
+  };
+  
+***************
+*** 1105,1123 ****
+    Instruction *old_ppcode = ppcode;
+    int *old_mSP = mSP;
+    try {
+!    if (flags & ARGS_PASSED) { // only if execute() is called from outside UC
+!      if (flags & METHOD_CALL) opush(xargs->OPtr);
+!      for(int i=0,n = xargs->no; i < n; i++) // these are globals set by the native stub!!
+           push(xargs->values[i]);
+     }
+- 
+     if (flags & RESUME) {     
+  	 bool context_pushed;
+!      resume_state.get(ppcode,fb,baseSP, context_pushed);
+! 	 if (context_pushed) Parser::state.pop_context();
+!      resume_state.fb = NULL;  // flag us as NOT paused    
+       Parser::immediate_code_ptr(old_immediate_code);  // and restore immediate execution context!
+-     //dissemble(Parser::immediate_code_block());
+     } else { 
+      mStartFB = _fb;
+      fb = START_FB;
+--- 1103,1122 ----
+    Instruction *old_ppcode = ppcode;
+    int *old_mSP = mSP;
+    try {
+! 	 if (flags & ARGS_PASSED) {              // only if execute() is called from outside UC
+!      xargs->flags = flags;                   // *fix 1.1.1 save flags and arg block so we can resume properly!
+! 	 resume_state.xargs = xargs;
+!      if (flags & METHOD_CALL) opush(xargs->OPtr);  // the 'this' pointer 
+!      for(int i=0,n = xargs->no; i < n; i++)  // these are set by the native stub!!
+           push(xargs->values[i]);
+     }
+     if (flags & RESUME) {     
+  	 bool context_pushed;
+!      resume_state.get(ppcode,fb,baseSP,context_pushed,xargs);
+! 	 if (xargs) flags = xargs->flags;                 // *fix 1.1.1 restore flags and arg block as well!
+! 	 if (context_pushed) Parser::state.pop_context(); // i.e, we were halted by a breakpoint, which pushed the context..
+!      resume_state.fb = NULL;                          // flag us as NOT paused    
+       Parser::immediate_code_ptr(old_immediate_code);  // and restore immediate execution context!
+     } else { 
+      mStartFB = _fb;
+      fb = START_FB;

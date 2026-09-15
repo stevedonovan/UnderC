@@ -5,6 +5,10 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
  */
+#ifndef _MSC_VER
+#define _getcwd getcwd
+#define _chdir chdir
+#endif
 #include "classlib.h"
 #include <ctype.h>
 #include <string.h>
@@ -34,18 +38,18 @@ char *_quote_strtok(char *str, char str_delim);
 #else
 char *_quote_strtok(char *str, char str_delim)
 {
-// a specialized version of strtok() which treats quoted strings specially 
+// a specialized version of strtok() which treats quoted strings specially
 // (used for handling command-line parms)
     static char *tok;
     if(str != NULL) tok = str;
-          
+
     while (*tok && isspace(*tok)) tok++;
     if (*tok == '\0') return NULL;
-    
-    if (*tok == str_delim) {       
+
+    if (*tok == str_delim) {
        tok++;            // skip "
        str = tok;
-       while (*tok && *tok != str_delim) tok++;        
+       while (*tok && *tok != str_delim) tok++;
     } else {
        str = tok;
        while (*tok && ! isspace(*tok)) tok++;
@@ -60,10 +64,10 @@ Utils::quote_strtok(char *str)
 { return _quote_strtok(str,ARG_QUOTE); }
 
 
-bool 
+bool
 Utils::is_qualified_path(const char *path)
 {
-  return strchr(path,DIR_SEP) != NULL; 
+  return strchr(path,DIR_SEP) != NULL;
 }
 
 static bool next_two(string& s, int idx, char c1, char c2)
@@ -73,9 +77,9 @@ static bool next_two(string& s, int idx, char c1, char c2)
 
 bool Utils::is_absolute_path(string& path)
 {
-   return path[0] == DIR_SEP 
+   return path[0] == DIR_SEP
 #ifdef _WIN32
-                  || next_two(path,1,':',DIR_SEP) 
+                  || next_two(path,1,':',DIR_SEP)
 #endif
  ;
 }
@@ -101,8 +105,8 @@ Utils::extract_relative_path(string& path, string& dir)
       int i;
       for(i = path.size()-1; i > 0 ; i--)
         if (path[i] == DIR_SEP) break;
-      dir = path.substr(0,i+1);  
-      return ! full_path;   
+      dir = path.substr(0,i+1);
+      return ! full_path;
  }
  else {
     dir = "";
@@ -110,32 +114,36 @@ Utils::extract_relative_path(string& path, string& dir)
  }
 }
 
-string 
+string
 Utils::full_path(string s)
 {
  string file = s, pth;
  if (Utils::extract_relative_path(file,pth)) {
-   string dir = Utils::get_curr_dir(); 
+   string dir = Utils::get_curr_dir();
    Utils::check_path_end(dir);
    return dir + s;
  } else return s;
 }
 
-void 
+void
 Utils::strip_last(char *path)
 {
+  if (path == NULL) return;
   char *p = path + strlen(path);
-  while (*p != DIR_SEP) p--;    
+  // a path without any separator (e.g. a bare program name) has no leading
+  // component to keep, so stop at the start instead of running off the buffer
+  while (p > path && *p != DIR_SEP) p--;
   *p = '\0';
 }
 
-void 
+void
 Utils::check_path_end(string& s)
 {
+  if(s.size() == 0) {s += '.'; s += DIR_SEP; return; }
   if (s[s.length()-1] != DIR_SEP) s += DIR_SEP;
 }
 
-string 
+string
 Utils::file_extension(string name)
 {
   int k  = name.find(".");
@@ -148,8 +156,8 @@ string
 Utils::get_filepart(string s, bool strip_extension)
 {
  int pos = s.rfind(DIR_SEP);
- if (pos != -1)   
-   s = s.substr(pos);
+ if (pos != -1)
+   s = s.substr(pos + 1);
  if (strip_extension) {
      pos = s.rfind('.');
      s = s.substr(0,pos);
@@ -161,15 +169,14 @@ char *
 Utils::get_curr_dir()
 {
    static char buff[PATHSIZE];
-   if (! getcwd(buff,PATHSIZE)) 
-       return NULL;
+   _getcwd(buff,PATHSIZE);
    return buff;
 }
 
 void
 Utils::change_dir(char *dir)
 {
-   (void)chdir((const char *)dir);  // GCC requires the cast...
+   _chdir((const char *)dir);  // GCC requires the cast...
 }
 
 bool
@@ -191,7 +198,7 @@ Args::Args(int& argc, char** argv)
   : m_argc(argc), m_argv(argv),m_last_idx(1),m_stop_after_file(false)
   {}
 
- 
+
  bool Args::delete_arg(int idx)
  {
    if (idx >= m_argc || m_argc < 2) return false;
@@ -220,7 +227,7 @@ Args::Args(int& argc, char** argv)
 
  char* Args::get_opt_parameter()
  {
-    if (*m_optstr == '\0') {  
+    if (*m_optstr == '\0') {
       m_optstr = m_argv[m_last_idx];
       delete_arg(m_last_idx);
     }

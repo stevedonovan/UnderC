@@ -1,0 +1,14 @@
+// venv - Windows example: inspect what vcvars64.bat changes
+//
+// venvSnapShotEnv() records the shell's environment, vcvars64.bat then edits it
+// inside the persistent cmd.exe, and venvCompareSnapshotEnv() prints exactly
+// which variables were added, removed or changed.
+
+int main(int argc, char* argv) {
+    venvStartShell("cmd.exe");
+    venvSnapShotEnv();
+    venvExeCommand("call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"", true);
+    venvCompareSnapshotEnv();
+    venvStopShell();
+    return 0;
+}

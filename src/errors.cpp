@@ -5,20 +5,13 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
  */
-
-#include "classlib.h"
 #include "common.h"
 #include "errors.h"
 #include "input.h"
 #ifdef _WCON
 #include "ide.h"
 #endif
-
 #include "program.h"
-
-#include <cstring>
-#include <strstream>
-
 
 void next_statement();   // in uc_tokens.cpp
 
@@ -31,7 +24,7 @@ int yyerror(const char *s)
 {
 // *hack 1.2.9 Interactive mode final error involving "DUD" appears harmless
  if (Input::filename() == "DUD") return 1;
- cerr << Input::filename() << ' ' << Input::lineno() << ':' << s << std::endl;
+ cerr << Input::filename() << ' ' << Input::lineno() << ':' << s << endl;
  next_statement();
  // *fix 1.2.8 Insist on only collecting errors w/in the same file
  string old_file = Parser::state.file;
@@ -54,15 +47,17 @@ char *msg_buffer() { return msg_buff; }
 // or even re-entrant.
 
 #ifndef _WCON
-
-std::ostrstream str_cmsg(msg_buff,MSG_BUFF_SIZE),
-           str_cerr(err_buff,ERR_BUFF_SIZE);
+#ifdef _FAKE_IOSTREAM
+ ostrstream str_cmsg(msg_buff,MSG_BUFF_SIZE), str_cerr(err_buff,ERR_BUFF_SIZE);
+#else
+ ostringstream str_cmsg,str_cerr;
+#endif
 
 static bool mDllOutputRedirected = false;
 void reset_output();
 
 
-bool cerr_is_redirected(std::ostream&)
+bool cerr_is_redirected(ostream&)
 {
 	return mDllOutputRedirected;
 }
@@ -108,8 +103,8 @@ Errors::redirect_output(bool to_buff, bool main_console)
            reset_output();
 #endif
 	   mDllOutputRedirected = false;
-           str_cmsg << std::ends;
-	   str_cerr << std::ends;
+//           str_cmsg << ends;
+//	   str_cerr << ends;
     }
 #endif
 }
@@ -151,7 +146,7 @@ Errors::set_halt_state(string msg, string fname, string file, int lineno, bool w
       if (! Parser::debug.interactive_debugging || was_error) {
         if (! was_ip) cerr  << file << ' ' << lineno << ": ";
         else cerr << '(' << lineno << ") ";
-        cerr << msg << std::endl;
+        cerr << msg << endl;
       }
 #ifdef _WCON
 // *change 1.2.8 we do not bother the IDE if this event happened outside the program thread.
@@ -183,17 +178,19 @@ Errors::check_output()
 
 // *add 1.2.4 We can redirect cmsg and cerr in console mode by setting
 // these pointers appropriately (cmsg is #def'd to be *_cmsg_out etc - see classlib.h)
-#if defined(_CONSOLE) || defined(_USRDLL)
-# ifndef _FAKE_IOSTREAM
-#   undef cerr
-# endif
-  std::ostream* _cmsg_out = &std::cout;
-  std::ostream* _cerr_out = &std::cout;
+//FIX 1.3.0: Added defined(UCL_SHARED) since we modifcated the classlib.h
+//TODO: Find out weather above fix is correct and we do not set _cmsg_out and _cerr_out elsewhere
+#if defined(_CONSOLE) || defined(UCL_SHARED)
+ #ifndef _FAKE_IOSTREAM
+  #undef cerr
+ #endif
+ostream* _cmsg_out = &cout;
+ostream* _cerr_out = &cerr;
 
 void reset_output()
 {
-  _cmsg_out = &std::cout;
-  _cerr_out = &std::cout;
+  _cmsg_out = &cout;
+  _cerr_out = &cerr;
 }
 
 #endif

@@ -5,14 +5,11 @@
  * This is GPL'd software, and the usual disclaimers apply.
  * See LICENCE
 */
+#include "common.h"
 #include "function_match.h"
 #include "expressions.h"
 #include "templates.h"
-#include "common.h"
 
-#include <strstream>
-
-using std::ostrstream;
 
 #define FOR(i,n) for(i = 0; i < (n); i++)
 
@@ -129,7 +126,11 @@ FunctionMatch::function_match(const FunctionEntry& fe, Signature& sig)
 //--------------------------------------------------------------------
 {
   int i,j;
-  ostrstream errs(m_err_buff,MAX_ERR);
+  #ifdef _FAKE_IOSTREAM
+   ostrstream errs(m_err_buff,MAX_ERR);
+  #else
+   ostringstream errs;
+  #endif
   m_fe = (FunctionEntry *)&fe;  // cast away const...
   m_sig = &sig;
   n_arg = sig.size();  
@@ -145,7 +146,11 @@ FunctionMatch::function_match(const FunctionEntry& fe, Signature& sig)
       // but was it a complete failiure? There may be other functions in the overloaded set
       // Or this was a class method template (these do not require matching)
       if (templ->no_instances() == fe.size() && !templ->is_method()) {
-        errs << templ->last_error() << std::ends;
+        #ifdef _FAKE_IOSTREAM
+         errs << templ->last_error() << ends;
+        #else
+         errs << templ->last_error();
+        #endif
         return false;
       }
   }
@@ -161,7 +166,7 @@ FunctionMatch::function_match(const FunctionEntry& fe, Signature& sig)
      sigs[n_sig++] = (*fei)->signature();
      // *fix 1.2.2 (Eric) Check this limit before it does any damage!
      if (n_sig >= MAX_OVERLOAD) { 
-       errs << "Maximum number of function overloads is " << MAX_OVERLOAD << std::endl << std::ends;
+       errs << "Maximum number of function overloads is " << MAX_OVERLOAD << endl;
        return false;
      }
 
@@ -169,7 +174,7 @@ FunctionMatch::function_match(const FunctionEntry& fe, Signature& sig)
   // there was no function which could match this number of arguments!
   // *fix 1.2.0 We needed 'ends' here to terminate string (output crap on Linux!)
   if (n_sig==0) {
-      errs << "Function cannot match " << n_arg << " parameters" << std::ends;
+      errs << "Function cannot match " << n_arg << " parameters";
       return false;
   } 
 
@@ -213,11 +218,11 @@ FunctionMatch::function_match(const FunctionEntry& fe, Signature& sig)
   Signature::set_fun_name(m_fe->reference()->name);
  } catch(...) { Signature::set_fun_name("<unknown>"); }
   
- errs << "Could not match " << sig << ";\n" << j << " parm" << std::ends;
+ errs << "Could not match " << sig << ";\n" << j << " parm";
  if (Parser::debug.verbose) {
    try {
    FOR(i,n_sig)
-     cerr << *sigs[i] << std::endl;
+     cerr << *sigs[i] << endl;
    } catch(...) { errs << "bad function match!"; }
  }
  return false;          
@@ -228,7 +233,7 @@ ambiguous_match:
   Signature::set_fun_name(name);
   // *fix 1.2.2 (Eric) String was not terminated properly - replaced 'endl' by 'ends'
   errs << "Ambiguous match for " << sig << "\n\t"
-     << *sigs[match_idx] <<  "\n\t" << *sigs[other_match_idx] << std::ends;
+     << *sigs[match_idx] <<  "\n\t" << *sigs[other_match_idx]; // << ends;
   return false;
 }
 
@@ -239,7 +244,7 @@ FunctionMatch::dump_match_matrix()
  if (!n_sig) cerr << "wrong no. of arguments\n";
  FOR(i,n_sig) {
      FOR(j,n_arg) cerr << mmatch[i][j] << ' ';
-     cerr << std::endl;
+     cerr << endl;
   }
 }
 
@@ -255,8 +260,8 @@ FunctionMatch::matched_function()
      Signature *sig = sigs[match_idx];
      if (Parser::debug.verbose) {
         Signature::set_fun_name(m_fe->reference()->name);
-        cmsg << "*sig:   " << *m_sig << std::endl;  
-        cmsg << "*match: " << *sig   << std::endl;
+        cmsg << "*sig:   " << *m_sig << endl;  
+        cmsg << "*match: " << *sig   << endl;
      } 
      return m_fe->simple_match(sig);
   }

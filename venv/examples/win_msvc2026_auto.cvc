@@ -1,0 +1,38 @@
+// venv - Windows example: adopt the MSVC build environment
+//
+// `->` is gone: a .cvc file is just C++. Instead of driving vcvars64.bat inside
+// a persistent shell that has to stay open, this one reads the environment
+// twice with venvExeCommandString(), diffs the two, and prepends only what
+// vcvars64.bat added - so the MSVC toolchain is available to every following
+// venvExeCommand() with no shell being kept open.
+//
+// parseEnvironment(), findAddedEntriesEnvironment() and the venvPreEnv()
+// overload that takes the parsed environment live in examples/venv/main.cpp.
+// Copy that file into %APPDATA%\venv\ so it is auto-loaded, or name it
+// explicitly:
+//
+//     venv -ucll .\examples\venv\main.cpp .\examples\win_msvc2026_auto.cvc
+
+int main(int argc, char* argv) {
+    // The environment as venv inherited it.
+    string before = venvExeCommandString("SET");
+    map<string,vector<string> > envBefore = parseEnvironment(before);
+
+    // The same environment after vcvars64.bat has had its way with it. Both
+    // commands run in the same throw-away cmd.exe, so the SET on the right of
+    // the `&` sees what the batch file did; the batch file's own banner is
+    // captured too and is skipped by the parser.
+    string after = venvExeCommandString(
+        "call \"C:\Program Files\Microsoft Visual Studio\18\Community"
+        "\VC\Auxiliary\Build\vcvars64.bat\" & SET");
+    map<string,vector<string> > envAfter = parseEnvironment(after);
+
+    // Only what vcvars64.bat added: the new PATH / INCLUDE / LIB entries and
+    // the variables it introduced, without the entries that were there before.
+    map<string,vector<string> > added = findAddedEntriesEnvironment(envBefore,
+                                                                   envAfter);
+    venvPreEnv(added);
+
+    venvExeCommand("cl");
+    return 0;
+}

@@ -1,0 +1,26 @@
+// venv - Linux example configuration (.cvc = C venv configuration)
+//
+// A .cvc file is C++ source run by the embedded UnderC interpreter. Its main()
+// drives the run through the venv* API.
+//
+// venvRootDir(): the directory that becomes "/" for the child process (chroot
+// on Linux). Must exist and the launcher must run as root. Omit the call to
+// run WITHOUT chroot (no privileges needed): children then start in
+// venv's own working directory.
+
+int main(int argc, char* argv) {
+    venvRootDir("/srv/my_sandbox");
+
+    // Environment variables visible to the child process. venvSetEnv replaces
+    // (or creates) a variable outright.
+    venvSetEnv("PATH", "/usr/local/bin:/usr/bin:/bin");
+    venvSetEnv("HOME", "/root");
+    venvSetEnv("LANG", "en_US.UTF-8");
+    venvSetEnv("MY_APP_ENV", "production");
+    venvSetEnv("LOG_LEVEL", "info");
+
+    // One command, spawned as its own child. Paths are relative to the new
+    // root (i.e. relative to the venvRootDir path).
+    venvExeCommand("/usr/bin/myapp --config /etc/myapp/config.toml");
+    return 0;
+}

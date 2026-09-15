@@ -1,3 +1,0 @@
-cpp.program{'ucc',src='*',exclude='dll_entry',
-    defines='NO_READLINE _CONSOLE',
-    dynamic=true,odir=true}
